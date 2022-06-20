@@ -16,6 +16,9 @@
             <div h-model="default" h-property="text innerHTML" h-attribute="text name">
                 Sample text
             </div>
+            <div h-model="default.object" h-property="text innerHTML" h-attribute="text name">
+                Sample text 2
+            </div>
         </main>
 
         <footer>
@@ -26,15 +29,15 @@
         <script>
             let app = new HydrateApp();
             let div = document.querySelector("div");
-            
+            let model = app.bind("default", {text: "hello"})
 
-            let event = new HydrateModelEvent();
-            event.target = div;
-            event.hydrate = app;
-            event.type = "bind";
-            event.propPath = "default.text";
-            event.prop = "hello world";
-            app.dispatch(event);
+            // let event = new HydrateModelEvent();
+            // event.target = div;
+            // event.hydrate = app;
+            // event.type = "bind";
+            // event.propPath = "default.text";
+            // event.prop = "hello world";
+            // app.dispatch(event);
         </script>
     </body>
 </html>

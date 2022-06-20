@@ -12,10 +12,10 @@ class HydrateDomOptions {
     rootSelector = "body";
 }
 class HydrateModelOptions {
-    baseProperty;
-    parentProperty;
-    nameProperty;
-    stateProperty;
+    baseProperty = "__base";
+    parentProperty = "__parent";
+    nameProperty = "__name";
+    stateProperty = "__state";
 }
 class HydrateAttributeOptions {
     names = new HydrateAttributeNamesOptions();
@@ -97,6 +97,8 @@ class HydrateModelEvent {
         index = this.modelPath.indexOf(".");
         this.baseName = index < 0 ? this.modelPath : this.modelPath.substring(0, index);
         this.base = hydrate.model(this.baseName);
+        this.#state = hydrate.state(this.base);
+        this.#previousState = previousState;
         this.nestedEvent = nestedEvent;
     }
     get prop() {
@@ -163,7 +165,7 @@ class HydrateApp {
     }
     state(model) {
         if (typeof model === "string")
-            model = this.#models.get(model);
+            model = this.#models[model];
         if (model == undefined || !(model instanceof Object))
             return undefined;
         return model[this.options.model.stateProperty];
@@ -174,60 +176,62 @@ class HydrateApp {
         path = path.trim();
         if (path === "")
             return undefined;
-        return this.resolveValue(path, this.#models);
+        return this.resolveValue(this.#models, path);
     }
     base(model) {
         if (typeof model === "string")
-            model = this.#models.get(model);
+            model = this.#models[model];
         if (model == undefined || !(model instanceof Object))
             return undefined;
         return model[this.options.model.baseProperty];
     }
     parent(model) {
         if (typeof model === "string")
-            model = this.#models.get(model);
+            model = this.#models[model];
         if (model == undefined || !(model instanceof Object))
             return undefined;
         return model[this.options.model.parentProperty];
     }
     name(model) {
         if (typeof model === "string")
-            model = this.#models.get(model);
+            model = this.#models[model];
         if (model == undefined || !(model instanceof Object))
             return undefined;
         return model[this.options.model.nameProperty];
     }
     /** Bind a new model to the framework */
-    async bind(name, state) {
+    bind(name, state) {
         if (name == null)
             name = "";
         if (state == null)
             state = {};
         //TODO: check to make sure the name is a proper identifier
-        return new Promise(async (resolve, reject) => {
-            //If this model already exist, unbind it first
-            if (this.#models[name] != undefined)
-                await this.unbind(name);
-            let proxy = this.#makeProxy(state, name, undefined);
-            this.#models.set(name, proxy);
-            let promise = this.#dispatch(this.#root, "bind", name, true, undefined);
-            await promise;
-            resolve(proxy);
-        });
+        let app = this;
+        //return new Promise(async (resolve, reject) => {
+        //If this model already exist, unbind it first
+        if (this.#models[name] != undefined)
+            this.unbind(name);
+        let proxy = this.#makeProxy(state, name, undefined);
+        this.#models[name] = proxy;
+        let promise = this.#dispatch(this.#root, "bind", name, true, undefined);
+        //await promise;
+        return proxy;
+        //     resolve(proxy);
+        // });
     }
     /** Unbinds the model from the framework related to the search. Search can be a string (name of model) or the state of the model */
-    async unbind(search) {
+    unbind(search) {
         let model = typeof search === "string"
             ? this.model(search)
             : search;
         if (model == undefined)
-            return Promise.reject("model not found");
+            return; //Promise.reject("model not found");
         let baseName = this.base(model);
         if (baseName == undefined)
-            return Promise.reject("model not found");
+            return; // Promise.reject("model not found");
         let promise = this.#dispatch(this.#root, "unbind", baseName, true, this.state(model));
         delete this.#models[baseName];
-        return await promise;
+        //return await promise;
     }
     #makeProxy(data, name, parent) {
         const app = this;
@@ -273,29 +277,31 @@ class HydrateApp {
                     return obj[prop];
             },
             set: function (obj, prop, value) {
-                let previousValue = obj[prop];
+                //let previousValue = obj[prop];
                 obj[prop] = value;
                 models = {};
                 //Don't allow DOM update to trigger if value is up-to-date or this model is no longer bound
                 if (app.model(name) !== proxy) {
                     return true;
                 }
+                let previousValue = app.state(app.base(proxy));
                 // if(!obj.propertyIsEnumerable(prop))
                 //     return;
                 let propName = (typeof prop === 'symbol') ? prop.toString() : prop;
                 //app.dispatch("set", proxy, propName, previousValue, app.root, "all");
-                this.#dispatch(this.#root, "set", name + "." + propName, true, previousValue);
+                app.#dispatch(app.#root, "set", name + "." + propName, true, previousValue);
                 return true;
             },
             deleteProperty: function (obj, prop) {
                 if (prop in obj) {
-                    let previousValue = obj[prop];
+                    //let previousValue = obj[prop];
+                    let previousValue = app.state(app.base(proxy));
                     delete obj[prop];
                     if (models[prop] != undefined)
                         delete models[prop];
                     let propName = (typeof prop === 'symbol') ? prop.toString() : prop;
                     //app.dispatch("unbind", proxy, propName, property, app.root, "all");
-                    this.#dispatch(this.#root, "unbind", name + "." + propName, true, previousValue);
+                    app.#dispatch(app.#root, "unbind", name + "." + propName, true, previousValue);
                 }
                 return true;
             }
@@ -305,6 +311,8 @@ class HydrateApp {
     #addStandardAttributeHandlers() {
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.property), (arg, modelEvent) => {
             let value = modelEvent.hydrate.resolveArgumentValue(arg.arg3, modelEvent);
+            if (value === undefined)
+                return;
             if (modelEvent.target[arg.arg2] === value)
                 return Promise.resolve(false);
             modelEvent.target[arg.arg2] = value;
@@ -312,6 +320,8 @@ class HydrateApp {
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.attribute), (arg, modelEvent) => {
             let value = modelEvent.hydrate.resolveArgumentValue(arg.arg3, modelEvent);
+            if (value === undefined)
+                return;
             if (modelEvent.target.getAttribute(arg.arg2) === value)
                 return Promise.resolve(false);
             modelEvent.target.setAttribute(arg.arg2, value);
@@ -327,7 +337,6 @@ class HydrateApp {
                 let propertyPath = `${modelPath}.${arg.arg1}`;
                 this.#addExecuter(element, "bind", propertyPath, arg, handler);
                 this.#addExecuter(element, "set", propertyPath, arg, handler);
-                this.#addExecuter(element, "unbind", propertyPath, arg, handler);
             }
         }
     }
@@ -340,7 +349,6 @@ class HydrateApp {
                 let propertyPath = `${modelPath}.${arg.arg1}`;
                 this.#addExecuter(element, "bind", propertyPath, arg, handler);
                 this.#addExecuter(element, "set", propertyPath, arg, handler);
-                this.#addExecuter(element, "unbind", propertyPath, arg, handler);
             }
         }
     }
@@ -408,13 +416,13 @@ class HydrateApp {
         for (let element of elements) {
             let propertyExecuters = elementExecuters.get(element);
             for (let property of propertyExecuters.keys()) {
-                let nameIndex = property.indexOf(".");
-                let rootModelName = nameIndex < 0 ? property : property.substring(0, nameIndex);
-                let state = this.state(rootModelName);
+                // let nameIndex = property.indexOf(".");
+                // let rootModelName = nameIndex < 0 ? property : property.substring(0, nameIndex);
+                // let state = this.state(rootModelName);
                 let nestedEvent = propPath.startsWith(property)
-                    ? new HydrateModelEvent(this, element, eventType, propPath, state, null)
+                    ? new HydrateModelEvent(this, element, eventType, propPath, previousState, null)
                     : null;
-                let modelEvent = new HydrateModelEvent(this, element, eventType, property, state, nestedEvent);
+                let modelEvent = new HydrateModelEvent(this, element, eventType, property, previousState, nestedEvent);
                 for (let executer of propertyExecuters.get(property))
                     await executer.handler(executer.arg, modelEvent);
             }
@@ -473,7 +481,7 @@ class HydrateApp {
                     if (nested)
                         if (property !== propPath && !property.startsWith(propPath) && (!nested || !propPath.startsWith(property)))
                             continue;
-                    let propertyExecuters = eventExecuters.get(propPath);
+                    let propertyExecuters = eventExecuters.get(property);
                     if (propertyExecuters === undefined || propertyExecuters.length === 0)
                         continue;
                     exectuers.set(property, propertyExecuters);
