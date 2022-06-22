@@ -22,6 +22,7 @@ class HydrateAttributeOptions {
     handlers = new Map();
     standardPrefix = "h";
     customPrefix = "hc";
+    trackables = [];
     constructor() {
     }
 }
@@ -38,6 +39,7 @@ class HydrateAttributeNamesOptions {
     delete = "delete"; //removes an element
     //Binding
     input = "input";
+    mutation = "mutation";
     //Conditionals
     event = "event";
     static = "static"; //Executes once
@@ -122,12 +124,22 @@ class HydrateApp {
     #htmlExcecuters; //element name -> event type -> model.prop -> callbacks
     #root;
     #models;
+    #observer;
     constructor(options) {
         this.#options = options ?? new HydrateAppOptions();
         this.#htmlExcecuters = new Map();
         this.#root = document.querySelector(this.#options.dom.rootSelector);
         this.#models = {};
+        this.#addTrackableAttributes();
         this.#addStandardAttributeHandlers();
+        this.#observer = new MutationObserver(this.#mutationCallback.bind(this));
+        this.#observer.observe(this.root, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: [...this.#options.attribute.trackables],
+        });
+        this.root.addEventListener("input", this.#inputListener.bind(this));
         this.#trackElements();
     }
     get root() {
@@ -213,7 +225,7 @@ class HydrateApp {
             this.unbind(name);
         let proxy = this.#makeProxy(state, name, undefined);
         this.#models[name] = proxy;
-        let promise = this.#dispatch(this.#root, "bind", name, true, undefined);
+        let promise = this.#dispatch(this.#root, "bind", name, undefined);
         //await promise;
         return proxy;
         //     resolve(proxy);
@@ -229,7 +241,7 @@ class HydrateApp {
         let baseName = this.base(model);
         if (baseName == undefined)
             return; // Promise.reject("model not found");
-        let promise = this.#dispatch(this.#root, "unbind", baseName, true, this.state(model));
+        let promise = this.#dispatch(this.#root, "unbind", baseName, this.state(model));
         delete this.#models[baseName];
         //return await promise;
     }
@@ -289,7 +301,7 @@ class HydrateApp {
                 //     return;
                 let propName = (typeof prop === 'symbol') ? prop.toString() : prop;
                 //app.dispatch("set", proxy, propName, previousValue, app.root, "all");
-                app.#dispatch(app.#root, "set", name + "." + propName, true, previousValue);
+                app.#dispatch(app.#root, "set", name + "." + propName, previousValue);
                 return true;
             },
             deleteProperty: function (obj, prop) {
@@ -301,16 +313,90 @@ class HydrateApp {
                         delete models[prop];
                     let propName = (typeof prop === 'symbol') ? prop.toString() : prop;
                     //app.dispatch("unbind", proxy, propName, property, app.root, "all");
-                    app.#dispatch(app.#root, "unbind", name + "." + propName, true, previousValue);
+                    app.#dispatch(app.#root, "unbind", name + "." + propName, previousValue);
                 }
                 return true;
             }
         });
         return proxy;
     }
+    async #mutationCallback(mutations, observer) {
+        let updatedElements = [];
+        this.#trackableElementSelector;
+        const trackableSelector = this.#trackableElementSelector;
+        let trackableElements = new Set();
+        let untrackableElements = new Set();
+        mutations.forEach(mutation => {
+            if (!(mutation.target instanceof HTMLElement))
+                return;
+            const target = mutation.target;
+            switch (mutation.type) {
+                case "attributes":
+                    {
+                        if (mutation.target.matches(trackableSelector))
+                            trackableElements.add(mutation.target);
+                    }
+                case "childList":
+                    {
+                        mutation.addedNodes.forEach(node => {
+                            if (!(node instanceof HTMLElement))
+                                return;
+                            trackableElements.add(node);
+                        });
+                        for (let node of mutation.removedNodes) {
+                            if (!(node instanceof HTMLElement))
+                                return;
+                            untrackableElements.add(node);
+                        }
+                    }
+            }
+        });
+        let modelAttribute = this.attribute(this.#options.attribute.names.model);
+        //Update each element
+        for (let element of untrackableElements) {
+            await this.#untrackElement(element);
+        }
+        for (let element of trackableElements) {
+            await this.#trackElement(element);
+            let modelName = element.getAttribute(modelAttribute);
+            await this.#dispatch(element, "bind", modelName, this.state(modelName));
+        }
+    }
+    #inputListener(event) {
+        let target = event.target;
+        if (!target.matches(this.#trackableElementSelector))
+            return;
+        let modelName = target.getAttribute(this.attribute(this.#options.attribute.names.model));
+        let inputs = this.#parseAttributeArguments(target, this.attribute(this.#options.attribute.names.input));
+        if (modelName == null || inputs.length === 0)
+            return;
+        for (let i = 0; i < inputs.length; i++) {
+            let arg = inputs[i];
+            let model = this.model(modelName);
+            if (model == null || !(model instanceof Object))
+                continue;
+            let propName = arg.arg1;
+            let propPath = modelName + "." + propName;
+            if (propPath == null)
+                continue;
+            let inputPropName = arg.arg2;
+            if (inputPropName == null)
+                continue;
+            let inputProp = target[inputPropName];
+            let prop = this.resolveArgumentValue(arg.arg3, inputProp);
+            if (this.state(model)[propName] === prop)
+                continue;
+            model[propName] = prop;
+        }
+    }
+    #addTrackableAttributes() {
+        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.delete), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.static), this.attribute(this.#options.attribute.names.condition), this.attribute(this.#options.attribute.names.callback), this.attribute(this.#options.attribute.names.handler), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.route), this.attribute(this.#options.attribute.names.page));
+        let app = this;
+        this.#options.attribute.trackables.push(...this.#options.attribute.names.customs.map(x => app.attribute(x)));
+    }
     #addStandardAttributeHandlers() {
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.property), (arg, modelEvent) => {
-            let value = modelEvent.hydrate.resolveArgumentValue(arg.arg3, modelEvent);
+            let value = modelEvent.hydrate.resolveArgumentValue(arg.arg3, modelEvent.prop);
             if (value === undefined)
                 return;
             if (modelEvent.target[arg.arg2] === value)
@@ -319,7 +405,7 @@ class HydrateApp {
             return Promise.resolve(true);
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.attribute), (arg, modelEvent) => {
-            let value = modelEvent.hydrate.resolveArgumentValue(arg.arg3, modelEvent);
+            let value = modelEvent.hydrate.resolveArgumentValue(arg.arg3, modelEvent.prop);
             if (value === undefined)
                 return;
             if (modelEvent.target.getAttribute(arg.arg2) === value)
@@ -352,11 +438,11 @@ class HydrateApp {
             }
         }
     }
-    resolveArgumentValue(expression, event) {
+    resolveArgumentValue(expression, prop) {
         if (expression == null || expression.trim() === "")
-            return event.prop;
+            return prop;
         //TODO: finish trying to resolve values
-        return event.prop;
+        return prop;
     }
     #parseAttributeArguments(element, name) {
         if (!element.hasAttribute(name))
@@ -388,14 +474,14 @@ class HydrateApp {
         let selector = this.#trackableElementSelector;
         if (!element.matches(selector)) {
             this.#untrackElement(element);
-            return;
+            return Promise.resolve();
         }
         let elementEexecuters = this.#updateExecuters(element);
         let promises = [];
         let propertyExecuters = elementEexecuters.get("bind");
         if (propertyExecuters === undefined)
             return Promise.resolve();
-        Promise.all;
+        return Promise.resolve();
     }
     #getTrackableElements(target) {
         if (target == null)
@@ -410,9 +496,9 @@ class HydrateApp {
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
         return `[${modelAttribute}]`;
     }
-    async #dispatch(target, eventType, propPath, nested, previousState) {
+    async #dispatch(target, eventType, propPath, previousState) {
         let elements = this.#getTrackableElements(target);
-        let elementExecuters = this.#getExcecuters(eventType, elements, propPath, nested);
+        let elementExecuters = this.#getExcecuters(eventType, elements, propPath);
         for (let element of elements) {
             let propertyExecuters = elementExecuters.get(element);
             for (let property of propertyExecuters.keys()) {
@@ -466,10 +552,11 @@ class HydrateApp {
             handler: handler
         });
     }
-    #getExcecuters(eventType, targets = [], propPath = undefined, nested = false) {
+    #getExcecuters(eventType, targets = [], propPath = undefined) {
         let results = new Map();
         let filterProps = propPath != undefined && propPath.trim() != "";
         for (let element of this.#htmlExcecuters.keys()) {
+            let nested = element.hasAttribute(this.attribute(this.#options.attribute.names.nested));
             if (targets != null && targets.length > 0 && !targets.includes(element))
                 continue;
             let eventExecuters = this.#htmlExcecuters.get(element).get(eventType);
@@ -478,9 +565,9 @@ class HydrateApp {
             let exectuers = new Map();
             if (filterProps) {
                 for (let property of eventExecuters.keys()) {
-                    if (nested)
-                        if (property !== propPath && !property.startsWith(propPath) && (!nested || !propPath.startsWith(property)))
-                            continue;
+                    //if(nested)
+                    if (property !== propPath && !property.startsWith(propPath) && (!nested || !propPath.startsWith(property)))
+                        continue;
                     let propertyExecuters = eventExecuters.get(property);
                     if (propertyExecuters === undefined || propertyExecuters.length === 0)
                         continue;
