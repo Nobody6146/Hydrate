@@ -101,21 +101,17 @@ class HydrateModelEvent {
     type: HydrateModelEventType;
 
     baseName:string;
-    base:any;
 
-    model:any;
     modelName: string;
     modelPath:string;
 
-    #state: any;
-    #previousState: any;
-
     propName:string;
     propPath:string;
+    previousValue:any;
 
     nestedEvent:HydrateModelEvent;
 
-    constructor(hydrate:HydrateApp, target:HTMLElement, eventType:HydrateModelEventType, propPath:string, previousState:any, nestedEvent:HydrateModelEvent) {
+    constructor(hydrate:HydrateApp, target:HTMLElement, eventType:HydrateModelEventType, propPath:string, previousValue:any, nestedEvent:HydrateModelEvent) {
         this.hydrate = hydrate;
         this.target = target;
         this.type = eventType;
@@ -127,33 +123,28 @@ class HydrateModelEvent {
         this.modelPath = index < 0 ? propPath : propPath.substring(0, index);
         index = this.modelPath.lastIndexOf(".");
         this.modelName = index < 0 ? null : this.modelPath.substring(index + 1);
-        this.model = hydrate.model(this.modelPath);
 
         index = this.modelPath.indexOf(".");
         this.baseName = index < 0 ? this.modelPath : this.modelPath.substring(0, index);
-        this.base = hydrate.model(this.baseName);
         
-        this.#state = hydrate.state(this.base);
-        this.#previousState = previousState;
+        this.previousValue = previousValue;
 
         this.nestedEvent = nestedEvent;
     }
 
+    get base() {
+        return this.hydrate.model(this.baseName);
+    }
+    get model() {
+        return this.hydrate.model(this.modelPath);
+    }
+    get state() {
+        return this.hydrate.state(this.modelPath);
+    }
     get prop() {
-        return this.state(this.propPath);
+        return this.hydrate.state(this.propPath);
     }
-    state(propPath?:string) {
-        return this.#resolveValue(this.#state, propPath);
-    }
-    previousState(propPath?:string) {
-        return this.#resolveValue(this.#previousState, propPath);
-    }
-    #resolveValue(startValue:any, propPath?:string) {
-        if(propPath == null || propPath.trim() === "")
-            propPath = this.baseName;
-        let index = propPath.indexOf(".");
-        return this.hydrate.resolveValue(startValue, index < 0 ? propPath : propPath.substring(index + 1));
-    }
+    
 }
 
 class HydrateApp {
@@ -213,7 +204,7 @@ class HydrateApp {
         return `${this.#options.attribute.standardPrefix}-${key}`;
     }
 
-    resolveValue(startValue:any, propPath:string) {
+    resolveObjectValue(startValue:any, propPath:string) {
         let nameParts = propPath.split(".");
         let state = startValue;
         for(let i = 0; i < nameParts.length; i++)
@@ -227,9 +218,9 @@ class HydrateApp {
     }
     state(model:string | any) {
         if(typeof model === "string")
-            model = this.#models[model];
+            model = this.model(model);
         if(model == undefined || !(model instanceof Object))
-            return undefined;
+            return model;
         return model[this.options.model.stateProperty];
     }
     model(path:string) {
@@ -238,25 +229,25 @@ class HydrateApp {
         path = path.trim();
         if(path === "")
             return undefined;
-        return this.resolveValue(this.#models, path);
+        return this.resolveObjectValue(this.#models, path);
     }
     base(model:string | any) {
         if(typeof model === "string")
-            model = this.#models[model];
+            model = this.model(model);
         if(model == undefined || !(model instanceof Object))
             return undefined;
         return model[this.options.model.baseProperty]; 
     }
     parent(model:string | any) {
         if(typeof model === "string")
-            model = this.#models[model];
+            model = this.model(model);
         if(model == undefined || !(model instanceof Object))
             return undefined;
         return model[this.options.model.parentProperty];
     }
     name(model:string | any) {
         if(typeof model === "string")
-            model = this.#models[model];
+            model = this.model(model);
         if(model == undefined || !(model instanceof Object))
             return undefined;
         return model[this.options.model.nameProperty];
@@ -330,9 +321,9 @@ class HydrateApp {
                 if(prop === app.#options.model.nameProperty)
                     return name;
                 if(prop === app.#options.model.parentProperty)
-                    return parent;
+                    return app.model(parent);
                 if(prop === app.#options.model.baseProperty)
-                    return baseName;
+                    return app.model(baseName);
                 if(prop === 'toJson')
                 {
                     if(typeof obj.toJson === 'function')
@@ -350,7 +341,7 @@ class HydrateApp {
                     return obj[prop];
             },
             set: function(obj, prop, value) {
-                //let previousValue = obj[prop];
+                let previousValue = obj[prop];
                 obj[prop] = value;
                 models = {};
 
@@ -358,18 +349,23 @@ class HydrateApp {
                 if(app.model(name) !== proxy) {
                     return true;
                 }
-                let previousValue = app.state(app.base(proxy));
+
                 // if(!obj.propertyIsEnumerable(prop))
                 //     return;
                 let propName = (typeof prop === 'symbol') ? prop.toString() : prop;
                 //app.dispatch("set", proxy, propName, previousValue, app.root, "all");
                 app.#dispatch(app.#root, "set", name + "." + propName, previousValue);
+
+                //TODO IMMEDIATELY WORKING ON
+                //Change previous state to only store previous prop state
+                //Only way to gaurentee a true "copy" and really the only useful part
+
                 return true;
             },
             deleteProperty: function(obj, prop) {
                 if (prop in obj) {
-                    //let previousValue = obj[prop];
-                    let previousValue = app.state(app.base(proxy));
+                    let previousValue = obj[prop];
+
                     delete obj[prop];
                     if(models[prop] != undefined)
                         delete models[prop];
@@ -599,7 +595,7 @@ class HydrateApp {
         return `[${modelAttribute}]`;
     }
 
-    async #dispatch(target:HTMLElement, eventType:HydrateModelEventType, propPath:string, previousState:any) {
+    async #dispatch(target:HTMLElement, eventType:HydrateModelEventType, propPath:string, previousValue:any) {
         let elements = this.#getTrackableElements(target);
         let elementExecuters = this.#getExcecuters(eventType, elements, propPath);
         for(let element of elements)
@@ -610,10 +606,17 @@ class HydrateApp {
                 // let nameIndex = property.indexOf(".");
                 // let rootModelName = nameIndex < 0 ? property : property.substring(0, nameIndex);
                 // let state = this.state(rootModelName);
-                let nestedEvent = propPath.startsWith(property)
-                    ? new HydrateModelEvent(this, element, eventType, propPath, previousState, null)
-                    : null;
-                let modelEvent = new HydrateModelEvent(this, element, eventType, property, previousState, nestedEvent);
+                let modelEvent:HydrateModelEvent;
+                if(propPath !== property && propPath.startsWith(property))
+                {
+                    let nestedEvent = new HydrateModelEvent(this, element, eventType, propPath, previousValue, null);
+                    modelEvent = new HydrateModelEvent(this, element, eventType, property, this.state(property), nestedEvent);
+                }
+                else
+                {
+                    modelEvent = new HydrateModelEvent(this, element, eventType, property, previousValue, null);
+                }
+                console.log(modelEvent);
                 for(let executer of propertyExecuters.get(property))
                     await executer.handler(executer.arg, modelEvent);
             }
