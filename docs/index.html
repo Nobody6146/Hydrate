@@ -7,38 +7,56 @@
     </head>
     <body>
 
-
-        <header>
+        <div>
+            <header>
             
-        </header>
+            </header>
+    
+            <!-- <main>
+                <input h-model="default" h-property="text value" h-input="text value" value="Testing">
+                <div h-model="default" h-property="text innerHTML" h-attribute="text name">
+                    Sample text
+                </div>
+                <div h-model="default.object" h-property="text innerHTML" h-attribute="text name">
+                    Sample text 2
+                </div>
+            </main> -->
+    
+            <main>
+                <input h-model="default" h-property:value="text" h-input="text" value="Testing" h-on|hydrate:track="console.log">
+                <!-- <div h-model="default" h-property="text innerHTML" h-attribute="text name">
+                    Sample text
+                </div>
+                <div h-model="default.object" h-property="text innerHTML" h-attribute="text name">
+                    Sample text 2
+                </div> -->
+            </main>
+    
+            <footer>
+                <p>The literal and graphical information presented on this site about Digimon, including card images and card text, is copyright Bandai Namco Entertainment and Toei Animation. This website is not produced by, endorsed by, supported by, or affiliated with Bandai Namco Entertainment and Toei Animation.
+                    All other content © 2020-2022 DigimonCard.
+                </p>
+            </footer>
+            <script>
+                document.body.addEventListener("hydrate:track", event => console.log(event.detail));
+                document.body.addEventListener("hydrate:untrack", event => console.log(event.detail));
+                document.body.addEventListener("hydrate:bind", event => console.log(event.detail));
+                document.body.addEventListener("hydrate:set", event => console.log(event.detail));
+                document.body.addEventListener("hydrate:unbind", event => console.log(event.detail));
 
-        <main>
-            <input h-model="default" h-property="text value" h-input="text value" value="Testing">
-            <div h-model="default" h-property="text innerHTML" h-attribute="text name">
-                Sample text
-            </div>
-            <div h-model="default.object" h-property="text innerHTML" h-attribute="text name">
-                Sample text 2
-            </div>
-        </main>
-
-        <footer>
-            <p>The literal and graphical information presented on this site about Digimon, including card images and card text, is copyright Bandai Namco Entertainment and Toei Animation. This website is not produced by, endorsed by, supported by, or affiliated with Bandai Namco Entertainment and Toei Animation.
-                All other content © 2020-2022 DigimonCard.
-            </p>
-        </footer>
-        <script>
-            let app = new HydrateApp();
-            let div = document.querySelector("div");
-            let model = app.bind("default", {text: "hello"})
-
-            // let event = new HydrateModelEvent();
-            // event.target = div;
-            // event.hydrate = app;
-            // event.type = "bind";
-            // event.propPath = "default.text";
-            // event.prop = "hello world";
-            // app.dispatch(event);
-        </script>
+                let app = new HydrateApp();
+                let div = document.querySelector("div");
+                let model = app.bind("default", {text: "hello"})
+    
+                // let event = new HydrateModelEvent();
+                // event.target = div;
+                // event.hydrate = app;
+                // event.type = "bind";
+                // event.propPath = "default.text";
+                // event.prop = "hello world";
+                // app.dispatch(event);
+            </script>
+        </div>
+        
     </body>
 </html>

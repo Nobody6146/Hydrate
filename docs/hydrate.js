@@ -71,9 +71,33 @@ class HydrateAttributeArgument {
         this.arg3 = arg3;
     }
 }
-class HydrateModelEvent {
+class HydrateElementTrackingEvent extends CustomEvent {
+    constructor(detail) {
+        super(`hydrate:${detail.type}`, {
+            detail: detail,
+            bubbles: true
+        });
+    }
+}
+class HydrateModelEvent extends CustomEvent {
+    constructor(detail) {
+        super(`hydrate:${detail.type}`, {
+            detail: detail,
+            bubbles: true
+        });
+    }
+}
+class HydrateRouteEvent extends CustomEvent {
+    constructor(detail) {
+        super(`hydrate:${detail.type}`, {
+            detail: detail,
+            bubbles: true
+        });
+    }
+}
+class HydrateElementTrackingEventDetails {
     hydrate;
-    target;
+    element;
     type;
     baseName;
     modelName;
@@ -81,21 +105,52 @@ class HydrateModelEvent {
     propName;
     propPath;
     previousValue;
-    nestedEvent;
-    constructor(hydrate, target, eventType, propPath, previousValue, nestedEvent) {
+    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, previousValue, nested) {
         this.hydrate = hydrate;
-        this.target = target;
+        this.element = element;
         this.type = eventType;
-        let index = propPath.lastIndexOf(".");
+        this.baseName = baseName;
+        this.modelPath = modelPath;
+        this.modelName = modelName;
         this.propPath = propPath;
-        this.propName = index < 0 ? null : propPath.substring(index + 1);
-        this.modelPath = index < 0 ? propPath : propPath.substring(0, index);
-        index = this.modelPath.lastIndexOf(".");
-        this.modelName = index < 0 ? null : this.modelPath.substring(index + 1);
-        index = this.modelPath.indexOf(".");
-        this.baseName = index < 0 ? this.modelPath : this.modelPath.substring(0, index);
+        this.propName = propName;
         this.previousValue = previousValue;
-        this.nestedEvent = nestedEvent;
+    }
+    get base() {
+        return this.hydrate.model(this.baseName);
+    }
+    get model() {
+        return this.hydrate.model(this.modelPath);
+    }
+    get state() {
+        return this.hydrate.state(this.modelPath);
+    }
+    get prop() {
+        return this.hydrate.state(this.propPath);
+    }
+}
+class HydrateModelEventDetails {
+    hydrate;
+    element;
+    type;
+    baseName;
+    modelName;
+    modelPath;
+    propName;
+    propPath;
+    previousValue;
+    nested;
+    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, previousValue, nested) {
+        this.hydrate = hydrate;
+        this.element = element;
+        this.type = eventType;
+        this.baseName = baseName;
+        this.modelPath = modelPath;
+        this.modelName = modelName;
+        this.propPath = propPath;
+        this.propName = propName;
+        this.previousValue = previousValue;
+        this.nested = nested;
     }
     get base() {
         return this.hydrate.model(this.baseName);
@@ -229,7 +284,7 @@ class HydrateApp {
             : search;
         if (model == undefined)
             return; //Promise.reject("model not found");
-        let baseName = this.base(model);
+        let baseName = this.name(this.base(model));
         if (baseName == undefined)
             return; // Promise.reject("model not found");
         let promise = this.#dispatch(this.#root, "unbind", baseName, this.state(model));
@@ -312,7 +367,7 @@ class HydrateApp {
         });
         return proxy;
     }
-    async #mutationCallback(mutations, observer) {
+    #mutationCallback(mutations, observer) {
         let updatedElements = [];
         this.#trackableElementSelector;
         const trackableSelector = this.#trackableElementSelector;
@@ -327,6 +382,8 @@ class HydrateApp {
                     {
                         if (mutation.target.matches(trackableSelector))
                             trackableElements.add(mutation.target);
+                        else
+                            untrackableElements.add(mutation.target);
                     }
                 case "childList":
                     {
@@ -346,12 +403,12 @@ class HydrateApp {
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
         //Update each element
         for (let element of untrackableElements) {
-            await this.#untrackElement(element);
+            this.#untrackElement(element);
         }
         for (let element of trackableElements) {
-            await this.#trackElement(element);
+            this.#trackElement(element);
             let modelName = element.getAttribute(modelAttribute);
-            await this.#dispatch(element, "bind", modelName, this.state(modelName));
+            this.#dispatch(element, "bind", modelName, this.state(modelName));
         }
     }
     #inputListener(event) {
@@ -387,23 +444,23 @@ class HydrateApp {
         this.#options.attribute.trackables.push(...this.#options.attribute.names.customs.map(x => app.attribute(x)));
     }
     #addStandardAttributeHandlers() {
-        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.property), (arg, modelEvent) => {
-            let value = modelEvent.hydrate.resolveArgumentValue(arg.arg3, modelEvent.prop);
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.property), (arg, eventDetails) => {
+            let value = eventDetails.hydrate.resolveArgumentValue(arg.arg3, eventDetails.prop);
             if (value === undefined)
                 return;
-            if (modelEvent.target[arg.arg2] === value)
-                return Promise.resolve(false);
-            modelEvent.target[arg.arg2] = value;
-            return Promise.resolve(true);
+            if (eventDetails.element[arg.arg2] === value)
+                return;
+            eventDetails.element[arg.arg2] = value;
+            return;
         });
-        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.attribute), (arg, modelEvent) => {
-            let value = modelEvent.hydrate.resolveArgumentValue(arg.arg3, modelEvent.prop);
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.attribute), (arg, eventDetails) => {
+            let value = eventDetails.hydrate.resolveArgumentValue(arg.arg3, eventDetails.prop);
             if (value === undefined)
                 return;
-            if (modelEvent.target.getAttribute(arg.arg2) === value)
-                return Promise.resolve(false);
-            modelEvent.target.setAttribute(arg.arg2, value);
-            return Promise.resolve(true);
+            if (eventDetails.element.getAttribute(arg.arg2) === value)
+                return;
+            eventDetails.element.setAttribute(arg.arg2, value);
+            return;
         });
     }
     #addSetPropertyHandler(element, modelPath) {
@@ -462,66 +519,38 @@ class HydrateApp {
         for (let element of elements)
             this.#trackElement(element);
     }
-    async #trackElement(element) {
+    #trackElement(element) {
         let selector = this.#trackableElementSelector;
         if (!element.matches(selector)) {
             this.#untrackElement(element);
-            return Promise.resolve();
+            return;
         }
-        let elementEexecuters = this.#updateExecuters(element);
-        let promises = [];
-        let propertyExecuters = elementEexecuters.get("bind");
-        if (propertyExecuters === undefined)
-            return Promise.resolve();
-        return Promise.resolve();
-    }
-    #getTrackableElements(target) {
-        if (target == null)
-            target = this.#root;
-        let selector = this.#trackableElementSelector;
-        let elements = [];
-        if (target.matches(selector))
-            elements.push(target);
-        return elements.concat([...this.#root.querySelectorAll(selector)]);
-    }
-    get #trackableElementSelector() {
-        let modelAttribute = this.attribute(this.#options.attribute.names.model);
-        return `[${modelAttribute}]`;
-    }
-    async #dispatch(target, eventType, propPath, previousValue) {
-        let elements = this.#getTrackableElements(target);
-        let elementExecuters = this.#getExcecuters(eventType, elements, propPath);
-        for (let element of elements) {
-            let propertyExecuters = elementExecuters.get(element);
-            for (let property of propertyExecuters.keys()) {
-                // let nameIndex = property.indexOf(".");
-                // let rootModelName = nameIndex < 0 ? property : property.substring(0, nameIndex);
-                // let state = this.state(rootModelName);
-                let modelEvent;
-                if (propPath !== property && propPath.startsWith(property)) {
-                    let nestedEvent = new HydrateModelEvent(this, element, eventType, propPath, previousValue, null);
-                    modelEvent = new HydrateModelEvent(this, element, eventType, property, this.state(property), nestedEvent);
-                }
-                else {
-                    modelEvent = new HydrateModelEvent(this, element, eventType, property, previousValue, null);
-                }
-                console.log(modelEvent);
-                for (let executer of propertyExecuters.get(property))
-                    await executer.handler(executer.arg, modelEvent);
-            }
+        if (this.#updateExecuters(element)) {
+            //Send a track event
+            let modelName = element.getAttribute(this.attribute(this.#options.attribute.names.model)) ?? undefined;
+            let state = modelName === undefined ? undefined : this.state(modelName);
+            this.#dispatch(element, "track", modelName, state);
         }
     }
     #untrackElement(element) {
         let elementExecuters = this.#htmlExcecuters.get(element);
         if (elementExecuters === undefined)
             return;
+        //Send an untrack event
+        let modelName = element.getAttribute(this.attribute(this.#options.attribute.names.model)) ?? undefined;
+        let state = modelName === undefined ? undefined : this.state(modelName);
+        if (this.#dispatch(element, "untrack", modelName, state))
+            return;
+        //Allow the element not to detach if we prevented the default behavior
         this.#htmlExcecuters.delete(element);
     }
     #updateExecuters(element) {
+        let created = false;
         let elementExecuters = this.#htmlExcecuters.get(element);
         if (elementExecuters === undefined) {
             elementExecuters = new Map();
             this.#htmlExcecuters.set(element, elementExecuters);
+            created = true;
         }
         else {
             elementExecuters.clear();
@@ -530,7 +559,7 @@ class HydrateApp {
         let modelPath = element.getAttribute(modelAttribute);
         this.#addSetPropertyHandler(element, modelPath);
         this.#addSetAttributeHandler(element, modelPath);
-        return elementExecuters;
+        return created;
     }
     #addExecuter(element, eventType, fullPropName, arg, handler) {
         let elementExecuters = this.#htmlExcecuters.get(element);
@@ -548,6 +577,19 @@ class HydrateApp {
             arg: arg,
             handler: handler
         });
+    }
+    #getTrackableElements(target) {
+        if (target == null)
+            target = this.#root;
+        let selector = this.#trackableElementSelector;
+        let elements = [];
+        if (target.matches(selector))
+            elements.push(target);
+        return elements.concat([...this.#root.querySelectorAll(selector)]);
+    }
+    get #trackableElementSelector() {
+        let modelAttribute = this.attribute(this.#options.attribute.names.model);
+        return `[${modelAttribute}]`;
     }
     #getExcecuters(eventType, targets = [], propPath = undefined) {
         let results = new Map();
@@ -579,5 +621,74 @@ class HydrateApp {
         }
         //TODO: filter out any conditionals, static, etc.
         return results;
+    }
+    #dispatch(target, eventType, propPath, previousValue) {
+        let listenerEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath), null);
+        let dispatchElement = target.isConnected ? target : this.#root;
+        dispatchElement.dispatchEvent(listenerEvent);
+        if (listenerEvent.defaultPrevented)
+            return true;
+        let elements = this.#getTrackableElements(target);
+        let elementExecuters = this.#getExcecuters(eventType, elements, propPath);
+        for (let element of elementExecuters.keys()) {
+            let propertyExecuters = elementExecuters.get(element);
+            for (let property of propertyExecuters.keys()) {
+                // let nameIndex = property.indexOf(".");
+                // let rootModelName = nameIndex < 0 ? property : property.substring(0, nameIndex);
+                // let state = this.state(rootModelName);
+                let event;
+                if (propPath !== property && propPath.startsWith(property)) {
+                    let nestedEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath), null);
+                    event = this.#createEvent(element, eventType, this.state(property), this.#determineEventDetailProperties(property), nestedEvent.detail);
+                    //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, this.state(property), nestedEvent);
+                }
+                else {
+                    event = this.#createEvent(element, eventType, previousValue, this.#determineEventDetailProperties(property), null);
+                    //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, previousValue, null);
+                }
+                for (let executer of propertyExecuters.get(property))
+                    executer.handler(executer.arg, event.detail);
+            }
+        }
+        return listenerEvent.defaultPrevented;
+    }
+    #createEvent(target, eventType, previousValue, properties, nested) {
+        switch (eventType) {
+            case "bind":
+            case "set":
+            case "unbind":
+                {
+                    let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, previousValue, nested);
+                    return new HydrateModelEvent(detail);
+                }
+            case "route":
+                {
+                    let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, previousValue, nested);
+                    return new HydrateRouteEvent(detail);
+                }
+            case "track":
+            case "untrack":
+                {
+                    let detail = new HydrateElementTrackingEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, previousValue, nested);
+                    return new HydrateElementTrackingEvent(detail);
+                }
+        }
+    }
+    #determineEventDetailProperties(path) {
+        let index = path != null ? path.lastIndexOf(".") : -1;
+        let propName = index < 0 ? undefined : path.substring(index + 1);
+        let propPath = index < 0 ? undefined : path;
+        let modelPath = index < 0 ? path : path.substring(0, index);
+        index = modelPath != null ? modelPath.lastIndexOf(".") : -1;
+        let modelName = index < 0 ? modelPath : modelPath.substring(index + 1);
+        index = modelPath != null ? modelPath.indexOf(".") : -1;
+        let baseName = index < 0 ? modelPath : modelPath.substring(0, index);
+        return {
+            propName,
+            propPath,
+            modelPath,
+            modelName,
+            baseName
+        };
     }
 }
