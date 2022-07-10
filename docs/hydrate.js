@@ -61,16 +61,6 @@ class HydrateAttributeNamesOptions {
     throttle = "throttle";
     customs = [];
 }
-class HydrateAttributeArgument {
-    arg1;
-    arg2;
-    arg3;
-    constructor(arg1, arg2, arg3) {
-        this.arg1 = arg1;
-        this.arg2 = arg2;
-        this.arg3 = arg3;
-    }
-}
 class HydrateElementTrackingEvent extends CustomEvent {
     constructor(detail) {
         super(`hydrate:${detail.type}`, {
@@ -416,26 +406,22 @@ class HydrateApp {
         if (!target.matches(this.#trackableElementSelector))
             return;
         let modelName = target.getAttribute(this.attribute(this.#options.attribute.names.model));
-        let inputs = this.#parseAttributeArguments(target, this.attribute(this.#options.attribute.names.input));
+        let inputs = this.parseAttributeArguments(target, this.attribute(this.#options.attribute.names.input));
         if (modelName == null || inputs.length === 0)
             return;
+        let model = this.model(modelName);
+        if (model == null || !(model instanceof Object))
+            return;
+        let state = this.state(model);
         for (let i = 0; i < inputs.length; i++) {
+            //How do we want to format the input attribute?
+            //this.#createEvent(target, "input", this.state())
             let arg = inputs[i];
-            let model = this.model(modelName);
-            if (model == null || !(model instanceof Object))
+            let propName = arg.expression;
+            let value = event.target[arg.field];
+            if (state[propName] === value)
                 continue;
-            let propName = arg.arg1;
-            let propPath = modelName + "." + propName;
-            if (propPath == null)
-                continue;
-            let inputPropName = arg.arg2;
-            if (inputPropName == null)
-                continue;
-            let inputProp = target[inputPropName];
-            let prop = this.resolveArgumentValue(arg.arg3, inputProp);
-            if (this.state(model)[propName] === prop)
-                continue;
-            model[propName] = prop;
+            model[propName] = value;
         }
     }
     #addTrackableAttributes() {
@@ -445,71 +431,138 @@ class HydrateApp {
     }
     #addStandardAttributeHandlers() {
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.property), (arg, eventDetails) => {
-            let value = eventDetails.hydrate.resolveArgumentValue(arg.arg3, eventDetails.prop);
+            let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             if (value === undefined)
                 return;
-            if (eventDetails.element[arg.arg2] === value)
+            if (eventDetails.element[arg.field] === value)
                 return;
-            eventDetails.element[arg.arg2] = value;
+            eventDetails.element[arg.field] = value;
             return;
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.attribute), (arg, eventDetails) => {
-            let value = eventDetails.hydrate.resolveArgumentValue(arg.arg3, eventDetails.prop);
+            let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             if (value === undefined)
                 return;
-            if (eventDetails.element.getAttribute(arg.arg2) === value)
+            if (eventDetails.element.getAttribute(arg.field) === value)
                 return;
-            eventDetails.element.setAttribute(arg.arg2, value);
+            eventDetails.element.setAttribute(arg.field, value);
             return;
         });
     }
     #addSetPropertyHandler(element, modelPath) {
         let attribute = this.attribute(this.#options.attribute.names.property);
         if (element.hasAttribute(attribute)) {
-            let args = this.#parseAttributeArguments(element, attribute);
+            let args = this.parseAttributeArguments(element, attribute);
             let handler = this.#getHandlerFunction(attribute);
             for (let arg of args) {
-                let propertyPath = `${modelPath}.${arg.arg1}`;
-                this.#addExecuter(element, "bind", propertyPath, arg, handler);
-                this.#addExecuter(element, "set", propertyPath, arg, handler);
+                this.#addExecuter(element, "bind", modelPath, arg, handler);
+                this.#addExecuter(element, "set", modelPath, arg, handler);
             }
         }
     }
     #addSetAttributeHandler(element, modelPath) {
         let attribute = this.attribute(this.#options.attribute.names.attribute);
         if (element.hasAttribute(attribute)) {
-            let args = this.#parseAttributeArguments(element, attribute);
+            let args = this.parseAttributeArguments(element, attribute);
             let handler = this.#getHandlerFunction(attribute);
             for (let arg of args) {
-                let propertyPath = `${modelPath}.${arg.arg1}`;
-                this.#addExecuter(element, "bind", propertyPath, arg, handler);
-                this.#addExecuter(element, "set", propertyPath, arg, handler);
+                this.#addExecuter(element, "bind", modelPath, arg, handler);
+                this.#addExecuter(element, "set", modelPath, arg, handler);
             }
         }
     }
-    resolveArgumentValue(expression, prop) {
-        if (expression == null || expression.trim() === "")
-            return prop;
-        //TODO: finish trying to resolve values
-        return prop;
+    resolveArgumentValue(detail, arg, event) {
+        let app = this;
+        let functionArgs = {
+            $hydrate: this,
+            $element: detail.element,
+            $detail: detail,
+            $event: event,
+            $script: function (name) {
+                let selector = `[${app.attribute(app.options.attribute.names.script)}=${arg.expression}]`;
+                let scriptElement = app.root.querySelector(selector);
+                if (scriptElement == null)
+                    return null;
+                let func = new Function(`'use strict'; return ${scriptElement.textContent.trim()}`)();
+                if (!(func instanceof Function))
+                    return null;
+                return func;
+            }
+        };
+        var keys = Object.keys(functionArgs).concat(Object.keys(detail.state));
+        var values = Object.values(functionArgs).concat(Object.values(detail.state));
+        let func = new Function(...keys, `'use strict'; return ${arg.expression}`).bind(detail.state);
+        return func(...values);
     }
-    #parseAttributeArguments(element, name) {
+    parseAttributeArguments(element, name) {
         if (!element.hasAttribute(name))
             return [];
-        //return value.split(/({{.+}})?;/).filter(x => x !== undefined).map(x => { 
-        return element.getAttribute(name).trim().split(';').map(x => {
-            //return x.trim().split(/\s+/)
-            let baseParams = x.trim();
-            //splits on two whitespaces: "[model_prop] [el_prop] [THIRD_PARAM]"
-            let regParams = baseParams.match(/[^\s]+\s+[^\s]+\s+/);
-            if (!regParams) {
-                let args = baseParams.split(/\s+/);
-                return new HydrateAttributeArgument(args[0], args[1], undefined);
+        let expression = element.getAttribute(name).trim();
+        let args = this.#parseAttributeValues(expression);
+        return args.length > 0
+            ? args
+            : [{
+                    field: "",
+                    expression: expression
+                }];
+    }
+    #parseAttributeValues(expression) {
+        let actions = [];
+        let matchCharacters = function (pattern) {
+            for (i = i + 1; i < expression.length; i++) {
+                switch (expression[i]) {
+                    case pattern:
+                        return true;
+                    case "'":
+                        if (!matchCharacters("'"))
+                            return false;
+                        break;
+                    case '"':
+                        if (!matchCharacters('"'))
+                            return false;
+                        break;
+                    case "`":
+                        if (!matchCharacters("`"))
+                            return false;
+                        break;
+                    case "{":
+                        if (!matchCharacters("}"))
+                            return false;
+                        break;
+                }
             }
-            //We have a 3rd argument for a replacement/insertion value to stick into arg 2 field
-            let result = baseParams.split(/\s+/);
-            return new HydrateAttributeArgument(result[0], result[1], baseParams.substring(regParams[0].length));
-        });
+            return pattern === ";";
+        };
+        let fieldStart = 0;
+        let fieldEnd = 0;
+        let i = 0;
+        let searchingForExpression = false;
+        for (; i < expression.length; i++) {
+            switch (expression[i]) {
+                case ":":
+                    {
+                        searchingForExpression = true;
+                        break;
+                    }
+                default:
+                    {
+                        if (!searchingForExpression)
+                            break;
+                        if (expression[i].match(/\s/)) {
+                            fieldEnd = i - 1;
+                            if (!matchCharacters(";"))
+                                throw new Error("invalid expression");
+                            actions.push({
+                                field: expression.substring(fieldStart, fieldEnd),
+                                expression: expression.substring(fieldEnd + 1, i)
+                            });
+                            fieldStart = i + 1;
+                        }
+                        searchingForExpression = false;
+                    }
+            }
+        }
+        return actions;
     }
     #getHandlerFunction(attribute) {
         return this.#options.attribute.handlers.get(attribute);
@@ -646,8 +699,14 @@ class HydrateApp {
                     event = this.#createEvent(element, eventType, previousValue, this.#determineEventDetailProperties(property), null);
                     //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, previousValue, null);
                 }
-                for (let executer of propertyExecuters.get(property))
-                    executer.handler(executer.arg, event.detail);
+                for (let executer of propertyExecuters.get(property)) {
+                    try {
+                        executer.handler(executer.arg, event.detail);
+                    }
+                    catch (error) {
+                        console.error(error);
+                    }
+                }
             }
         }
         return listenerEvent.defaultPrevented;
@@ -657,6 +716,7 @@ class HydrateApp {
             case "bind":
             case "set":
             case "unbind":
+            case "input":
                 {
                     let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, previousValue, nested);
                     return new HydrateModelEvent(detail);
