@@ -406,19 +406,18 @@ class HydrateApp {
         if (!target.matches(this.#trackableElementSelector))
             return;
         let modelName = target.getAttribute(this.attribute(this.#options.attribute.names.model));
-        let inputs = this.parseAttributeArguments(target, this.attribute(this.#options.attribute.names.input));
-        if (modelName == null || inputs.length === 0)
-            return;
         let model = this.model(modelName);
-        if (model == null || !(model instanceof Object))
+        let state = this.state(modelName);
+        if (!(state instanceof Object))
             return;
-        let state = this.state(model);
-        for (let i = 0; i < inputs.length; i++) {
+        let modelEvent = this.#createEvent(target, "input", state, this.#determineEventDetailProperties(modelName, "model"), null);
+        let args = this.parseAttributeArguments(target, this.attribute(this.#options.attribute.names.input));
+        for (let i = 0; i < args.length; i++) {
             //How do we want to format the input attribute?
             //this.#createEvent(target, "input", this.state())
-            let arg = inputs[i];
-            let propName = arg.expression;
-            let value = event.target[arg.field];
+            let arg = args[i];
+            let propName = arg.field;
+            let value = this.resolveArgumentValue(modelEvent.detail, arg, event);
             if (state[propName] === value)
                 continue;
             model[propName] = value;
@@ -477,6 +476,7 @@ class HydrateApp {
             $hydrate: this,
             $element: detail.element,
             $detail: detail,
+            $model: detail.model,
             $event: event,
             $script: function (name) {
                 let selector = `[${app.attribute(app.options.attribute.names.script)}=${arg.expression}]`;
@@ -537,6 +537,14 @@ class HydrateApp {
         let fieldEnd = 0;
         let i = 0;
         let searchingForExpression = false;
+        let addArgument = function () {
+            actions.push({
+                field: expression.substring(fieldStart, fieldEnd).replace(/['"`]/g, ""),
+                expression: expression.substring(fieldEnd + 1, i)
+            });
+            fieldStart = i + 1;
+            searchingForExpression = false;
+        };
         for (; i < expression.length; i++) {
             switch (expression[i]) {
                 case ":":
@@ -544,20 +552,24 @@ class HydrateApp {
                         searchingForExpression = true;
                         break;
                     }
+                case "'":
+                case '"':
+                case "`":
+                    if (!searchingForExpression) {
+                        if (!matchCharacters(expression[i]))
+                            throw new Error("invalid field name");
+                        fieldStart++;
+                        searchingForExpression = true;
+                        break;
+                    }
                 default:
                     {
                         if (!searchingForExpression)
                             break;
-                        if (expression[i].match(/\s/)) {
-                            fieldEnd = i - 1;
-                            if (!matchCharacters(";"))
-                                throw new Error("invalid expression");
-                            actions.push({
-                                field: expression.substring(fieldStart, fieldEnd),
-                                expression: expression.substring(fieldEnd + 1, i)
-                            });
-                            fieldStart = i + 1;
-                        }
+                        fieldEnd = i - 1;
+                        if (!matchCharacters(";"))
+                            throw new Error("invalid expression");
+                        addArgument();
                         searchingForExpression = false;
                     }
             }
@@ -614,19 +626,19 @@ class HydrateApp {
         this.#addSetAttributeHandler(element, modelPath);
         return created;
     }
-    #addExecuter(element, eventType, fullPropName, arg, handler) {
+    #addExecuter(element, eventType, modelPath, arg, handler) {
         let elementExecuters = this.#htmlExcecuters.get(element);
         let eventExecuters = elementExecuters.get(eventType);
         if (eventExecuters === undefined) {
             eventExecuters = new Map();
             elementExecuters.set(eventType, eventExecuters);
         }
-        let propertyExecuters = eventExecuters.get(fullPropName);
-        if (propertyExecuters === undefined) {
-            propertyExecuters = [];
-            eventExecuters.set(fullPropName, propertyExecuters);
+        let modelExecuters = eventExecuters.get(modelPath);
+        if (modelExecuters === undefined) {
+            modelExecuters = [];
+            eventExecuters.set(modelPath, modelExecuters);
         }
-        propertyExecuters.push({
+        modelExecuters.push({
             arg: arg,
             handler: handler
         });
@@ -645,8 +657,9 @@ class HydrateApp {
         return `[${modelAttribute}]`;
     }
     #getExcecuters(eventType, targets = [], propPath = undefined) {
+        let details = this.#determineEventDetailProperties(propPath, "property");
         let results = new Map();
-        let filterProps = propPath != undefined && propPath.trim() != "";
+        let filterModels = propPath != undefined && propPath.trim() != "";
         for (let element of this.#htmlExcecuters.keys()) {
             let nested = element.hasAttribute(this.attribute(this.#options.attribute.names.nested));
             if (targets != null && targets.length > 0 && !targets.includes(element))
@@ -655,20 +668,20 @@ class HydrateApp {
             if (eventExecuters === undefined || eventExecuters.size === 0)
                 continue;
             let exectuers = new Map();
-            if (filterProps) {
-                for (let property of eventExecuters.keys()) {
+            if (filterModels) {
+                for (let modelPath of eventExecuters.keys()) {
                     //if(nested)
-                    if (property !== propPath && !property.startsWith(propPath) && (!nested || !propPath.startsWith(property)))
+                    if (modelPath !== details.modelPath && !modelPath.startsWith(details.modelPath) && (!nested || !details.modelPath.startsWith(modelPath)))
                         continue;
-                    let propertyExecuters = eventExecuters.get(property);
-                    if (propertyExecuters === undefined || propertyExecuters.length === 0)
+                    let modelExecuters = eventExecuters.get(modelPath);
+                    if (modelExecuters === undefined || modelExecuters.length === 0)
                         continue;
-                    exectuers.set(property, propertyExecuters);
+                    exectuers.set(modelPath, modelExecuters);
                 }
             }
             else {
                 for (let property of eventExecuters.keys())
-                    exectuers.set(property, eventExecuters.get(propPath));
+                    exectuers.set(property, eventExecuters.get(details.modelPath));
             }
             results.set(element, exectuers);
         }
@@ -676,7 +689,7 @@ class HydrateApp {
         return results;
     }
     #dispatch(target, eventType, propPath, previousValue) {
-        let listenerEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath), null);
+        let listenerEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null);
         let dispatchElement = target.isConnected ? target : this.#root;
         dispatchElement.dispatchEvent(listenerEvent);
         if (listenerEvent.defaultPrevented)
@@ -684,22 +697,22 @@ class HydrateApp {
         let elements = this.#getTrackableElements(target);
         let elementExecuters = this.#getExcecuters(eventType, elements, propPath);
         for (let element of elementExecuters.keys()) {
-            let propertyExecuters = elementExecuters.get(element);
-            for (let property of propertyExecuters.keys()) {
+            let modelExecuters = elementExecuters.get(element);
+            for (let modelPath of modelExecuters.keys()) {
                 // let nameIndex = property.indexOf(".");
                 // let rootModelName = nameIndex < 0 ? property : property.substring(0, nameIndex);
                 // let state = this.state(rootModelName);
                 let event;
-                if (propPath !== property && propPath.startsWith(property)) {
-                    let nestedEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath), null);
-                    event = this.#createEvent(element, eventType, this.state(property), this.#determineEventDetailProperties(property), nestedEvent.detail);
+                if (propPath !== modelPath && propPath.startsWith(modelPath)) {
+                    let nestedEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null);
+                    event = this.#createEvent(element, eventType, this.state(modelPath), this.#determineEventDetailProperties(modelPath, "property"), nestedEvent.detail);
                     //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, this.state(property), nestedEvent);
                 }
                 else {
-                    event = this.#createEvent(element, eventType, previousValue, this.#determineEventDetailProperties(property), null);
+                    event = this.#createEvent(element, eventType, previousValue, this.#determineEventDetailProperties(modelPath, "property"), null);
                     //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, previousValue, null);
                 }
-                for (let executer of propertyExecuters.get(property)) {
+                for (let executer of modelExecuters.get(modelPath)) {
                     try {
                         executer.handler(executer.arg, event.detail);
                     }
@@ -734,11 +747,11 @@ class HydrateApp {
                 }
         }
     }
-    #determineEventDetailProperties(path) {
+    #determineEventDetailProperties(path, type) {
         let index = path != null ? path.lastIndexOf(".") : -1;
-        let propName = index < 0 ? undefined : path.substring(index + 1);
-        let propPath = index < 0 ? undefined : path;
-        let modelPath = index < 0 ? path : path.substring(0, index);
+        let propName = type === "model" || index < 0 ? undefined : path.substring(index + 1);
+        let propPath = type === "model" || index < 0 ? undefined : path;
+        let modelPath = type === "model" || index < 0 ? path : path.substring(0, index);
         index = modelPath != null ? modelPath.lastIndexOf(".") : -1;
         let modelName = index < 0 ? modelPath : modelPath.substring(index + 1);
         index = modelPath != null ? modelPath.indexOf(".") : -1;

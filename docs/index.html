@@ -23,13 +23,11 @@
             </main> -->
     
             <main>
-                <input h-model="default" h-property="value: text" h-input="value: text" value="Testing">
-                <!-- <div h-model="default" h-property="text innerHTML" h-attribute="text name">
+                <input h-model="default" h-property="value: text" h-input="text: $element.value" value="Testing">
+                <input h-model="default" h-property="value: text" h-on="input: $model.text = $element.value" value="Testing">
+                <div h-model="default" h-property="'innerHTML': text" h-attribute="name: text">
                     Sample text
                 </div>
-                <div h-model="default.object" h-property="text innerHTML" h-attribute="text name">
-                    Sample text 2
-                </div> -->
             </main>
     
             <footer>
