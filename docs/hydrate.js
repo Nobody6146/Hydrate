@@ -85,6 +85,14 @@ class HydrateRouteEvent extends CustomEvent {
         });
     }
 }
+class HydrateElementMutationEvent extends CustomEvent {
+    constructor(detail) {
+        super(`hydrate:${detail.type}`, {
+            detail: detail,
+            bubbles: true
+        });
+    }
+}
 class HydrateElementTrackingEventDetails {
     hydrate;
     element;
@@ -155,6 +163,42 @@ class HydrateModelEventDetails {
         return this.hydrate.state(this.propPath);
     }
 }
+class HydrateElementMutationEventDetails {
+    hydrate;
+    element;
+    type;
+    baseName;
+    propName;
+    propPath;
+    previousValue;
+    modelName;
+    modelPath;
+    mutation;
+    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, previousValue, mutation) {
+        this.hydrate = hydrate;
+        this.element = element;
+        this.type = eventType;
+        this.baseName = baseName;
+        this.modelPath = modelPath;
+        this.modelName = modelName;
+        this.propPath = propPath;
+        this.propName = propName;
+        this.previousValue = previousValue;
+        this.mutation = mutation;
+    }
+    get base() {
+        return this.hydrate.model(this.baseName);
+    }
+    get model() {
+        return this.hydrate.model(this.modelPath);
+    }
+    get state() {
+        return this.hydrate.state(this.modelPath);
+    }
+    get prop() {
+        return this.hydrate.state(this.propPath);
+    }
+}
 class HydrateApp {
     #options;
     #htmlExcecuters; //element name -> event type -> model.prop -> callbacks
@@ -173,7 +217,10 @@ class HydrateApp {
             subtree: true,
             childList: true,
             attributes: true,
-            attributeFilter: [...this.#options.attribute.trackables],
+            attributeOldValue: true,
+            characterData: true,
+            characterDataOldValue: true,
+            //attributeFilter: [...this.#options.attribute.trackables],
         });
         this.root.addEventListener("input", this.#inputListener.bind(this));
         this.#trackElements();
@@ -261,7 +308,7 @@ class HydrateApp {
             this.unbind(name);
         let proxy = this.#makeProxy(state, name, undefined);
         this.#models[name] = proxy;
-        let promise = this.#dispatch(this.#root, "bind", name, undefined);
+        let promise = this.#dispatch(this.#root, "bind", name, undefined, undefined);
         //await promise;
         return proxy;
         //     resolve(proxy);
@@ -277,7 +324,7 @@ class HydrateApp {
         let baseName = this.name(this.base(model));
         if (baseName == undefined)
             return; // Promise.reject("model not found");
-        let promise = this.#dispatch(this.#root, "unbind", baseName, this.state(model));
+        let promise = this.#dispatch(this.#root, "unbind", baseName, this.state(model), undefined);
         delete this.#models[baseName];
         //return await promise;
     }
@@ -336,7 +383,7 @@ class HydrateApp {
                 //     return;
                 let propName = (typeof prop === 'symbol') ? prop.toString() : prop;
                 //app.dispatch("set", proxy, propName, previousValue, app.root, "all");
-                app.#dispatch(app.#root, "set", name + "." + propName, previousValue);
+                app.#dispatch(app.#root, "set", name + "." + propName, previousValue, undefined);
                 //TODO IMMEDIATELY WORKING ON
                 //Change previous state to only store previous prop state
                 //Only way to gaurentee a true "copy" and really the only useful part
@@ -350,12 +397,60 @@ class HydrateApp {
                         delete models[prop];
                     let propName = (typeof prop === 'symbol') ? prop.toString() : prop;
                     //app.dispatch("unbind", proxy, propName, property, app.root, "all");
-                    app.#dispatch(app.#root, "unbind", name + "." + propName, previousValue);
+                    app.#dispatch(app.#root, "unbind", name + "." + propName, previousValue, undefined);
                 }
                 return true;
             }
         });
         return proxy;
+    }
+    //Ayyyy, finish this later to start parsing the mutation event and allow it to filter out
+    //syntax: h-mutation="" | h-mutation="" responds to all mutations
+    //  h-mutation="target: *" responds to all mutation.target events
+    //  h-mutation="target: characterdata; child: added, removed;" responds to all target characterdata events, and all child added and removed events
+    #parseMutationListeners(element) {
+        let mutationAttribute = this.attribute(this.#options.attribute.names.mutation);
+        if (!element.hasAttribute(mutationAttribute))
+            return;
+        let args = this.parseAttributeArguments(element, mutationAttribute);
+        const wildcard = "*";
+        let map = new Map();
+        map.set("mutation.target.added", false);
+        map.set("mutation.target.removed", false);
+        map.set("mutation.target.attribute", false);
+        map.set("mutation.target.characterdata", false);
+        map.set("mutation.parent.added", false);
+        map.set("mutation.parent.removed", false);
+        map.set("mutation.parent.attribute", false);
+        map.set("mutation.parent.characterdata", false);
+        map.set("mutation.child.added", false);
+        map.set("mutation.child.removed", false);
+        map.set("mutation.child.attribute", false);
+        map.set("mutation.child.characterdata", false);
+        if (args.length === 1 && args[0].field === ""
+            && (args[0].expression.trim() === wildcard || args[0].expression.trim() === "")) {
+            for (let key of map.keys())
+                map.set(key, true);
+            return;
+        }
+        for (let arg of args) {
+            let value = arg.expression.trim();
+            //If wildcard or empty, allow all
+            if ((value === wildcard || value === "")) {
+                //If we are only an attribute value="*" || "", let all of the mutations through
+                if (arg.field === "" && args.length === 1) {
+                    for (let key of map.keys())
+                        map.set(key, true);
+                }
+                else {
+                    let value = map.get(arg.field);
+                    if (value == null)
+                        continue;
+                }
+                return;
+            }
+            //if(arg.field === "" && arg.expression.trim() === wildcard);
+        }
     }
     #mutationCallback(mutations, observer) {
         let updatedElements = [];
@@ -363,6 +458,7 @@ class HydrateApp {
         const trackableSelector = this.#trackableElementSelector;
         let trackableElements = new Set();
         let untrackableElements = new Set();
+        let modelAttribute = this.attribute(this.#options.attribute.names.model);
         mutations.forEach(mutation => {
             if (!(mutation.target instanceof HTMLElement))
                 return;
@@ -370,27 +466,57 @@ class HydrateApp {
             switch (mutation.type) {
                 case "attributes":
                     {
-                        if (mutation.target.matches(trackableSelector))
-                            trackableElements.add(mutation.target);
-                        else
-                            untrackableElements.add(mutation.target);
+                        if (this.#options.attribute.trackables.indexOf(mutation.attributeName) >= 0) {
+                            if (mutation.target.matches(trackableSelector)) {
+                                let element = mutation.target;
+                                this.#trackElement(element);
+                                let modelName = element.getAttribute(modelAttribute);
+                                //this.#dispatch(element, "bind", modelName, this.state(modelName), undefined);
+                            }
+                            else
+                                untrackableElements.add(mutation.target);
+                        }
+                        this.#dispatch(mutation.target, "mutation.parent.attribute", undefined, undefined, mutation);
+                        this.#dispatch(mutation.target, "mutation.target.attribute", undefined, undefined, mutation);
+                        this.#dispatch(mutation.target, "mutation.child.attribute", undefined, undefined, mutation);
                     }
                 case "childList":
                     {
+                        let addedElement = false;
                         mutation.addedNodes.forEach(node => {
                             if (!(node instanceof HTMLElement))
                                 return;
-                            trackableElements.add(node);
+                            addedElement = true;
+                            this.#trackElement(node);
+                            let modelName = node.getAttribute(modelAttribute);
+                            //this.#dispatch(node, "bind", modelName, this.state(modelName), undefined);
                         });
+                        if (addedElement) {
+                            this.#dispatch(mutation.target, "mutation.parent.added", undefined, undefined, mutation);
+                            this.#dispatch(mutation.target, "mutation.target.added", undefined, undefined, mutation);
+                            this.#dispatch(mutation.target, "mutation.child.added", undefined, undefined, mutation);
+                        }
+                        let removedElement = false;
                         for (let node of mutation.removedNodes) {
                             if (!(node instanceof HTMLElement))
                                 return;
-                            untrackableElements.add(node);
+                            removedElement = true;
+                            this.#untrackElement(node);
                         }
+                        if (removedElement) {
+                            this.#dispatch(mutation.target, "mutation.parent.removed", undefined, undefined, mutation);
+                            this.#dispatch(mutation.target, "mutation.target.removed", undefined, undefined, mutation);
+                            this.#dispatch(mutation.target, "mutation.child.removed", undefined, undefined, mutation);
+                        }
+                    }
+                case "characterData":
+                    {
+                        this.#dispatch(mutation.target, "mutation.parent.characterdata", undefined, undefined, mutation);
+                        this.#dispatch(mutation.target, "mutation.target.characterdata", undefined, undefined, mutation);
+                        this.#dispatch(mutation.target, "mutation.child.characterdata", undefined, undefined, mutation);
                     }
             }
         });
-        let modelAttribute = this.attribute(this.#options.attribute.names.model);
         //Update each element
         for (let element of untrackableElements) {
             this.#untrackElement(element);
@@ -398,7 +524,6 @@ class HydrateApp {
         for (let element of trackableElements) {
             this.#trackElement(element);
             let modelName = element.getAttribute(modelAttribute);
-            this.#dispatch(element, "bind", modelName, this.state(modelName));
         }
     }
     #inputListener(event) {
@@ -410,7 +535,7 @@ class HydrateApp {
         let state = this.state(modelName);
         if (!(state instanceof Object))
             return;
-        let modelEvent = this.#createEvent(target, "input", state, this.#determineEventDetailProperties(modelName, "model"), null);
+        let modelEvent = this.#createEvent(target, "input", state, this.#determineEventDetailProperties(modelName, "model"), null, undefined);
         let args = this.parseAttributeArguments(target, this.attribute(this.#options.attribute.names.input));
         for (let i = 0; i < args.length; i++) {
             //How do we want to format the input attribute?
@@ -424,12 +549,14 @@ class HydrateApp {
         }
     }
     #addTrackableAttributes() {
-        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.delete), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.static), this.attribute(this.#options.attribute.names.condition), this.attribute(this.#options.attribute.names.callback), this.attribute(this.#options.attribute.names.handler), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.route), this.attribute(this.#options.attribute.names.page));
+        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.delete), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.static), this.attribute(this.#options.attribute.names.condition), this.attribute(this.#options.attribute.names.callback), this.attribute(this.#options.attribute.names.handler), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.route), this.attribute(this.#options.attribute.names.page), this.attribute(this.#options.attribute.names.mutation));
         let app = this;
         this.#options.attribute.trackables.push(...this.#options.attribute.names.customs.map(x => app.attribute(x)));
     }
     #addStandardAttributeHandlers() {
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.property), (arg, eventDetails) => {
+            if (eventDetails.model == null)
+                return;
             let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             if (value === undefined)
                 return;
@@ -439,6 +566,8 @@ class HydrateApp {
             return;
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.attribute), (arg, eventDetails) => {
+            if (eventDetails.model == null)
+                return;
             let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             if (value === undefined)
                 return;
@@ -453,10 +582,26 @@ class HydrateApp {
         if (element.hasAttribute(attribute)) {
             let args = this.parseAttributeArguments(element, attribute);
             let handler = this.#getHandlerFunction(attribute);
-            for (let arg of args) {
-                this.#addExecuter(element, "bind", modelPath, arg, handler);
-                this.#addExecuter(element, "set", modelPath, arg, handler);
-            }
+            let eventTypes = [
+                'track',
+                'bind',
+                'set',
+                "mutation.target.added",
+                "mutation.target.removed",
+                "mutation.target.attribute",
+                "mutation.target.characterdata",
+                "mutation.parent.added",
+                "mutation.parent.removed",
+                "mutation.parent.attribute",
+                "mutation.parent.characterdata",
+                "mutation.child.added",
+                "mutation.child.removed",
+                "mutation.child.attribute",
+                "mutation.child.characterdata"
+            ];
+            for (let arg of args)
+                for (let i = 0; i < eventTypes.length; i++)
+                    this.#addExecuter(element, eventTypes[i], modelPath, arg, handler);
         }
     }
     #addSetAttributeHandler(element, modelPath) {
@@ -464,10 +609,26 @@ class HydrateApp {
         if (element.hasAttribute(attribute)) {
             let args = this.parseAttributeArguments(element, attribute);
             let handler = this.#getHandlerFunction(attribute);
-            for (let arg of args) {
-                this.#addExecuter(element, "bind", modelPath, arg, handler);
-                this.#addExecuter(element, "set", modelPath, arg, handler);
-            }
+            let eventTypes = [
+                'track',
+                'bind',
+                'set',
+                "mutation.target.added",
+                "mutation.target.removed",
+                "mutation.target.attribute",
+                "mutation.target.characterdata",
+                "mutation.parent.added",
+                "mutation.parent.removed",
+                "mutation.parent.attribute",
+                "mutation.parent.characterdata",
+                "mutation.child.added",
+                "mutation.child.removed",
+                "mutation.child.attribute",
+                "mutation.child.characterdata"
+            ];
+            for (let arg of args)
+                for (let i = 0; i < eventTypes.length; i++)
+                    this.#addExecuter(element, eventTypes[i], modelPath, arg, handler);
         }
     }
     resolveArgumentValue(detail, arg, event) {
@@ -479,7 +640,7 @@ class HydrateApp {
             $model: detail.model,
             $event: event,
             $script: function (name) {
-                let selector = `[${app.attribute(app.options.attribute.names.script)}=${arg.expression}]`;
+                let selector = `[${app.attribute(app.options.attribute.names.script)}=${name}]`;
                 let scriptElement = app.root.querySelector(selector);
                 if (scriptElement == null)
                     return null;
@@ -594,7 +755,7 @@ class HydrateApp {
             //Send a track event
             let modelName = element.getAttribute(this.attribute(this.#options.attribute.names.model)) ?? undefined;
             let state = modelName === undefined ? undefined : this.state(modelName);
-            this.#dispatch(element, "track", modelName, state);
+            this.#dispatch(element, "track", modelName, state, undefined);
         }
     }
     #untrackElement(element) {
@@ -604,7 +765,7 @@ class HydrateApp {
         //Send an untrack event
         let modelName = element.getAttribute(this.attribute(this.#options.attribute.names.model)) ?? undefined;
         let state = modelName === undefined ? undefined : this.state(modelName);
-        if (this.#dispatch(element, "untrack", modelName, state))
+        if (this.#dispatch(element, "untrack", modelName, state, undefined))
             return;
         //Allow the element not to detach if we prevented the default behavior
         this.#htmlExcecuters.delete(element);
@@ -659,13 +820,15 @@ class HydrateApp {
     #getExcecuters(eventType, targets = [], propPath = undefined) {
         let details = this.#determineEventDetailProperties(propPath, "property");
         let results = new Map();
+        if (targets == null)
+            return results;
         let filterModels = propPath != undefined && propPath.trim() != "";
         for (let element of this.#htmlExcecuters.keys()) {
             let nested = element.hasAttribute(this.attribute(this.#options.attribute.names.nested));
             if (targets != null && targets.length > 0 && !targets.includes(element))
                 continue;
             let eventExecuters = this.#htmlExcecuters.get(element).get(eventType);
-            if (eventExecuters === undefined || eventExecuters.size === 0)
+            if (eventExecuters == undefined || eventExecuters.size === 0)
                 continue;
             let exectuers = new Map();
             if (filterModels) {
@@ -674,27 +837,42 @@ class HydrateApp {
                     if (modelPath !== details.modelPath && !modelPath.startsWith(details.modelPath) && (!nested || !details.modelPath.startsWith(modelPath)))
                         continue;
                     let modelExecuters = eventExecuters.get(modelPath);
-                    if (modelExecuters === undefined || modelExecuters.length === 0)
+                    if (modelExecuters == undefined || modelExecuters.length === 0)
                         continue;
                     exectuers.set(modelPath, modelExecuters);
                 }
             }
             else {
                 for (let property of eventExecuters.keys())
-                    exectuers.set(property, eventExecuters.get(details.modelPath));
+                    exectuers.set(property, eventExecuters.get(property));
             }
             results.set(element, exectuers);
         }
         //TODO: filter out any conditionals, static, etc.
         return results;
     }
-    #dispatch(target, eventType, propPath, previousValue) {
-        let listenerEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null);
+    #dispatch(target, eventType, propPath, previousValue, data) {
+        //Data is any additional object data that may be needed for an event
+        let listenerEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null, data);
         let dispatchElement = target.isConnected ? target : this.#root;
         dispatchElement.dispatchEvent(listenerEvent);
         if (listenerEvent.defaultPrevented)
             return true;
-        let elements = this.#getTrackableElements(target);
+        let elements;
+        if (eventType.startsWith("mutation.child"))
+            elements = target.parentElement !== null ? [target.parentElement] : [];
+        else if (eventType.startsWith("mutation.target"))
+            elements = [target];
+        else if (eventType.startsWith("mutation.parent")) {
+            elements = [];
+            for (let node of target.childNodes)
+                if (node instanceof HTMLElement)
+                    elements.push(node);
+            if (elements.length === 0)
+                elements = null;
+        }
+        else
+            elements = this.#getTrackableElements(target);
         let elementExecuters = this.#getExcecuters(eventType, elements, propPath);
         for (let element of elementExecuters.keys()) {
             let modelExecuters = elementExecuters.get(element);
@@ -703,13 +881,13 @@ class HydrateApp {
                 // let rootModelName = nameIndex < 0 ? property : property.substring(0, nameIndex);
                 // let state = this.state(rootModelName);
                 let event;
-                if (propPath !== modelPath && propPath.startsWith(modelPath)) {
-                    let nestedEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null);
-                    event = this.#createEvent(element, eventType, this.state(modelPath), this.#determineEventDetailProperties(modelPath, "property"), nestedEvent.detail);
+                if (propPath != null && propPath !== modelPath && propPath.startsWith(modelPath)) {
+                    let nestedEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null, data);
+                    event = this.#createEvent(element, eventType, this.state(modelPath), this.#determineEventDetailProperties(modelPath, "property"), nestedEvent.detail, data);
                     //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, this.state(property), nestedEvent);
                 }
                 else {
-                    event = this.#createEvent(element, eventType, previousValue, this.#determineEventDetailProperties(modelPath, "property"), null);
+                    event = this.#createEvent(element, eventType, previousValue, this.#determineEventDetailProperties(modelPath, "property"), null, data);
                     //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, previousValue, null);
                 }
                 for (let executer of modelExecuters.get(modelPath)) {
@@ -724,7 +902,7 @@ class HydrateApp {
         }
         return listenerEvent.defaultPrevented;
     }
-    #createEvent(target, eventType, previousValue, properties, nested) {
+    #createEvent(target, eventType, previousValue, properties, nested, data) {
         switch (eventType) {
             case "bind":
             case "set":
@@ -744,6 +922,22 @@ class HydrateApp {
                 {
                     let detail = new HydrateElementTrackingEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, previousValue, nested);
                     return new HydrateElementTrackingEvent(detail);
+                }
+            case "mutation.target.attribute":
+            case "mutation.target.characterdata":
+            case "mutation.target.added":
+            case "mutation.target.removed":
+            case "mutation.parent.attribute":
+            case "mutation.parent.characterdata":
+            case "mutation.parent.added":
+            case "mutation.parent.removed":
+            case "mutation.child.attribute":
+            case "mutation.child.characterdata":
+            case "mutation.child.added":
+            case "mutation.child.removed":
+                {
+                    let detail = new HydrateElementMutationEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, previousValue, data);
+                    return new HydrateElementMutationEvent(detail);
                 }
         }
     }
