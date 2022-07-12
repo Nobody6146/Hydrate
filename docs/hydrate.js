@@ -408,13 +408,13 @@ class HydrateApp {
     //syntax: h-mutation="" | h-mutation="" responds to all mutations
     //  h-mutation="target: *" responds to all mutation.target events
     //  h-mutation="target: characterdata; child: added, removed;" responds to all target characterdata events, and all child added and removed events
-    #parseMutationListeners(element) {
+    #parseElementMutationEvents(element) {
         let mutationAttribute = this.attribute(this.#options.attribute.names.mutation);
+        let map = new Map();
         if (!element.hasAttribute(mutationAttribute))
-            return;
+            return map;
         let args = this.parseAttributeArguments(element, mutationAttribute);
         const wildcard = "*";
-        let map = new Map();
         map.set("mutation.target.added", false);
         map.set("mutation.target.removed", false);
         map.set("mutation.target.attribute", false);
@@ -431,7 +431,7 @@ class HydrateApp {
             && (args[0].expression.trim() === wildcard || args[0].expression.trim() === "")) {
             for (let key of map.keys())
                 map.set(key, true);
-            return;
+            return map;
         }
         for (let arg of args) {
             let value = arg.expression.trim();
@@ -441,16 +441,27 @@ class HydrateApp {
                 if (arg.field === "" && args.length === 1) {
                     for (let key of map.keys())
                         map.set(key, true);
+                    return map;
                 }
-                else {
-                    let value = map.get(arg.field);
+                for (let key of map.keys()) {
+                    if (key.startsWith(`mutation.${arg.field}`))
+                        map.set(key, true);
+                }
+            }
+            else {
+                var types = arg.expression.match(/([a-zA-Z]+)/g);
+                if (types === null)
+                    continue;
+                for (let t = 0; t < types.length; t++) {
+                    let key = `mutation.${arg.field}.${types[t]}`;
+                    let value = map.get(key);
                     if (value == null)
                         continue;
+                    map.set(key, true);
                 }
-                return;
             }
-            //if(arg.field === "" && arg.expression.trim() === wildcard);
         }
+        return map;
     }
     #mutationCallback(mutations, observer) {
         let updatedElements = [];
@@ -479,6 +490,7 @@ class HydrateApp {
                         this.#dispatch(mutation.target, "mutation.parent.attribute", undefined, undefined, mutation);
                         this.#dispatch(mutation.target, "mutation.target.attribute", undefined, undefined, mutation);
                         this.#dispatch(mutation.target, "mutation.child.attribute", undefined, undefined, mutation);
+                        break;
                     }
                 case "childList":
                     {
@@ -508,12 +520,14 @@ class HydrateApp {
                             this.#dispatch(mutation.target, "mutation.target.removed", undefined, undefined, mutation);
                             this.#dispatch(mutation.target, "mutation.child.removed", undefined, undefined, mutation);
                         }
+                        break;
                     }
                 case "characterData":
                     {
                         this.#dispatch(mutation.target, "mutation.parent.characterdata", undefined, undefined, mutation);
                         this.#dispatch(mutation.target, "mutation.target.characterdata", undefined, undefined, mutation);
                         this.#dispatch(mutation.target, "mutation.child.characterdata", undefined, undefined, mutation);
+                        break;
                     }
             }
         });
@@ -576,60 +590,6 @@ class HydrateApp {
             eventDetails.element.setAttribute(arg.field, value);
             return;
         });
-    }
-    #addSetPropertyHandler(element, modelPath) {
-        let attribute = this.attribute(this.#options.attribute.names.property);
-        if (element.hasAttribute(attribute)) {
-            let args = this.parseAttributeArguments(element, attribute);
-            let handler = this.#getHandlerFunction(attribute);
-            let eventTypes = [
-                'track',
-                'bind',
-                'set',
-                "mutation.target.added",
-                "mutation.target.removed",
-                "mutation.target.attribute",
-                "mutation.target.characterdata",
-                "mutation.parent.added",
-                "mutation.parent.removed",
-                "mutation.parent.attribute",
-                "mutation.parent.characterdata",
-                "mutation.child.added",
-                "mutation.child.removed",
-                "mutation.child.attribute",
-                "mutation.child.characterdata"
-            ];
-            for (let arg of args)
-                for (let i = 0; i < eventTypes.length; i++)
-                    this.#addExecuter(element, eventTypes[i], modelPath, arg, handler);
-        }
-    }
-    #addSetAttributeHandler(element, modelPath) {
-        let attribute = this.attribute(this.#options.attribute.names.attribute);
-        if (element.hasAttribute(attribute)) {
-            let args = this.parseAttributeArguments(element, attribute);
-            let handler = this.#getHandlerFunction(attribute);
-            let eventTypes = [
-                'track',
-                'bind',
-                'set',
-                "mutation.target.added",
-                "mutation.target.removed",
-                "mutation.target.attribute",
-                "mutation.target.characterdata",
-                "mutation.parent.added",
-                "mutation.parent.removed",
-                "mutation.parent.attribute",
-                "mutation.parent.characterdata",
-                "mutation.child.added",
-                "mutation.child.removed",
-                "mutation.child.attribute",
-                "mutation.child.characterdata"
-            ];
-            for (let arg of args)
-                for (let i = 0; i < eventTypes.length; i++)
-                    this.#addExecuter(element, eventTypes[i], modelPath, arg, handler);
-        }
     }
     resolveArgumentValue(detail, arg, event) {
         let app = this;
@@ -783,26 +743,88 @@ class HydrateApp {
         }
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
         let modelPath = element.getAttribute(modelAttribute);
-        this.#addSetPropertyHandler(element, modelPath);
-        this.#addSetAttributeHandler(element, modelPath);
+        let mutationEvents = this.#parseElementMutationEvents(element);
+        let possibleEventTypes = [
+            'track',
+            'bind',
+            'set'
+        ];
+        for (let key of mutationEvents.keys()) {
+            if (mutationEvents.get(key) === true)
+                possibleEventTypes.push(key);
+        }
+        this.#addSetPropertyHandler(element, modelPath, possibleEventTypes);
+        this.#addSetAttributeHandler(element, modelPath, possibleEventTypes);
         return created;
     }
-    #addExecuter(element, eventType, modelPath, arg, handler) {
+    #addSetPropertyHandler(element, modelPath, possibleEventTypes) {
+        let attribute = this.attribute(this.#options.attribute.names.property);
+        let eventTypes = [
+            'track',
+            'bind',
+            'set',
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes);
+    }
+    #addSetAttributeHandler(element, modelPath, possibleEventTypes) {
+        let attribute = this.attribute(this.#options.attribute.names.attribute);
+        let eventTypes = [
+            'track',
+            'bind',
+            'set',
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes);
+    }
+    #addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes) {
+        if (!element.hasAttribute(attribute))
+            return;
+        let args = this.parseAttributeArguments(element, attribute);
+        let handler = this.#getHandlerFunction(attribute);
         let elementExecuters = this.#htmlExcecuters.get(element);
-        let eventExecuters = elementExecuters.get(eventType);
-        if (eventExecuters === undefined) {
-            eventExecuters = new Map();
-            elementExecuters.set(eventType, eventExecuters);
+        for (let eventType of eventTypes) {
+            if (!possibleEventTypes.includes(eventType))
+                continue;
+            for (let arg of args) {
+                let eventExecuters = elementExecuters.get(eventType);
+                if (eventExecuters === undefined) {
+                    eventExecuters = new Map();
+                    elementExecuters.set(eventType, eventExecuters);
+                }
+                let modelExecuters = eventExecuters.get(modelPath);
+                if (modelExecuters === undefined) {
+                    modelExecuters = [];
+                    eventExecuters.set(modelPath, modelExecuters);
+                }
+                modelExecuters.push({
+                    arg: arg,
+                    handler: handler
+                });
+            }
         }
-        let modelExecuters = eventExecuters.get(modelPath);
-        if (modelExecuters === undefined) {
-            modelExecuters = [];
-            eventExecuters.set(modelPath, modelExecuters);
-        }
-        modelExecuters.push({
-            arg: arg,
-            handler: handler
-        });
     }
     #getTrackableElements(target) {
         if (target == null)

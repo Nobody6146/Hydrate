@@ -1,0 +1,703 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"/>
+        <title>Hydrate Documentation</title>
+    </head>
+    <body>
+
+        <section id="page-directory">
+            <h2>Directory</h2>
+            <ul>
+                <li><a href="#field-expression-syntax">Field Expression Syntax</a></li>
+                <li>
+                    <a href="#framework-event-types">Framework Event Types</a>
+                    <ul>
+                        <li><a href="#track-event">hydrate:track</a></li>
+                        <li><a href="#untrack-event">hydrate:untrack</a></li>
+                        <li><a href="#bind-event">hydrate:bind</a></li>
+                        <li><a href="#unbind-event">hydrate:unbind</a></li>
+                        <li><a href="#set-event">hydrate:set</a></li>
+                        <li><a href="#mutation-target-added-event">hydrate:mutation.target.added</a></li>
+                        <li><a href="#mutation-target-removed-event">hydrate:mutation.target.removed</a></li>
+                        <li><a href="#mutation-target-attribute-event">hydrate:mutation.target.attribute</a></li>
+                        <li><a href="#mutation-target-characterdata-event">hydrate:mutation.target.characterdata</a></li>
+                        <li><a href="#mutation-parent-added-event">hydrate:mutation.parent.added</a></li>
+                        <li><a href="#mutation-parent-removed-event">hydrate:mutation.parent.removed</a></li>
+                        <li><a href="#mutation-parent-attribute-event">hydrate:mutation.parent.attribute</a></li>
+                        <li><a href="#mutation-parent-characterdata-event">hydrate:mutation.parent.characterdata</a></li>
+                        <li><a href="#mutation-child-added-event">hydrate:mutation.child.added</a></li>
+                        <li><a href="#mutation-child-removed-event">hydrate:mutation.child.removed</a></li>
+                        <li><a href="#mutation-child-attribute-event">hydrate:mutation.child.attribute</a></li>
+                        <li><a href="#mutation-child-characterdata-event">hydrate:mutation.child.characterdata</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#framework-element-attributes">Framework Element Attributes</a>
+                    <ul>
+                        <li><a href="#model-attribute">h-model</a></li>
+                        <li><a href="#property-attribute">h-property</a></li>
+                        <li><a href="#attribute-attribute">h-attribute</a></li>
+                        <li><a href="#input-attribute">h-input</a></li>
+                        <li><a href="#mutation-attribute">h-mutation</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </section>
+
+        <section id="field-expression-syntax">
+            <h2>Field Expression Syntax</h2>
+            <div style="margin-left: 4rem;">
+                <p>
+                    This syntax refers to the manner in which a framework attribute has it's argument list formatted.
+                </p>
+                <p>
+                    <b>Usage:</b>
+                    <ul>
+                        <li>This syntax can be used to help specify the name of some type of field and provide a JS expression to work with that field</li>
+                        <li>Any single command JS will work here as the expression.</li>
+                        <li>This syntax also allows you to process multiple field expression pairing to perform multiple actions on a framework attribute that accepts this syntax.</li>
+                        <li>A semi colon at the end of the command will deliminate the begging of the next field and expression pairing</li>
+                        <li>All valid JS is supported inside this command including variables, variable/object literals, and expressions</li>
+                        <li>The only JS syntax not excepted inside the expression body is comments as they can not be parsed</li>
+                        <li>This syntax is clear and easy to read and should look fimilar as it's structured like you'd write inline css</li>
+                    </ul>
+                </p>
+                <p>
+                    <b>Syntax:</b> <code>ATTRIBUTE_NAME="FIELD_NAME_1: EXPRESSION; FIELD_NAME_2: EXPRESSION;..."</code>
+                    <ul>
+                        <li>
+                            <i>ATTRIBUTE_NAME -</i> The name of the framework attribute you're using
+                            <ul>
+                                <li><u>Examples:</u>
+                                    <ul>
+                                        <li><code>h-property="value: text"</code></li>
+                                        <li><code>h-attribute="name: 'dog'"</code></li>
+                                        <li><code>h-property="name: 'dog'; value: text"</code></li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <i>FIELD_NAME -</i> The name of the field that we want to be manipulating
+                            <ul>
+                                <li><u>Examples:</u>
+                                    <ul>
+                                        <li><code>h-property="value: text"</code></li>
+                                        <li><code>h-property="textContent: 'dog'"</code></li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <i>EXPRESSION -</i> The JS expression to be resolved as the value of the property
+                            <ul>
+                                <li>The terminating semicolon is optional for the last field and expression pair</li>
+                                <li><u>Examples:</u>
+                                    <ul>
+                                        <li><code>h-property="value: 1"</code></li>
+                                        <li><code>h-property="value: 1;"</code></li>
+                                        <li><code>h-property="value: 2 + 2"</code></li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </p>
+                <p>
+                    <b>Features:</b>
+                    <ul>
+                        <li>This expression resolving by the framework injects a few varible utilities during resolution of model events
+                            <ul>
+                                <li>
+                                    <b>$hydrate -</b> points to the instance of the HydrateApp instance controlling the page
+                                    <ul>
+                                        <li>Example:
+                                            <ul><li>
+                                                <code>h-property="value: $hydrate.state('test.text')"</code>
+                                            </li></ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <b>$element -</b> points to the component currently responding to the model change
+                                    <ul>
+                                        <li>Example:
+                                            <ul><li>
+                                                <code>h-input="text: $element.value"</code>
+                                            </li></ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <b>$detail -</b> Points to the "detail" property of the custom JS event that the element is responding to
+                                    <ul>
+                                        <li>Example:
+                                            <ul><li>
+                                                <code>h-property="textContent: $detail.prop"</code>
+                                            </li></ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <b>$model -</b> Points to the proxy model that is bond to this component
+                                    <ul>
+                                        <li>Example:
+                                            <ul><li>
+                                                <code>h-on="click: $model.text = text + 1"</code>
+                                            </li></ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <b>$event -</b> Points to the instance of the JS event generated by the page
+                                    <ul>
+                                        <li>In the case of using the <a href="#event-listener-attribute">event listener attribute</a>, $event will be the event (such as oninput) that we received</li>
+                                        <li>Example:
+                                            <ul><li>
+                                                <code>h-on="input: $model.text = $event.data"</code>
+                                            </li></ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <b>$script -</b> A function that will return the function denoted with the <a href="#script-attribute">script attribute</a> who's value matches the inputed string
+                                    <ul>
+                                        <li>Example:
+                                            <ul><li>
+                                                <code>h-property="value: $script('calculateSquare')(value)"</code>
+                                            </li></ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>By default, expressions being evaluated for this syntax will have the properties of the model state injected as local variables
+                            <ul>
+                                <li>
+                                    This means that you can access state values directly from the syntax
+                                </li>
+                                <li>Example: 
+                                    <ul>
+                                        <li>
+                                            Where our model has the prop "text": <code>h-property="value: text"</code>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </p>
+            </div>
+        </section>
+
+        <section id="framework-event-types">
+            <h2>Framework Event Types</h2>
+            <div style="margin-left: 4rem;">
+                <p>
+                    Hydrate generates several different types of events that components and event listeners can respond to
+                </p>
+                <fieldset id="track-event">
+                    <legend><h3>hydrate:track</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When an element goes from being plain HTML to an element that is being tracked by the framework as a component
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-tracking-event-type"><b>HydrateElementTrackingEvent</b></a>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>At this point, the element has now become a dynamic component and can be optted into being handled by the framework</li>
+                            <li>An element with the <a href="#model-attribute">Model attribute</a> will become tracked whenever it is added to the DOM,
+                                or when the model attribute is added
+                            </li>
+                            <li>The model being bound to the component does not have to be a valid model name in order for this event to fire.</li>
+                            <li>Rebinding a new model to the same model name or even changing the model the element is associated with will not retrigger this event.
+                                The <a href="#model-attribute">Model attribute</a> must be completely removed from the element and readded before the even will trigger again.
+                            </li>
+                        </ul>
+                    </p>
+                </fieldset>
+                <fieldset id="untrack-event">
+                    <legend><h3>hydrate:untrack</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When an element goes from being a component tracked by the framework back to being just a plain HTML element.
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-tracking-event-type"><b>HydrateElementTrackingEvent</b></a>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>At this point, the element is no longer being controlled by the framework and cannot opt into model changes</li>
+                            <li>This would occur when a component has it's <a href="#model-attribute">Model attribute</a> removed</li>
+                        </ul>
+                    </p>
+                </fieldset>
+                <fieldset id="bind-event">
+                    <legend><h3>hydrate:bind</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When a new model is bound to the framework or a new model is bound to an element.
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#model-event-type"><b>HydrateModelEvent</b></a>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>This event will trigger whether it's the first time a model is bound under that name to the framework, or if a new model is rebound to that name</li>
+                            <li>If changes to the <a href="#model-attribute">Model attribute</a> occur, this would also cause a rebind</li>
+                            <li>Reviewing the event target can be useful for determining whether the bind event was generated by the framework or the DOM.
+                                <ul>
+                                    <li>Events generated by the framework will always have the targets being the root DOM node being controlled by the framework.</li>
+                                    <li>If you don't turn the root node into a component, then you can assure any events with the root as it's target originated from the framework.</li>
+                                    <li>Similarly, any event with a target other than the root node was generated by the element in order to siginal it performing an action.</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                </fieldset>
+                <fieldset id="unbind-event">
+                    <legend><h3>hydrate:unbind</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When an existing model is unbound or rebound from the framework. An unbind can also be generated if an existing model property is removed
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#model-event-type"><b>HydrateModelEvent</b></a>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>Rebinding a model with the same name will first generate the <a href="#unbind-event">Unbind event</a> for the existing model, and then generate a new <a href="#unbind-event">bind event</a> for the new model data.</li>
+                            <li>A model property is considered "removed" if the delete operator is called on the property
+                                , or if a set operation is performed on the model that would would replace the state with a value that did not contain the old property</li>
+                        </ul>
+                    </p>
+                </fieldset>
+                <fieldset id="set-event">
+                    <legend><h3>hydrate:set</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the set operator is called on a existing model property
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#model-event-type"><b>HydrateModelEvent</b></a>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>A set event means that a <a href="#model-attribute">bind event</a> would not occur</li>
+                        </ul>
+                    </p>
+                </fieldset>
+                <fieldset id="mutation-target-added-event">
+                    <legend><h3>hydrate:mutation.target.added</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element had a child element added to it
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="mutation-target-removed-event">
+                    <legend><h3>hydrate:mutation.target.removed</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element had a child element removed from it
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="mutation-target-attribute-event">
+                    <legend><h3>hydrate:mutation.target.attribute</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element had an attribute change value
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="mutation-target-characterdata-event">
+                    <legend><h3>hydrate:mutation.target.characterdata</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element had it's character data change value
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+                
+                <fieldset id="mutation-parent-added-event">
+                    <legend><h3>hydrate:mutation.parent.added</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element had it's parent element added to the DOM
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="mutation-parent-removed-event">
+                    <legend><h3>hydrate:mutation.parent.removed</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element had it's parent element removed from the DOM
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="mutation-parent-attribute-event">
+                    <legend><h3>hydrate:mutation.parent.attribute</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element had its parent element had an attribute change value
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="mutation-parent-characterdata-event">
+                    <legend><h3>hydrate:mutation.parent.characterdata</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element had its parent element change character data value
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+
+                <fieldset id="mutation-child-added-event">
+                    <legend><h3>hydrate:mutation.child.added</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element had a child element added to the DOM
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="mutation-child-removed-event">
+                    <legend><h3>hydrate:mutation.child.removed</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element had a child element removed from the DOM
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="mutation-child-attribute-event">
+                    <legend><h3>hydrate:mutation.child.attribute</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element ha a child element have an attribute change value
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="mutation-child-characterdata-event">
+                    <legend><h3>hydrate:mutation.child.characterdata</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When the target element had a child element change character data value
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#element-mutation-event-type"><b>HydrateElementMutationEvent</b></a>
+                    </p>
+                </fieldset>
+            </div>
+        </section>
+
+        <section id="framework-element-attributes">
+            <h2>Framework Element Attributes</h2>
+            <div style="margin-left: 4rem;">
+                <fieldset id="model-attribute">
+                    <legend><h3>h-model</h3></legend>
+                    <p>
+                        <b>Usage:</b> Binds the model to the element and turns it into a hydrate component
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-model="MODEL_PATH"</code>
+                        <ul>
+                            <li>
+                                <i>MODEL_PATH -</i> The model name or "dot operator" path to the property of a model you wish to bind to the component
+                                <ul>
+                                    <li>You can access child properties using the "." operator</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-model="person"</code></li>
+                                            <li><code>h-model="person.name"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>This attribute is <b><i>REQUIRED</i></b> for all elements that want to interact with the framework</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="property-attribute">
+                    <legend><h3>h-property</h3></legend>
+                    <p>
+                        <b>Usage:</b> Used to set a property(s) on a hydrate component
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-property="PROPERTY_NAME_1: EXPRESSION; PROPERTY_NAME_2: EXPRESSION;..."</code>
+                        <ul>
+                            <li>
+                                <i>PROPERTY_NAME -</i> The name of the property on the HTML element you want to set
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b></li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-property="value: text"</code></li>
+                                            <li><code>h-property="textContent: 'dog'"</code></li>
+                                            <li><code>h-property="value: text; textContent: 'dog';"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>EXPRESSION -</i> The JS expression to be resolved as the value of the property
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b></li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-property="value: 1"</code></li>
+                                            <li><code>h-property="value: 2 + 2"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Default Event types:</b> This attribute will respond to the following event types by default
+                        <ul>
+                            <li>hydrate:track</li>
+                            <li>hydrate:bind</li>
+                            <li>hydrate:set</li>
+                        </ul>
+                        <b>Mutation Event types:</b> This attribute will respond to the following event types if you have the <a href="#mutation-attribute">Mutation attribute</a>
+                        <ul>
+                            <li>hydrate:mutation.target.added</li>
+                            <li>hydrate:mutation.target.removed</li>
+                            <li>hydrate:mutation.target.attribute</li>
+                            <li>hydrate:mutation.target.characterdata</li>
+                            <li>hydrate:mutation.parent.added</li>
+                            <li>hydrate:mutation.parent.removed</li>
+                            <li>hydrate:mutation.parent.attribute</li>
+                            <li>hydrate:mutation.parent.characterdata</li>
+                            <li>hydrate:mutation.child.added</li>
+                            <li>hydrate:mutation.child.removed</li>
+                            <li>hydrate:mutation.child.attribute</li>
+                            <li>hydrate:mutation.child.characterdata</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="attribute-attribute">
+                    <legend><h3>h-attribute</h3></legend>
+                    <p>
+                        <b>Usage:</b> Used to set a attribute(s) on a hydrate component
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-attribute="ATTRIBUTE_NAME_1: EXPRESSION; ATTRIBUTE_NAME_2: EXPRESSION;..."</code>
+                        <ul>
+                            <li>
+                                <i>ATTRIBUTE_NAME -</i> The name of the attribute on the HTML element you want to set
+                                <ul>
+                                    <li>The attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b></li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-attribute="id: name"</code></li>
+                                            <li><code>h-attribute="class: 'mainTheme'"</code></li>
+                                            <li><code>h-attribute="id: name; class: 'mainTheme'"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>EXPRESSION -</i> The JS expression to be resolved as the value of the property
+                                <ul>
+                                    <li>The attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b></li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-attribute="class: 'mainTheme'"</code></li>
+                                            <li><code>h-attribute="class: `mainTheme-${2}'"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Default Event types:</b> This attribute will respond to the following event types by default
+                        <ul>
+                            <li>hydrate:track</li>
+                            <li>hydrate:bind</li>
+                            <li>hydrate:set</li>
+                        </ul>
+                        <b>Mutation Event types:</b> This attribute will respond to the following event types if you have the <a href="#mutation-attribute">Mutation attribute</a>
+                        <ul>
+                            <li>hydrate:mutation.target.added</li>
+                            <li>hydrate:mutation.target.removed</li>
+                            <li>hydrate:mutation.target.attribute</li>
+                            <li>hydrate:mutation.target.characterdata</li>
+                            <li>hydrate:mutation.parent.added</li>
+                            <li>hydrate:mutation.parent.removed</li>
+                            <li>hydrate:mutation.parent.attribute</li>
+                            <li>hydrate:mutation.parent.characterdata</li>
+                            <li>hydrate:mutation.child.added</li>
+                            <li>hydrate:mutation.child.removed</li>
+                            <li>hydrate:mutation.child.attribute</li>
+                            <li>hydrate:mutation.child.characterdata</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="input-attribute">
+                    <legend><h3>h-input</h3></legend>
+                    <p>
+                        <b>Usage:</b> A shortcut way to set a model property value based on user input
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-input="MODEL_PROPERTY: EXPRESSION; MODEL_PROPERTY: EXPRESSION;..."</code>
+                        <ul>
+                            <li>
+                                <i>MODEL_PROPERTY -</i> The name of the property on the model bound to the component
+                                <ul>
+                                    <li>The attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b></li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-input="text: $element.value"</code></li>
+                                            <li><code>h-input="character: $event.data"</code></li>
+                                            <li><code>h-input="text: $element.value; character: $event.data"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>EXPRESSION -</i> The JS expression to be resolved as the value of the property
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b></li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-input="text: $element.value"</code></li>
+                                            <li><code>h-input="name: name + $event.data"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Event types: This attribute will respond to the following event types</b>
+                        <ul>
+                            <li>hydrate:input</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="mutation-attribute">
+                    <legend><h3>h-mutation</h3></legend>
+                    <p>
+                        <b>Usage:</b> Opts the component into responding to the specified mutation events
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-mutation="MUTATION_SOURCE_1: LIST_OF_MUTATIONS; MUTATION_SOURCE_2: LIST_OF_MUTATIONS;..."</code>
+                        <ul>
+                            <li>
+                                <i>MUTATION_SOURCE -</i> The name of the source of mutation.
+                                <ul>
+                                    <li>
+                                        The possible values are as follows
+                                        <ul>
+                                            <li><u>target</u> - The element itself mutated</li>
+                                            <li><u>child</u> - The element had a element that mutated</li>
+                                            <li><u>parent</u> - The element's parent mutated</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                                <ul>
+                                    <li>The attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b></li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-mutation="parent: attribute"</code></li>
+                                            <li><code>h-mutation="child: attribute"</code></li>
+                                            <li><code>h-input="parent: attribute; child: attribute"</code></li>
+                                        </ul>
+                                    </li>
+                                    <li>And empty attribute body is a quick way to specify that the component will respond to all mutation events of elements associated with it</u>
+                                        <ul>
+                                            <li><code>h-mutation=""</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>LIST_OF_MUTATIONS -</i> A comma delimited list of mutation types to respond to
+                                <ul>
+                                    <li>
+                                        The possible values are as follows
+                                        <ul>
+                                            <li><u>attribute</u> - An element attribute changed</li>
+                                            <li><u>added</u> - A child element was added</li>
+                                            <li><u>removed</u> - A child element was removed</li>
+                                            <li><u>characterdata</u> - The element's character date changed</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-mutation="child: attribute"</code></li>
+                                            <li><code>h-property="target: attribute, added, removed"</code></li>
+                                            <li><code>h-property="child: attribute; target: attribute, added, removed"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>Wild Cards -</i> A wild card (*) can be used in place of some values to mean all sources/mutations
+                                <ul>
+                                    <li>
+                                        A wild card can be used inside the attribute value similar to an empty value to make the component to respond to all mutation events related to elements associated with it
+                                        <ul>
+                                            <li><code>h-mutation="*"</code></li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        A wild card can be used in a list of mutations to make the component respond to all mutation types for a source type
+                                        <ul>
+                                            <li><code>h-mutation="target: *"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Event types:</b> This attribute will allow components to respond to
+                        <ul>
+                            <li>mutation.target.added</li>
+                            <li>mutation.target.removed</li>
+                            <li>mutation.target.attribute</li>
+                            <li>mutation.target.characterdata</li>
+                            <li>mutation.parent.added</li>
+                            <li>mutation.parent.removed</li>
+                            <li>mutation.parent.attribute</li>
+                            <li>mutation.parent.characterdata</li>
+                            <li>mutation.child.added</li>
+                            <li>mutation.child.removed</li>
+                            <li>mutation.child.attribute</li>
+                            <li>mutation.child.characterdata</li>
+                        </ul>
+                    </p>
+                </fieldset>
+            </div>
+        </section>
+        
+    </body>
+</html>
