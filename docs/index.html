@@ -23,6 +23,7 @@
             </main> -->
     
             <main>
+                <div h-model h-property="textContent: 'Overrided text from modeless component!'">Same Text</div>
                 <input h-model="default" h-property="value: text" h-input="text: $element.value" value="Testing">
                 <input h-model="default" h-property="value: text" h-on="input: $model.text = $element.value" value="Testing">
                 <div h-model="default" h-property="'innerHTML': text" h-attribute="name: text">

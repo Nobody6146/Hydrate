@@ -231,9 +231,9 @@ class HydrateApp {
     get options() {
         return this.#options;
     }
-    get exectuers() {
-        return this.#htmlExcecuters;
-    }
+    // get exectuers() {
+    //     return this.#htmlExcecuters;
+    // }
     /**
      *
      * @param name the root "name" of the attribute. For standard attributes, it is the option property name. For customs, it's just the name
@@ -296,8 +296,10 @@ class HydrateApp {
     }
     /** Bind a new model to the framework */
     bind(name, state) {
-        if (name == null)
-            name = "";
+        if (name == null || name === "")
+            throw Error("invalid model name");
+        if (!name.match(/^[$A-Z_][0-9A-Z_$]*$/i))
+            throw Error("invalid model name");
         if (state == null)
             state = {};
         //TODO: check to make sure the name is a proper identifier
@@ -477,6 +479,8 @@ class HydrateApp {
             switch (mutation.type) {
                 case "attributes":
                     {
+                        if (mutation.target.getAttribute(mutation.attributeName) === mutation.oldValue)
+                            return;
                         if (this.#options.attribute.trackables.indexOf(mutation.attributeName) >= 0) {
                             if (mutation.target.matches(trackableSelector)) {
                                 let element = mutation.target;
@@ -569,7 +573,7 @@ class HydrateApp {
     }
     #addStandardAttributeHandlers() {
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.property), (arg, eventDetails) => {
-            if (eventDetails.model == null)
+            if (eventDetails.modelName !== "" && eventDetails.model == null)
                 return;
             let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             if (value === undefined)
@@ -580,7 +584,7 @@ class HydrateApp {
             return;
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.attribute), (arg, eventDetails) => {
-            if (eventDetails.model == null)
+            if (eventDetails.modelName !== "" && eventDetails.model == null)
                 return;
             let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             if (value === undefined)
@@ -610,8 +614,8 @@ class HydrateApp {
                 return func;
             }
         };
-        var keys = Object.keys(functionArgs).concat(Object.keys(detail.state));
-        var values = Object.values(functionArgs).concat(Object.values(detail.state));
+        var keys = Object.keys(functionArgs).concat(Object.keys(detail.state ?? {}));
+        var values = Object.values(functionArgs).concat(Object.values(detail.state ?? {}));
         let func = new Function(...keys, `'use strict'; return ${arg.expression}`).bind(detail.state);
         return func(...values);
     }
@@ -833,7 +837,7 @@ class HydrateApp {
         let elements = [];
         if (target.matches(selector))
             elements.push(target);
-        return elements.concat([...this.#root.querySelectorAll(selector)]);
+        return elements.concat([...target.querySelectorAll(selector)]);
     }
     get #trackableElementSelector() {
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
