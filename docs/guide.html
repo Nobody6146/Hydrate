@@ -40,6 +40,7 @@
                         <li><a href="#attribute-attribute">h-attribute</a></li>
                         <li><a href="#input-attribute">h-input</a></li>
                         <li><a href="#mutation-attribute">h-mutation</a></li>
+                        <li><a href="#callback-attribute">h-callback</a></li>
                     </ul>
                 </li>
             </ul>
@@ -699,6 +700,29 @@
                             <li>mutation.child.removed</li>
                             <li>mutation.child.attribute</li>
                             <li>mutation.child.characterdata</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="callback-attribute">
+                    <legend><h3>h-callback</h3></legend>
+                    <p>
+                        <b>Usage:</b> Executes the callback script on component's events
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-callback="JS_Code"</code>
+                        <ul>
+                            <li>
+                                <i>JS_Code -</i> Any JS code you want to run as part as the component callback
+                                <ul>
+                                    <li>The property does not use the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b>to seperate expression; However, it does follow the same execution behavior with how "this" is bound and the data injected into the function context</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-callback="console.log($detail)"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
                         </ul>
                     </p>
                 </fieldset>

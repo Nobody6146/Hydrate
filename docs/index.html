@@ -22,13 +22,28 @@
                 </div>
             </main> -->
     
+            <template h-template="ExampleTemplate">
+                <h1>Example Component</h1>
+                <p h-model="^.name" h-property="textContent: `${first} ${last}`"></p>
+            </template>
+            <template h-template="ListTemplate">
+                <li h-model="^" h-property="textContent: `key: ${$detail.modelName}, value: ${$detail.state}`"></li>
+            </template>
+
             <main>
                 <div h-model h-property="textContent: 'Overrided text from modeless component!'">Same Text</div>
-                <input h-model="default" h-property="value: text" h-input="text: $element.value" value="Testing">
+                <input h-model="default" h-property="value: text" h-input="text: $element.value" value="Testing" h-callback="console.log('got data!')">
                 <input h-model="default" h-property="value: text" h-on="input: $model.text = $element.value" value="Testing">
                 <div h-model="default" h-property="'innerHTML': text" h-attribute="name: text">
                     Sample text
                 </div>
+                <div h-model="default.person" h-component="ExampleTemplate">
+                    Placeholder text that will be deleted
+                </div>
+                <ul h-model="default.list" h-component="ListTemplate">
+                    Placeholder list will be deleted
+                </ul>
+                <p h-model="default.person.name" h-property="textContent: `${first} ${last}`">lnkjhk</p>
             </main>
     
             <footer>
@@ -70,7 +85,8 @@
 
                 let app = new HydrateApp();
                 let div = document.querySelector("div");
-                let model = app.bind("default", {text: "hello"})
+                //let model = app.bind("default", {text: "hello", list: [{first: "Brandon", last: "Biera"}, {first:"Megan",last:"Wong"}]});
+                let model = app.bind("default", {text: "hello", list: [1,2,3,4], person: {name: {first: "Brandon", last: "Biera"}}});
     
                 // let event = new HydrateModelEvent();
                 // event.target = div;

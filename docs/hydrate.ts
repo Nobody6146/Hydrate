@@ -751,6 +751,59 @@ class HydrateApp {
             eventDetails.element.setAttribute(arg.field, value);
             return;
         });
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.callback), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
+            if(eventDetails.modelName !== "" && eventDetails.model == null)
+                return;
+            eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
+        });
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.component), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
+            if(eventDetails.modelName !== "" && eventDetails.model == null)
+                return;
+            
+            let element = eventDetails.element;
+            let templateAttribute = this.attribute(this.#options.attribute.names.template);
+            let template = this.#root.querySelector(`template[${templateAttribute}=${arg.expression}]`) as HTMLTemplateElement;
+            if(template == null)
+                return;
+        
+            let modelAttribute = this.attribute(this.#options.attribute.names.model);
+            let modelSelector = `[${modelAttribute}^=\\^]`;
+            const insertModelPath = function(element:HTMLElement, path:string) {
+                element.setAttribute(modelAttribute, element.getAttribute(modelAttribute).replace("^", path));
+            }
+            
+            let children:Node[] = [];
+            let modelPaths = Array.isArray(eventDetails.prop)
+                ? Object.keys(eventDetails.prop).map(x => `${eventDetails.propPath ?? eventDetails.modelPath}.${x}`)
+                : [eventDetails.propPath ?? eventDetails.modelPath];
+
+            for(let modelPath of modelPaths)
+            {
+                for(var child of template.content.childNodes)
+                {
+                    let node = child.cloneNode(true);
+                    children.push(node);
+
+                    if(!(node instanceof HTMLElement))
+                        continue;
+
+                    //Inject model name and initialize component
+                    if(node.matches(modelSelector))
+                        insertModelPath(node, modelPath);
+                    
+                    if(node.matches(modelSelector))
+                        insertModelPath(node, modelPath);
+                    for(let element of node.querySelectorAll<HTMLElement>(modelSelector))
+                        insertModelPath(element, modelPath);
+                }
+            }
+            
+            //delete the current content
+            while(element.firstChild)
+                element.removeChild(element.firstChild);
+            for(let node of children)
+                eventDetails.element.appendChild(node);
+        });
     }
 
     resolveArgumentValue(detail:any, arg:HydrateAttributeArgument, event:Event) {
@@ -773,9 +826,16 @@ class HydrateApp {
             }
         }
         
-        var keys = Object.keys(functionArgs).concat(Object.keys(detail.state ?? {}));
-        var values = Object.values(functionArgs).concat(Object.values(detail.state ?? {}));
+        const validIndentifier = /^[$A-Z_][0-9A-Z_$]*$/i;
+        var stateKeys = Object.keys(detail.state ?? {}).filter(x => x.match(validIndentifier));
+        var keys = Object.keys(functionArgs).concat(stateKeys);
+        var values = Object.values(functionArgs);
+        if(typeof detail.state === "object")
+            for(let key of stateKeys)
+                values.push(detail.state[key]);
         let func = new Function(...keys, `'use strict'; return ${arg.expression}`).bind(detail.state);
+        if(typeof detail.state === "object")
+            func = func.bind(detail.state);
         return func(...values);
     }
 
@@ -944,6 +1004,8 @@ class HydrateApp {
         
         this.#addSetPropertyHandler(element, modelPath, possibleEventTypes);
         this.#addSetAttributeHandler(element, modelPath, possibleEventTypes);
+        this.#addExecuteCallbackHandler(element, modelPath, possibleEventTypes);
+        this.#addGenerateComponentHandler(element, modelPath, possibleEventTypes);
         return created;
     }
 
@@ -966,7 +1028,7 @@ class HydrateApp {
             "mutation.child.attribute",
             "mutation.child.characterdata"
         ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes);
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
     }
 
     #addSetAttributeHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
@@ -988,14 +1050,20 @@ class HydrateApp {
             "mutation.child.attribute",
             "mutation.child.characterdata"
         ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes);
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
     }
 
-    #addExecuters(element:HTMLElement, attribute:string, modelPath:string, eventTypes:HydrateEventType[], possibleEventTypes:HydrateEventType[]):void {
+    #addExecuters(element:HTMLElement, attribute:string, modelPath:string, eventTypes:HydrateEventType[], possibleEventTypes:HydrateEventType[], parseArgs:boolean):void {
         if(!element.hasAttribute(attribute))
             return;
         
-        let args = this.parseAttributeArguments(element, attribute);
+        let args = parseArgs ? this.parseAttributeArguments(element, attribute)
+            : [
+                {
+                    field: "",
+                    expression: element.getAttribute(attribute)
+                }
+            ];
         let handler = this.#getHandlerFunction(attribute);
         
         let elementExecuters = this.#htmlExcecuters.get(element);
@@ -1023,6 +1091,38 @@ class HydrateApp {
                 });
             }
         }
+    }
+
+    #addExecuteCallbackHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
+        let attribute = this.attribute(this.#options.attribute.names.callback);
+        let eventTypes:HydrateEventType[] = [
+            'track',
+            'bind',
+            'set',
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false);
+    }
+
+    #addGenerateComponentHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
+        let attribute = this.attribute(this.#options.attribute.names.component);
+        let eventTypes:HydrateEventType[] = [
+            'track',
+            'bind',
+            //"mutation.target.attribute",
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false);
     }
 
     #getTrackableElements(target?:HTMLElement) {
