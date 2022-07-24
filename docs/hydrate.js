@@ -553,7 +553,7 @@ class HydrateApp {
         let state = this.state(modelName);
         if (!(state instanceof Object))
             return;
-        let modelEvent = this.#createEvent(target, "input", state, this.#determineEventDetailProperties(modelName, "model"), null, undefined);
+        let modelEvent = this.#createEvent(target, "input", state, this.#determineEventDetailProperties(modelName, "property"), null, undefined);
         let args = this.parseAttributeArguments(target, this.attribute(this.#options.attribute.names.input));
         for (let i = 0; i < args.length; i++) {
             //How do we want to format the input attribute?
@@ -613,9 +613,9 @@ class HydrateApp {
                 element.setAttribute(modelAttribute, element.getAttribute(modelAttribute).replace("^", path));
             };
             let children = [];
-            let modelPaths = Array.isArray(eventDetails.prop)
-                ? Object.keys(eventDetails.prop).map(x => `${eventDetails.propPath ?? eventDetails.modelPath}.${x}`)
-                : [eventDetails.propPath ?? eventDetails.modelPath];
+            let modelPaths = Array.isArray(eventDetails.state)
+                ? Object.keys(eventDetails.state).map(x => `${eventDetails.modelPath}.${x}`)
+                : [eventDetails.modelPath];
             for (let modelPath of modelPaths) {
                 for (var child of template.content.childNodes) {
                     let node = child.cloneNode(true);
@@ -914,6 +914,7 @@ class HydrateApp {
         let eventTypes = [
             'track',
             'bind',
+            "set"
             //"mutation.target.attribute",
         ];
         this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false);
@@ -967,7 +968,8 @@ class HydrateApp {
     }
     #dispatch(target, eventType, propPath, previousValue, data) {
         //Data is any additional object data that may be needed for an event
-        let listenerEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null, data);
+        let detail = this.#determineEventDetailProperties(propPath, "property");
+        let listenerEvent = this.#createEvent(target, eventType, previousValue, detail, null, data);
         let dispatchElement = target.isConnected ? target : this.#root;
         dispatchElement.dispatchEvent(listenerEvent);
         if (listenerEvent.defaultPrevented)
@@ -995,14 +997,17 @@ class HydrateApp {
                 // let rootModelName = nameIndex < 0 ? property : property.substring(0, nameIndex);
                 // let state = this.state(rootModelName);
                 let event;
-                if (propPath != null && propPath !== modelPath && propPath.startsWith(modelPath)) {
-                    let nestedEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null, data);
-                    event = this.#createEvent(element, eventType, this.state(modelPath), this.#determineEventDetailProperties(modelPath, "property"), nestedEvent.detail, data);
+                if (propPath === modelPath) {
+                    event = this.#createEvent(element, eventType, previousValue, this.#determineEventDetailProperties(propPath, "model"), null, data);
+                }
+                else if (modelPath === detail.modelPath) {
+                    //Touched property of the model
+                    event = this.#createEvent(element, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null, data);
                     //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, this.state(property), nestedEvent);
                 }
                 else {
-                    event = this.#createEvent(element, eventType, previousValue, this.#determineEventDetailProperties(modelPath, "property"), null, data);
-                    //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, previousValue, null);
+                    let nestedEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null, data);
+                    event = this.#createEvent(element, eventType, this.state(modelPath), this.#determineEventDetailProperties(modelPath, "model"), nestedEvent.detail, data);
                 }
                 for (let executer of modelExecuters.get(modelPath)) {
                     try {

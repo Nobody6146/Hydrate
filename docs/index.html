@@ -32,7 +32,7 @@
 
             <main>
                 <div h-model h-property="textContent: 'Overrided text from modeless component!'">Same Text</div>
-                <input h-model="default" h-property="value: text" h-input="text: $element.value" value="Testing" h-callback="console.log('got data!')">
+                <input h-model="default" h-property="value: text" h-input="text: $element.value" value="Testing" h-callback="console.log('got data!', $detail)">
                 <input h-model="default" h-property="value: text" h-on="input: $model.text = $element.value" value="Testing">
                 <div h-model="default" h-property="'innerHTML': text" h-attribute="name: text">
                     Sample text
@@ -44,6 +44,7 @@
                     Placeholder list will be deleted
                 </ul>
                 <p h-model="default.person.name" h-property="textContent: `${first} ${last}`">lnkjhk</p>
+                <p h-model="default.person.name" h-property="textContent: first"></p>
             </main>
     
             <footer>
@@ -52,35 +53,35 @@
                 </p>
             </footer>
             <script>
-                document.body.addEventListener("hydrate:track", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:untrack", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:bind", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:set", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:unbind", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:track", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:untrack", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:bind", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:set", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:unbind", event => console.log(event.type, event.detail));
 
 
-                document.body.addEventListener("hydrate:element.track", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:element.untrack", event => console.log(event.type, event.detail));
-                //
-                document.body.addEventListener("hydrate:model.bind", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:model.set", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:model.unbind", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:mutation.parent.attribute", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:mutation.parent.added", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:mutation.parent.removed", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:mutation.parent.characters", event => console.log(event.type, event.detail));
-                //
-                document.body.addEventListener("hydrate:mutation.target.attribute", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:mutation.target.added", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:mutation.target.removed", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:mutation.target.characters", event => console.log(event.type, event.detail));
-                //
-                document.body.addEventListener("hydrate:mutation.child.attribute", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:mutation.child.added", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:mutation.child.removed", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate:mutation.child.characters", event => console.log(event.type, event.detail));
-                //
-                document.body.addEventListener("hydrate:router.route", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:element.track", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:element.untrack", event => console.log(event.type, event.detail));
+                // //
+                // document.body.addEventListener("hydrate:model.bind", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:model.set", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:model.unbind", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:mutation.parent.attribute", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:mutation.parent.added", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:mutation.parent.removed", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:mutation.parent.characters", event => console.log(event.type, event.detail));
+                // //
+                // document.body.addEventListener("hydrate:mutation.target.attribute", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:mutation.target.added", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:mutation.target.removed", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:mutation.target.characters", event => console.log(event.type, event.detail));
+                // //
+                // document.body.addEventListener("hydrate:mutation.child.attribute", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:mutation.child.added", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:mutation.child.removed", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate:mutation.child.characters", event => console.log(event.type, event.detail));
+                // //
+                // document.body.addEventListener("hydrate:router.route", event => console.log(event.type, event.detail));
                 
 
                 let app = new HydrateApp();
