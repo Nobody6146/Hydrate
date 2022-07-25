@@ -433,12 +433,32 @@
                                     </li>
                                 </ul>
                             </li>
+                                <li>
+                                    <i>Modeless Components -</i> MODEL_PATH can also be empty. In this scenario, a modeless component will be created.
+                                    <ul>
+                                        <li>
+                                            A modeless component will not be able to respond to property changes, as there is no model attached to it
+                                        </li>
+                                        <li>
+                                            Modeless components are useful for performing basic/reusable task on an element that don't depend on receiving state from your application
+                                        </li>
+                                        <li>
+                                            <u>Examples:</u>
+                                            <ul>
+                                                <li><code>&lt;div h-model h-component="LogoTemplate"&gt;</code></li>
+                                                <li><code>&lt;div h-model h-callback="console.log('Added element', this)"&gt;</code></li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </li>
                         </ul>
                     </p>
                     <p>
                         <b>Notes:</b>
                         <ul>
                             <li>This attribute is <b><i>REQUIRED</i></b> for all elements that want to interact with the framework</li>
+                            <li>Not every component needs to be hooked up to a global model in order to interact with the framework. For these we can use modeless components</li>
                         </ul>
                     </p>
                 </fieldset>

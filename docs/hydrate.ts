@@ -612,9 +612,12 @@ class HydrateApp {
                         if(mutation.target.matches(trackableSelector))
                         {
                             let element = mutation.target;
-                            this.#trackElement(element);
-                            let modelName = element.getAttribute(modelAttribute);
-                            //this.#dispatch(element, "bind", modelName, this.state(modelName), undefined);
+                            let newTrack = this.#trackElement(element);
+                            if(!newTrack) {
+                                //Wasn't a new track, but a core value changed, so rebind the element
+                                let modelName = element.getAttribute(modelAttribute);
+                                this.#dispatch(element, "bind", modelName, this.state(modelName), undefined);
+                            }
                         }
                         else
                             untrackableElements.add(mutation.target);
@@ -760,13 +763,18 @@ class HydrateApp {
             if(eventDetails.modelName !== "" && eventDetails.model == null)
                 return;
             
+            //Only generate the component if the model changed, not the child properties
+            let modelAttribute = this.attribute(this.#options.attribute.names.model);
+            if(eventDetails.element.getAttribute(modelAttribute) !== eventDetails.modelPath)
+                return;
+
             let element = eventDetails.element;
             let templateAttribute = this.attribute(this.#options.attribute.names.template);
             let template = this.#root.querySelector(`template[${templateAttribute}=${arg.expression}]`) as HTMLTemplateElement;
             if(template == null)
                 return;
         
-            let modelAttribute = this.attribute(this.#options.attribute.names.model);
+            
             
             let modelSelector = `[${modelAttribute}^=\\^]`;
             const insertModelPath = function(element:HTMLElement, path:string) {
@@ -890,8 +898,8 @@ class HydrateApp {
 
         let addArgument = function() {
             actions.push({
-                field: expression.substring(fieldStart, fieldEnd).replace(/['"`]/g, ""),
-                expression: expression.substring(fieldEnd + 1, i)
+                field: expression.substring(fieldStart, fieldEnd).replace(/['"`]/g, "").trim(),
+                expression: expression.substring(fieldEnd + 1, i).trim()
             });
             fieldStart = i + 1;
             searchingForExpression = false;
@@ -944,7 +952,7 @@ class HydrateApp {
             this.#trackElement(element);
     }
 
-    #trackElement(element:HTMLElement):void {
+    #trackElement(element:HTMLElement):boolean {
         let selector = this.#trackableElementSelector;
         if(!element.matches(selector))
         {
@@ -952,13 +960,15 @@ class HydrateApp {
             return;
         }
 
-        if(this.#updateExecuters(element))
+        let newTrack = this.#updateExecuters(element);
+        if(newTrack)
         {
             //Send a track event
             let modelName = element.getAttribute(this.attribute(this.#options.attribute.names.model)) ?? undefined;
             let state = modelName === undefined ? undefined : this.state(modelName);
             this.#dispatch(element, "track", modelName, state, undefined);
         }
+        return newTrack;
     }
 
     #untrackElement(element:HTMLElement) {
@@ -1121,8 +1131,19 @@ class HydrateApp {
         let eventTypes:HydrateEventType[] = [
             'track',
             'bind',
-            "set"
-            //"mutation.target.attribute",
+            "set",
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
         ];
         this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false);
     }
@@ -1162,7 +1183,10 @@ class HydrateApp {
                 for(let modelPath of eventExecuters.keys())
                 {
                     //if(nested)
-                    if(modelPath !== details.modelPath && !modelPath.startsWith(details.modelPath) && (!nested || !details.modelPath.startsWith(modelPath)))
+                    if(modelPath !== propPath
+                        && modelPath !== details.modelPath //Not a change to a property on our model
+                        && !modelPath.startsWith(propPath) //Not a change in our parent
+                        && (!nested || !propPath.startsWith(modelPath))) //not a nested change we're looking for
                         continue;
                     let modelExecuters = eventExecuters.get(modelPath);
                     if(modelExecuters == undefined || modelExecuters.length === 0)

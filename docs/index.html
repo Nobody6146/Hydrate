@@ -29,6 +29,9 @@
             <template h-template="ListTemplate">
                 <li h-model="^" h-property="textContent: `key: ${$detail.modelName}, value: ${$detail.state}`"></li>
             </template>
+            <template h-template="SelectorTemplate">
+                <option h-model="^" h-property="textContent: name; value: value;">Option</option>
+            </template>
 
             <main>
                 <div h-model h-property="textContent: 'Overrided text from modeless component!'">Same Text</div>
@@ -45,6 +48,14 @@
                 </ul>
                 <p h-model="default.person.name" h-property="textContent: `${first} ${last}`">lnkjhk</p>
                 <p h-model="default.person.name" h-property="textContent: first"></p>
+
+                <select h-model="default.selector" h-property="value: value" h-mutation="child: added">
+                    <option selected value="" disabled>Select Value</option>
+                    <optgroup h-model="default.selector.options" h-component="SelectorTemplate">
+                        <option>Test 1</option>
+                        <option>Test 2</option>
+                    </optgroup>
+                </select>
             </main>
     
             <footer>
@@ -71,7 +82,7 @@
                 // document.body.addEventListener("hydrate:mutation.parent.removed", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate:mutation.parent.characters", event => console.log(event.type, event.detail));
                 // //
-                // document.body.addEventListener("hydrate:mutation.target.attribute", event => console.log(event.type, event.detail));
+                //document.body.addEventListener("hydrate:mutation.target.attribute", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate:mutation.target.added", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate:mutation.target.removed", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate:mutation.target.characters", event => console.log(event.type, event.detail));
@@ -88,7 +99,14 @@
                 let div = document.querySelector("div");
                 //let model = app.bind("default", {text: "hello", list: [{first: "Brandon", last: "Biera"}, {first:"Megan",last:"Wong"}]});
                 let model = app.bind("default", {text: "hello", list: [1,2,3,4], person: {name: {first: "Brandon", last: "Biera"}}});
-    
+                model.selector = {
+                    options: [
+                        {name: "Car", value: 1},
+                        {name: "Boat", value: 2},
+                        {name: "Plane", value: 3},
+                    ],
+                    value: 3
+                }
                 // let event = new HydrateModelEvent();
                 // event.target = div;
                 // event.hydrate = app;
