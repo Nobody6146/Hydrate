@@ -40,7 +40,7 @@
                         <li><a href="#attribute-attribute">h-attribute</a></li>
                         <li><a href="#input-attribute">h-input</a></li>
                         <li><a href="#mutation-attribute">h-mutation</a></li>
-                        <li><a href="#callback-attribute">h-callback</a></li>
+                        <li><a href="#event-attribute">h-event</a></li>
                     </ul>
                 </li>
             </ul>
@@ -201,8 +201,21 @@
         <section id="framework-event-types">
             <h2>Framework Event Types</h2>
             <div style="margin-left: 4rem;">
+                
                 <p>
                     Hydrate generates several different types of events that components and event listeners can respond to
+                    <ul>
+                        <li>When referenced via the JS event system, all Hydrate events will have the name formatted "hydrate:[HYDRATE_EVENT_TYPE]"</li>
+                        <li>
+                            Exampe:
+                            <ul>
+                                <li>hydrate:track</li>
+                                <li>hydrate:bind</li>
+                            </ul>
+                        </li>
+                        <li>When referenced inside the framework internally, the "hydrate:" is dropped for easier referencing</li>
+                        <li>The following event definitions will use the JS event type names</li>
+                    </ul>
                 </p>
                 <fieldset id="track-event">
                     <legend><h3>hydrate:track</h3></legend>
@@ -446,7 +459,7 @@
                                             <u>Examples:</u>
                                             <ul>
                                                 <li><code>&lt;div h-model h-component="LogoTemplate"&gt;</code></li>
-                                                <li><code>&lt;div h-model h-callback="console.log('Added element', this)"&gt;</code></li>
+                                                <li><code>&lt;div h-model h-event="track: console.log('Added element', this)"&gt;</code></li>
                                             </ul>
                                         </li>
                                     </ul>
@@ -501,24 +514,24 @@
                     <p>
                         <b>Default Event types:</b> This attribute will respond to the following event types by default
                         <ul>
-                            <li>hydrate:track</li>
-                            <li>hydrate:bind</li>
-                            <li>hydrate:set</li>
+                            <li>track</li>
+                            <li>bind</li>
+                            <li>set</li>
                         </ul>
                         <b>Mutation Event types:</b> This attribute will respond to the following event types if you have the <a href="#mutation-attribute">Mutation attribute</a>
                         <ul>
-                            <li>hydrate:mutation.target.added</li>
-                            <li>hydrate:mutation.target.removed</li>
-                            <li>hydrate:mutation.target.attribute</li>
-                            <li>hydrate:mutation.target.characterdata</li>
-                            <li>hydrate:mutation.parent.added</li>
-                            <li>hydrate:mutation.parent.removed</li>
-                            <li>hydrate:mutation.parent.attribute</li>
-                            <li>hydrate:mutation.parent.characterdata</li>
-                            <li>hydrate:mutation.child.added</li>
-                            <li>hydrate:mutation.child.removed</li>
-                            <li>hydrate:mutation.child.attribute</li>
-                            <li>hydrate:mutation.child.characterdata</li>
+                            <li>mutation.target.added</li>
+                            <li>mutation.target.removed</li>
+                            <li>mutation.target.attribute</li>
+                            <li>mutation.target.characterdata</li>
+                            <li>mutation.parent.added</li>
+                            <li>mutation.parent.removed</li>
+                            <li>mutation.parent.attribute</li>
+                            <li>mutation.parent.characterdata</li>
+                            <li>mutation.child.added</li>
+                            <li>mutation.child.removed</li>
+                            <li>mutation.child.attribute</li>
+                            <li>mutation.child.characterdata</li>
                         </ul>
                     </p>
                 </fieldset>
@@ -561,24 +574,24 @@
                     <p>
                         <b>Default Event types:</b> This attribute will respond to the following event types by default
                         <ul>
-                            <li>hydrate:track</li>
-                            <li>hydrate:bind</li>
-                            <li>hydrate:set</li>
+                            <li>track</li>
+                            <li>bind</li>
+                            <li>set</li>
                         </ul>
                         <b>Mutation Event types:</b> This attribute will respond to the following event types if you have the <a href="#mutation-attribute">Mutation attribute</a>
                         <ul>
-                            <li>hydrate:mutation.target.added</li>
-                            <li>hydrate:mutation.target.removed</li>
-                            <li>hydrate:mutation.target.attribute</li>
-                            <li>hydrate:mutation.target.characterdata</li>
-                            <li>hydrate:mutation.parent.added</li>
-                            <li>hydrate:mutation.parent.removed</li>
-                            <li>hydrate:mutation.parent.attribute</li>
-                            <li>hydrate:mutation.parent.characterdata</li>
-                            <li>hydrate:mutation.child.added</li>
-                            <li>hydrate:mutation.child.removed</li>
-                            <li>hydrate:mutation.child.attribute</li>
-                            <li>hydrate:mutation.child.characterdata</li>
+                            <li>mutation.target.added</li>
+                            <li>mutation.target.removed</li>
+                            <li>mutation.target.attribute</li>
+                            <li>mutation.target.characterdata</li>
+                            <li>mutation.parent.added</li>
+                            <li>mutation.parent.removed</li>
+                            <li>mutation.parent.attribute</li>
+                            <li>mutation.parent.characterdata</li>
+                            <li>mutation.child.added</li>
+                            <li>mutation.child.removed</li>
+                            <li>mutation.child.attribute</li>
+                            <li>mutation.child.characterdata</li>
                         </ul>
                     </p>
                 </fieldset>
@@ -621,7 +634,7 @@
                     <p>
                         <b>Event types: This attribute will respond to the following event types</b>
                         <ul>
-                            <li>hydrate:input</li>
+                            <li>input</li>
                         </ul>
                     </p>
                 </fieldset>
@@ -724,21 +737,36 @@
                     </p>
                 </fieldset>
 
-                <fieldset id="callback-attribute">
-                    <legend><h3>h-callback</h3></legend>
+                <fieldset id="event-attribute">
+                    <legend><h3>h-event</h3></legend>
                     <p>
-                        <b>Usage:</b> Executes the callback script on component's events
+                        <b>Usage:</b> Executes the given callback expression when the component responds to the targeted event
                     </p>
                     <p>
-                        <b>Syntax:</b> <code>h-callback="JS_Code"</code>
+                        <b>Syntax:</b> <code>h-event="EVENT_TYPE: CALLBACK"</code>
                         <ul>
                             <li>
-                                <i>JS_Code -</i> Any JS code you want to run as part as the component callback
+                                <i>EVENT_TYPE -</i> The name of Hydrate event type (without the "hydrate::" prefix)
                                 <ul>
-                                    <li>The property does not use the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b>to seperate expression; However, it does follow the same execution behavior with how "this" is bound and the data injected into the function context</li>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li>For the event type, you can also use a wildcard (*) operator to mean any event that the component responded to</li>
                                     <li><u>Examples:</u>
                                         <ul>
-                                            <li><code>h-callback="console.log($detail)"</code></li>
+                                            <li><code>h-event="track: console.log($detail)"</code></li>
+                                            <li><code>h-event="bind: console.log($detail)"</code></li>
+                                            <li><code>h-event="*: console.log($detail)"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>CALLBACK -</i> Any JS code you want to run as part as the component callback
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-event="track: console.log($detail)"</code></li>
+                                            <li><code>h-event="track: $model.value = 0;"</code></li>
                                         </ul>
                                     </li>
                                 </ul>

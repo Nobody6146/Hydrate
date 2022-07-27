@@ -41,7 +41,6 @@ class HydrateAttributeNamesOptions
 {
     //Linking
     model = "model";
-    mock = "mock";
     nested = "nested";//Will also respond to nested property changes
 
     //Basic element manipulation
@@ -56,18 +55,16 @@ class HydrateAttributeNamesOptions
     mutation = "mutation";
 
     //Conditionals
-    event = "event";
-    static = "static"; //Executes once
-    condition = "condition";
+    //static = "static"; //Executes once
+    //condition = "condition";
 
     //Functions and execution
-    callback = "callback"; //Calls a property function
-    handler = "handler"; //Fires a callback when the "on" event of the element is fired
+    event = "event"; //Calls a callback any time the framework event type is triggered
+    on = "on"; //Fires a callback when the "on" event of the element is fired
 
     //Templating and Components
     script = "script";
     template = "template"; //template changes queries user of the templates then regenerate
-    initialize = "initialize" //script called on creation of template to initialize component
     component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
 
     //Routing
@@ -718,10 +715,7 @@ class HydrateApp {
             this.attribute(this.#options.attribute.names.class),
             this.attribute(this.#options.attribute.names.delete),
             this.attribute(this.#options.attribute.names.event),
-            this.attribute(this.#options.attribute.names.static),
-            this.attribute(this.#options.attribute.names.condition),
-            this.attribute(this.#options.attribute.names.callback),
-            this.attribute(this.#options.attribute.names.handler),
+            this.attribute(this.#options.attribute.names.on),
             this.attribute(this.#options.attribute.names.component),
             this.attribute(this.#options.attribute.names.route),
             this.attribute(this.#options.attribute.names.page),
@@ -754,8 +748,10 @@ class HydrateApp {
             eventDetails.element.setAttribute(arg.field, value);
             return;
         });
-        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.callback), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
-            if(eventDetails.modelName !== "" && eventDetails.model == null)
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.event), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
+            // if(eventDetails.modelName !== "" && eventDetails.model == null)
+            //     return;
+            if(arg.field !== "*" && arg.field !== eventDetails.type)
                 return;
             eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
         });
@@ -772,9 +768,7 @@ class HydrateApp {
             let templateAttribute = this.attribute(this.#options.attribute.names.template);
             let template = this.#root.querySelector(`template[${templateAttribute}=${arg.expression}]`) as HTMLTemplateElement;
             if(template == null)
-                return;
-        
-            
+                return;           
             
             let modelSelector = `[${modelAttribute}^=\\^]`;
             const insertModelPath = function(element:HTMLElement, path:string) {
@@ -1015,7 +1009,7 @@ class HydrateApp {
         
         this.#addSetPropertyHandler(element, modelPath, possibleEventTypes);
         this.#addSetAttributeHandler(element, modelPath, possibleEventTypes);
-        this.#addExecuteCallbackHandler(element, modelPath, possibleEventTypes);
+        this.#addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes);
         this.#addGenerateComponentHandler(element, modelPath, possibleEventTypes);
         return created;
     }
@@ -1104,8 +1098,8 @@ class HydrateApp {
         }
     }
 
-    #addExecuteCallbackHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
-        let attribute = this.attribute(this.#options.attribute.names.callback);
+    #addExecuteEventCallbackHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
+        let attribute = this.attribute(this.#options.attribute.names.event);
         let eventTypes:HydrateEventType[] = [
             'track',
             'bind',
@@ -1123,7 +1117,7 @@ class HydrateApp {
             "mutation.child.attribute",
             "mutation.child.characterdata"
         ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false);
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
     }
 
     #addGenerateComponentHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
