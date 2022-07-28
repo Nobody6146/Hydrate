@@ -4,6 +4,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"/>
         <title>Hydrate Demo</title>
         <script src="hydrate.js"></script>
+        <style>
+            .red {
+                color: red;
+            }
+        </style>
     </head>
     <body>
 
@@ -56,6 +61,8 @@
                         <option>Test 2</option>
                     </optgroup>
                 </select>
+
+                <input h-model="default.toggle" h-class="red: shouldRed" h-toggle="disabled: shouldDisable" value="Test" h-event="*: console.log($detail)">
             </main>
     
             <footer>
@@ -106,6 +113,10 @@
                         {name: "Plane", value: 3},
                     ],
                     value: 3
+                }
+                model.toggle = {
+                    shouldRed: false,
+                    shouldDisable: false
                 }
                 // let event = new HydrateModelEvent();
                 // event.target = div;

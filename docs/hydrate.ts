@@ -748,6 +748,18 @@ class HydrateApp {
             eventDetails.element.setAttribute(arg.field, value);
             return;
         });
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.class), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
+            if(eventDetails.modelName !== "" && eventDetails.model == null)
+                return;
+            let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
+            eventDetails.element.classList.toggle(arg.field, value);
+        });
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.toggle), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
+            if(eventDetails.modelName !== "" && eventDetails.model == null)
+                return;
+            let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
+            eventDetails.element.toggleAttribute(arg.field, value);
+        });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.event), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
             // if(eventDetails.modelName !== "" && eventDetails.model == null)
             //     return;
@@ -1009,6 +1021,8 @@ class HydrateApp {
         
         this.#addSetPropertyHandler(element, modelPath, possibleEventTypes);
         this.#addSetAttributeHandler(element, modelPath, possibleEventTypes);
+        this.#addToggleClassHandler(element, modelPath, possibleEventTypes);
+        this.#addToggleAttributeHandler(element, modelPath, possibleEventTypes);
         this.#addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes);
         this.#addGenerateComponentHandler(element, modelPath, possibleEventTypes);
         return created;
@@ -1016,6 +1030,50 @@ class HydrateApp {
 
     #addSetPropertyHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
         let attribute = this.attribute(this.#options.attribute.names.property);
+        let eventTypes:HydrateEventType[] = [
+            'track',
+            'bind',
+            'set',
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
+    }
+
+    #addToggleClassHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
+        let attribute = this.attribute(this.#options.attribute.names.class);
+        let eventTypes:HydrateEventType[] = [
+            'track',
+            'bind',
+            'set',
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
+    }
+
+    #addToggleAttributeHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
+        let attribute = this.attribute(this.#options.attribute.names.toggle);
         let eventTypes:HydrateEventType[] = [
             'track',
             'bind',
