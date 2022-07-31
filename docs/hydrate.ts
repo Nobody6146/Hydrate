@@ -68,15 +68,15 @@ class HydrateAttributeNamesOptions
     component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
 
     //Routing
-    route = "route"; //Make element only respond to route request
-    page = "page"; //Tells component how page should be inserted
+    // route = "route"; //Make element only respond to route request
+    // page = "page"; //Tells component how page should be inserted
 
     //Timing
-    delay = "delay";
-    debounce = "debounce";
-    throttle = "throttle";
+    // delay = "delay";
+    // debounce = "debounce";
+    // throttle = "throttle";
 
-    customs:string[] = []; 
+    // customs:string[] = []; 
 }
 
 interface HydrateAttributeArgument {
@@ -328,8 +328,8 @@ class HydrateApp {
         let key = this.#options.attribute.names[name];
         if(key === undefined || name === "customs")
         {
-            if(!this.#options.attribute.names.customs.includes(name))
-                return undefined;
+            // if(!this.#options.attribute.names.customs.includes(name))
+            //     return undefined;
             return `${this.#options.attribute.customPrefix}-${name}`;
         }
         return `${this.#options.attribute.standardPrefix}-${key}`;
@@ -420,7 +420,7 @@ class HydrateApp {
         let baseName = this.name(this.base(model));
         if(baseName == undefined)
             return;// Promise.reject("model not found");
-        let promise = this.#dispatch(this.#root, "unbind", baseName, this.state(model), undefined);
+        this.#dispatch(this.#root, "unbind", baseName, this.state(baseName), undefined);
         delete this.#models[baseName];
         //return await promise;
     }
@@ -717,12 +717,12 @@ class HydrateApp {
             this.attribute(this.#options.attribute.names.event),
             this.attribute(this.#options.attribute.names.on),
             this.attribute(this.#options.attribute.names.component),
-            this.attribute(this.#options.attribute.names.route),
-            this.attribute(this.#options.attribute.names.page),
+            // this.attribute(this.#options.attribute.names.route),
+            // this.attribute(this.#options.attribute.names.page),
             this.attribute(this.#options.attribute.names.mutation),
         );
         let app = this;
-        this.#options.attribute.trackables.push(...this.#options.attribute.names.customs.map(x => app.attribute(x)));
+        //this.#options.attribute.trackables.push(...this.#options.attribute.names.customs.map(x => app.attribute(x)));
     }
 
     #addStandardAttributeHandlers () {
@@ -759,6 +759,12 @@ class HydrateApp {
                 return;
             let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             eventDetails.element.toggleAttribute(arg.field, value);
+        });
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.delete), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
+            if(eventDetails.modelName !== "" && eventDetails.model == null
+                && eventDetails.propPath !== null && eventDetails.type !== 'unbind')
+                return;
+            eventDetails.element.remove();
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.event), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
             // if(eventDetails.modelName !== "" && eventDetails.model == null)
@@ -1010,7 +1016,9 @@ class HydrateApp {
         let mutationEvents = this.#parseElementMutationEvents(element);
         let possibleEventTypes:HydrateEventType[] = [
             'track',
+            'untrack',
             'bind',
+            'unbind',
             'set'
         ];
         for(let key of mutationEvents.keys())
@@ -1023,6 +1031,7 @@ class HydrateApp {
         this.#addSetAttributeHandler(element, modelPath, possibleEventTypes);
         this.#addToggleClassHandler(element, modelPath, possibleEventTypes);
         this.#addToggleAttributeHandler(element, modelPath, possibleEventTypes);
+        this.#addDeleteElementHandler(element, modelPath, possibleEventTypes);
         this.#addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes);
         this.#addGenerateComponentHandler(element, modelPath, possibleEventTypes);
         return created;
@@ -1094,11 +1103,21 @@ class HydrateApp {
         this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
     }
 
+    #addDeleteElementHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
+        let attribute = this.attribute(this.#options.attribute.names.delete);
+        let eventTypes:HydrateEventType[] = [
+            'unbind'
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false);
+    }
+
     #addSetAttributeHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
         let attribute = this.attribute(this.#options.attribute.names.attribute);
         let eventTypes:HydrateEventType[] = [
             'track',
+            'untrack',
             'bind',
+            'unbind',
             'set',
             "mutation.target.added",
             "mutation.target.removed",
@@ -1160,7 +1179,9 @@ class HydrateApp {
         let attribute = this.attribute(this.#options.attribute.names.event);
         let eventTypes:HydrateEventType[] = [
             'track',
+            'untrack',
             'bind',
+            'unbind',
             'set',
             "mutation.target.added",
             "mutation.target.removed",
