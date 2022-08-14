@@ -2,11 +2,16 @@ class HydrateAppOptions {
     dom;
     model;
     attribute;
+    router;
     constructor() {
         this.dom = new HydrateDomOptions();
         this.model = new HydrateModelOptions();
         this.attribute = new HydrateAttributeOptions();
+        this.router = new HydrateRouterOptions();
     }
+}
+class HydrateRouterOptions {
+    hashRouting = true;
 }
 class HydrateDomOptions {
     rootSelector = "body";
@@ -52,7 +57,7 @@ class HydrateAttributeNamesOptions {
 }
 class HydrateElementTrackingEvent extends CustomEvent {
     constructor(detail) {
-        super(`hydrate:${detail.type}`, {
+        super(`hydrate.${detail.type}`, {
             detail: detail,
             bubbles: true
         });
@@ -60,7 +65,7 @@ class HydrateElementTrackingEvent extends CustomEvent {
 }
 class HydrateModelEvent extends CustomEvent {
     constructor(detail) {
-        super(`hydrate:${detail.type}`, {
+        super(`hydrate.${detail.type}`, {
             detail: detail,
             bubbles: true
         });
@@ -68,7 +73,7 @@ class HydrateModelEvent extends CustomEvent {
 }
 class HydrateRouteEvent extends CustomEvent {
     constructor(detail) {
-        super(`hydrate:${detail.type}`, {
+        super(`hydrate.${detail.type}`, {
             detail: detail,
             bubbles: true
         });
@@ -76,7 +81,15 @@ class HydrateRouteEvent extends CustomEvent {
 }
 class HydrateElementMutationEvent extends CustomEvent {
     constructor(detail) {
-        super(`hydrate:${detail.type}`, {
+        super(`hydrate.${detail.type}`, {
+            detail: detail,
+            bubbles: true
+        });
+    }
+}
+class HydrateElementEventListenerEvent extends CustomEvent {
+    constructor(detail) {
+        super(`hydrate.${detail.type}`, {
             detail: detail,
             bubbles: true
         });
@@ -91,8 +104,7 @@ class HydrateElementTrackingEventDetails {
     modelPath;
     propName;
     propPath;
-    previousValue;
-    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, previousValue, nested) {
+    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, nested) {
         this.hydrate = hydrate;
         this.element = element;
         this.type = eventType;
@@ -101,7 +113,6 @@ class HydrateElementTrackingEventDetails {
         this.modelName = modelName;
         this.propPath = propPath;
         this.propName = propName;
-        this.previousValue = previousValue;
     }
     get base() {
         return this.hydrate.model(this.baseName);
@@ -125,9 +136,8 @@ class HydrateModelEventDetails {
     modelPath;
     propName;
     propPath;
-    previousValue;
     nested;
-    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, previousValue, nested) {
+    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, nested) {
         this.hydrate = hydrate;
         this.element = element;
         this.type = eventType;
@@ -136,7 +146,6 @@ class HydrateModelEventDetails {
         this.modelName = modelName;
         this.propPath = propPath;
         this.propName = propName;
-        this.previousValue = previousValue;
         this.nested = nested;
     }
     get base() {
@@ -159,11 +168,10 @@ class HydrateElementMutationEventDetails {
     baseName;
     propName;
     propPath;
-    previousValue;
     modelName;
     modelPath;
     mutation;
-    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, previousValue, mutation) {
+    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, mutation) {
         this.hydrate = hydrate;
         this.element = element;
         this.type = eventType;
@@ -172,7 +180,6 @@ class HydrateElementMutationEventDetails {
         this.modelName = modelName;
         this.propPath = propPath;
         this.propName = propName;
-        this.previousValue = previousValue;
         this.mutation = mutation;
     }
     get base() {
@@ -188,15 +195,67 @@ class HydrateElementMutationEventDetails {
         return this.hydrate.state(this.propPath);
     }
 }
+class HydrateElementEventListenerEventDetails {
+    hydrate;
+    element;
+    type;
+    baseName;
+    modelName;
+    modelPath;
+    propName;
+    propPath;
+    event;
+    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, event) {
+        this.hydrate = hydrate;
+        this.element = element;
+        this.type = eventType;
+        this.baseName = baseName;
+        this.modelPath = modelPath;
+        this.modelName = modelName;
+        this.propPath = propPath;
+        this.propName = propName;
+        this.event = event;
+    }
+    get base() {
+        return this.hydrate.model(this.baseName);
+    }
+    get model() {
+        return this.hydrate.model(this.modelPath);
+    }
+    get state() {
+        return this.hydrate.state(this.modelPath);
+    }
+    get prop() {
+        return this.hydrate.state(this.propPath);
+    }
+}
+class HydrateRouteRequest {
+    path;
+    url;
+    pathname;
+    search;
+    hash;
+    state;
+    constructor() {
+        this.path = null;
+        this.url = null;
+        this.pathname = null;
+        this.search = null;
+        this.hash = null;
+        this.state = null;
+    }
+}
 class HydrateApp {
     #options;
     #htmlExcecuters; //element name -> event type -> model.prop -> callbacks
+    #onDomEventListeners; //A list of dynamic (h-on) event listeners added by the framework
     #root;
     #models;
     #observer;
     constructor(options) {
         this.#options = options ?? new HydrateAppOptions();
         this.#htmlExcecuters = new Map();
+        this.#onDomEventListeners = new Map();
         this.#root = document.querySelector(this.#options.dom.rootSelector);
         this.#models = {};
         this.#addTrackableAttributes();
@@ -223,6 +282,20 @@ class HydrateApp {
     // get exectuers() {
     //     return this.#htmlExcecuters;
     // }
+    navigate(uri, state) {
+        let url = new URL(uri);
+        let request = {
+            path: !this.#options.router.hashRouting ? url.pathname
+                : (url.hash === "" ? "/" : url.hash),
+            pathname: url.pathname,
+            search: url.search,
+            hash: url.hash,
+            url: uri,
+            state: state
+        };
+        history.pushState(state, '', uri);
+        this.#dispatch(this.#root, "route", null, request);
+    }
     /**
      *
      * @param name the root "name" of the attribute. For standard attributes, it is the option property name. For customs, it's just the name
@@ -299,7 +372,7 @@ class HydrateApp {
             this.unbind(name);
         let proxy = this.#makeProxy(state, name, undefined);
         this.#models[name] = proxy;
-        let promise = this.#dispatch(this.#root, "bind", name, undefined, undefined);
+        let promise = this.#dispatch(this.#root, "bind", name, undefined);
         //await promise;
         return proxy;
         //     resolve(proxy);
@@ -315,7 +388,7 @@ class HydrateApp {
         let baseName = this.name(this.base(model));
         if (baseName == undefined)
             return; // Promise.reject("model not found");
-        this.#dispatch(this.#root, "unbind", baseName, this.state(baseName), undefined);
+        this.#dispatch(this.#root, "unbind", baseName, undefined);
         delete this.#models[baseName];
         //return await promise;
     }
@@ -363,7 +436,6 @@ class HydrateApp {
                     return obj[prop];
             },
             set: function (obj, prop, value) {
-                let previousValue = obj[prop];
                 obj[prop] = value;
                 models = {};
                 //Don't allow DOM update to trigger if value is up-to-date or this model is no longer bound
@@ -374,7 +446,7 @@ class HydrateApp {
                 //     return;
                 let propName = (typeof prop === 'symbol') ? prop.toString() : prop;
                 //app.dispatch("set", proxy, propName, previousValue, app.root, "all");
-                app.#dispatch(app.#root, "set", name + "." + propName, previousValue, undefined);
+                app.#dispatch(app.#root, "set", name + "." + propName, undefined);
                 //TODO IMMEDIATELY WORKING ON
                 //Change previous state to only store previous prop state
                 //Only way to gaurentee a true "copy" and really the only useful part
@@ -382,13 +454,12 @@ class HydrateApp {
             },
             deleteProperty: function (obj, prop) {
                 if (prop in obj) {
-                    let previousValue = obj[prop];
                     delete obj[prop];
                     if (models[prop] != undefined)
                         delete models[prop];
                     let propName = (typeof prop === 'symbol') ? prop.toString() : prop;
                     //app.dispatch("unbind", proxy, propName, property, app.root, "all");
-                    app.#dispatch(app.#root, "unbind", name + "." + propName, previousValue, undefined);
+                    app.#dispatch(app.#root, "unbind", name + "." + propName, undefined);
                 }
                 return true;
             }
@@ -477,15 +548,15 @@ class HydrateApp {
                                 if (!newTrack) {
                                     //Wasn't a new track, but a core value changed, so rebind the element
                                     let modelName = element.getAttribute(modelAttribute);
-                                    this.#dispatch(element, "bind", modelName, this.state(modelName), undefined);
+                                    this.#dispatch(element, "bind", modelName, undefined);
                                 }
                             }
                             else
                                 untrackableElements.add(mutation.target);
                         }
-                        this.#dispatch(mutation.target, "mutation.parent.attribute", undefined, undefined, mutation);
-                        this.#dispatch(mutation.target, "mutation.target.attribute", undefined, undefined, mutation);
-                        this.#dispatch(mutation.target, "mutation.child.attribute", undefined, undefined, mutation);
+                        this.#dispatch(mutation.target, "mutation.parent.attribute", undefined, mutation);
+                        this.#dispatch(mutation.target, "mutation.target.attribute", undefined, mutation);
+                        this.#dispatch(mutation.target, "mutation.child.attribute", undefined, mutation);
                         break;
                     }
                 case "childList":
@@ -500,9 +571,9 @@ class HydrateApp {
                             //this.#dispatch(node, "bind", modelName, this.state(modelName), undefined);
                         });
                         if (addedElement) {
-                            this.#dispatch(mutation.target, "mutation.parent.added", undefined, undefined, mutation);
-                            this.#dispatch(mutation.target, "mutation.target.added", undefined, undefined, mutation);
-                            this.#dispatch(mutation.target, "mutation.child.added", undefined, undefined, mutation);
+                            this.#dispatch(mutation.target, "mutation.parent.added", undefined, mutation);
+                            this.#dispatch(mutation.target, "mutation.target.added", undefined, mutation);
+                            this.#dispatch(mutation.target, "mutation.child.added", undefined, mutation);
                         }
                         let removedElement = false;
                         for (let node of mutation.removedNodes) {
@@ -512,17 +583,17 @@ class HydrateApp {
                             this.#untrackElement(node);
                         }
                         if (removedElement) {
-                            this.#dispatch(mutation.target, "mutation.parent.removed", undefined, undefined, mutation);
-                            this.#dispatch(mutation.target, "mutation.target.removed", undefined, undefined, mutation);
-                            this.#dispatch(mutation.target, "mutation.child.removed", undefined, undefined, mutation);
+                            this.#dispatch(mutation.target, "mutation.parent.removed", undefined, mutation);
+                            this.#dispatch(mutation.target, "mutation.target.removed", undefined, mutation);
+                            this.#dispatch(mutation.target, "mutation.child.removed", undefined, mutation);
                         }
                         break;
                     }
                 case "characterData":
                     {
-                        this.#dispatch(mutation.target, "mutation.parent.characterdata", undefined, undefined, mutation);
-                        this.#dispatch(mutation.target, "mutation.target.characterdata", undefined, undefined, mutation);
-                        this.#dispatch(mutation.target, "mutation.child.characterdata", undefined, undefined, mutation);
+                        this.#dispatch(mutation.target, "mutation.parent.characterdata", undefined, mutation);
+                        this.#dispatch(mutation.target, "mutation.target.characterdata", undefined, mutation);
+                        this.#dispatch(mutation.target, "mutation.child.characterdata", undefined, mutation);
                         break;
                     }
             }
@@ -545,7 +616,7 @@ class HydrateApp {
         let state = this.state(modelName);
         if (!(state instanceof Object))
             return;
-        let modelEvent = this.#createEvent(target, "input", state, this.#determineEventDetailProperties(modelName, "property"), null, undefined);
+        let modelEvent = this.#createEvent(target, "input", this.#determineEventDetailProperties(modelName, "property"), null, undefined);
         let args = this.parseAttributeArguments(target, this.attribute(this.#options.attribute.names.input));
         for (let i = 0; i < args.length; i++) {
             //How do we want to format the input attribute?
@@ -614,6 +685,11 @@ class HydrateApp {
                 return;
             eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
         });
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.on), (arg, eventDetails) => {
+            if (arg.field !== eventDetails.event.type)
+                return;
+            eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, eventDetails.event);
+        });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.component), (arg, eventDetails) => {
             if (eventDetails.modelName !== "" && eventDetails.model == null)
                 return;
@@ -664,6 +740,7 @@ class HydrateApp {
             $detail: detail,
             $model: detail.model,
             $event: event,
+            $state: detail.state,
             $script: function (name) {
                 let selector = `[${app.attribute(app.options.attribute.names.script)}=${name}]`;
                 let scriptElement = app.root.querySelector(selector);
@@ -783,12 +860,12 @@ class HydrateApp {
             this.#untrackElement(element);
             return;
         }
+        this.#removeOnAttributeEventListeners(element);
         let newTrack = this.#updateExecuters(element);
         if (newTrack) {
             //Send a track event
             let modelName = element.getAttribute(this.attribute(this.#options.attribute.names.model)) ?? undefined;
-            let state = modelName === undefined ? undefined : this.state(modelName);
-            this.#dispatch(element, "track", modelName, state, undefined);
+            this.#dispatch(element, "track", modelName, undefined);
         }
         return newTrack;
     }
@@ -798,11 +875,37 @@ class HydrateApp {
             return;
         //Send an untrack event
         let modelName = element.getAttribute(this.attribute(this.#options.attribute.names.model)) ?? undefined;
-        let state = modelName === undefined ? undefined : this.state(modelName);
-        if (this.#dispatch(element, "untrack", modelName, state, undefined))
+        if (this.#dispatch(element, "untrack", modelName, undefined))
             return;
         //Allow the element not to detach if we prevented the default behavior
         this.#htmlExcecuters.delete(element);
+        this.#removeOnAttributeEventListeners(element);
+    }
+    #removeOnAttributeEventListeners(element) {
+        let listeners = this.#onDomEventListeners.get(element);
+        if (listeners == null)
+            return;
+        for (let eventType of listeners.keys()) {
+            element.removeEventListener(eventType, listeners.get(eventType));
+        }
+        this.#onDomEventListeners.delete(element);
+    }
+    #addOnAttributeEventListener(element, eventType) {
+        let elementListeners = this.#onDomEventListeners.get(element);
+        if (elementListeners == null) {
+            elementListeners = new Map();
+            this.#onDomEventListeners.set(element, elementListeners);
+        }
+        if (elementListeners.has(eventType))
+            return;
+        let modelAttribute = this.attribute(this.#options.attribute.names.model);
+        let modelPath = element.getAttribute(modelAttribute);
+        const app = this;
+        let listener = event => {
+            app.#dispatch(element, "on", modelPath, event);
+        };
+        elementListeners.set(eventType, listener);
+        element.addEventListener(eventType, listener);
     }
     #updateExecuters(element) {
         let created = false;
@@ -823,7 +926,8 @@ class HydrateApp {
             'untrack',
             'bind',
             'unbind',
-            'set'
+            'set',
+            'on'
         ];
         for (let key of mutationEvents.keys()) {
             if (mutationEvents.get(key) === true)
@@ -835,6 +939,7 @@ class HydrateApp {
         this.#addToggleAttributeHandler(element, modelPath, possibleEventTypes);
         this.#addDeleteElementHandler(element, modelPath, possibleEventTypes);
         this.#addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes);
+        this.#addElementEventListenersHandler(element, modelPath, possibleEventTypes);
         this.#addGenerateComponentHandler(element, modelPath, possibleEventTypes);
         return created;
     }
@@ -963,6 +1068,7 @@ class HydrateApp {
                 });
             }
         }
+        return args;
     }
     #addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes) {
         let attribute = this.attribute(this.#options.attribute.names.event);
@@ -972,6 +1078,7 @@ class HydrateApp {
             'bind',
             'unbind',
             'set',
+            "on",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -986,6 +1093,18 @@ class HydrateApp {
             "mutation.child.characterdata"
         ];
         this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
+    }
+    #addElementEventListenersHandler(element, modelPath, possibleEventTypes) {
+        let attribute = this.attribute(this.#options.attribute.names.on);
+        let eventTypes = [
+            "on"
+        ];
+        let args = this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
+        if (args == null)
+            return;
+        for (let arg of args) {
+            this.#addOnAttributeEventListener(element, arg.field);
+        }
     }
     #addGenerateComponentHandler(element, modelPath, possibleEventTypes) {
         let attribute = this.attribute(this.#options.attribute.names.component);
@@ -1058,10 +1177,10 @@ class HydrateApp {
         //TODO: filter out any conditionals, static, etc.
         return results;
     }
-    #dispatch(target, eventType, propPath, previousValue, data) {
+    #dispatch(target, eventType, propPath, data) {
         //Data is any additional object data that may be needed for an event
         let detail = this.#determineEventDetailProperties(propPath, "property");
-        let listenerEvent = this.#createEvent(target, eventType, previousValue, detail, null, data);
+        let listenerEvent = this.#createEvent(target, eventType, detail, null, data);
         let dispatchElement = target.isConnected ? target : this.#root;
         dispatchElement.dispatchEvent(listenerEvent);
         if (listenerEvent.defaultPrevented)
@@ -1090,16 +1209,16 @@ class HydrateApp {
                 // let state = this.state(rootModelName);
                 let event;
                 if (propPath === modelPath) {
-                    event = this.#createEvent(element, eventType, previousValue, this.#determineEventDetailProperties(propPath, "model"), null, data);
+                    event = this.#createEvent(element, eventType, this.#determineEventDetailProperties(propPath, "model"), null, data);
                 }
                 else if (modelPath === detail.modelPath) {
                     //Touched property of the model
-                    event = this.#createEvent(element, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null, data);
+                    event = this.#createEvent(element, eventType, this.#determineEventDetailProperties(propPath, "property"), null, data);
                     //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, this.state(property), nestedEvent);
                 }
                 else {
-                    let nestedEvent = this.#createEvent(target, eventType, previousValue, this.#determineEventDetailProperties(propPath, "property"), null, data);
-                    event = this.#createEvent(element, eventType, this.state(modelPath), this.#determineEventDetailProperties(modelPath, "model"), nestedEvent.detail, data);
+                    let nestedEvent = this.#createEvent(target, eventType, this.#determineEventDetailProperties(propPath, "property"), null, data);
+                    event = this.#createEvent(element, eventType, this.#determineEventDetailProperties(modelPath, "model"), nestedEvent.detail, data);
                 }
                 for (let executer of modelExecuters.get(modelPath)) {
                     try {
@@ -1113,25 +1232,25 @@ class HydrateApp {
         }
         return listenerEvent.defaultPrevented;
     }
-    #createEvent(target, eventType, previousValue, properties, nested, data) {
+    #createEvent(target, eventType, properties, nested, data) {
         switch (eventType) {
             case "bind":
             case "set":
             case "unbind":
             case "input":
                 {
-                    let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, previousValue, nested);
+                    let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, nested);
                     return new HydrateModelEvent(detail);
                 }
             case "route":
                 {
-                    let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, previousValue, nested);
+                    let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, nested);
                     return new HydrateRouteEvent(detail);
                 }
             case "track":
             case "untrack":
                 {
-                    let detail = new HydrateElementTrackingEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, previousValue, nested);
+                    let detail = new HydrateElementTrackingEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, nested);
                     return new HydrateElementTrackingEvent(detail);
                 }
             case "mutation.target.attribute":
@@ -1147,8 +1266,13 @@ class HydrateApp {
             case "mutation.child.added":
             case "mutation.child.removed":
                 {
-                    let detail = new HydrateElementMutationEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, previousValue, data);
+                    let detail = new HydrateElementMutationEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, data);
                     return new HydrateElementMutationEvent(detail);
+                }
+            case "on":
+                {
+                    let detail = new HydrateElementEventListenerEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, data);
+                    return new HydrateElementEventListenerEvent(detail);
                 }
         }
     }
