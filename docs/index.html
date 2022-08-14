@@ -38,18 +38,45 @@
                 <option h-model="^" h-property="textContent: name; value: value;">Option</option>
             </template>
 
+            <template h-template="HomePageTemplate">
+                <h1>Home</h1>
+            </template>
+            <template h-template="ContactPageTemplate">
+                <h1>Contact</h1>
+            </template>
+            <template h-template="PageNotFoundTemplate">
+                <h1>Page not found!</h1>
+            </template>
+
             <main>
-                <div h-model="default" h-delete h-event="*: console.log($detail)">
+
+                <div>
+                    <h1>
+                        Welcome
+                    </h1>
+                    <div h-model h-component="HomePageTemplate" h-route="#home" h-event="route: document.title = 'Demo | Home'"></div>
+                    <div h-model h-component="demopages/about.html" h-route="#about" h-page h-event="route: document.title = 'Demo | About'"></div>
+                    <div h-model h-component="ContactPageTemplate" h-route="#contact" h-event="route: document.title = 'Demo | Contact'"></div>
+                    <div h-model h-component="PageNotFoundTemplate" h-route="#404" h-event="route: document.title = 'Demo | 404'"></div>
+                </div>
+
+                <a href="#">Home</a>
+                <a href="#about">About</a>
+                <a href="#contact">Contact</a>
+                <a href="#badUrl">Bad Link</a>
+                <a href="?sort=Top#test/3">Test Link</a>
+
+                <!-- <div h-model="default" h-delete h-event="*: console.log($detail)">
                     We are a deleteable div!
                 </div>
                 <div h-model h-property="textContent: 'Overrided text from modeless component!'">Same Text</div>
                 <input h-model="default" h-property="value: text" h-input="text: $element.value" value="Testing" h-event="track: console.log('got data!', $detail)">
                 <input h-model="default" h-property="value: text" h-on="input: $model.text = $element.value" value="Testing">
-                <button h-model="default" h-on="click: alert(`Hello! Text: {text}`);click: console.log('clicked me!')">Alert</button>
+                <button h-model="default" h-on="click: alert(`Hello! Text: ${text}`);click: console.log('clicked me!')">Alert</button>
                 <div h-model="default" h-property="'innerHTML': text" h-attribute="name: text">
                     Sample text
                 </div>
-                <div h-model="default.person" h-component="ExampleTemplate">
+                <div h-model h-component="ExampleTemplate">
                     Placeholder text that will be deleted
                 </div>
                 <ul h-model="default.list" h-component="ListTemplate">
@@ -66,7 +93,7 @@
                     </optgroup>
                 </select>
 
-                <input h-model="default.toggle" h-class="red: shouldRed" h-toggle="disabled: shouldDisable" value="Test" >
+                <input h-model="default.toggle" h-class="red: shouldRed" h-toggle="disabled: shouldDisable" value="Test" > -->
             </main>
     
             <footer>
@@ -99,6 +126,7 @@
                 // document.body.addEventListener("hydrate.route", event => console.log(event.type, event.detail));
                 //
                 document.body.addEventListener("hydrate.on", event => console.log(event.type, event.detail));
+                document.body.addEventListener("hydrate.route", event => console.log(event.type, event.detail));
                 
 
                 let app = new HydrateApp();
@@ -117,6 +145,41 @@
                     shouldRed: false,
                     shouldDisable: false
                 }
+
+                //Define our client side routes
+                let routeMap = new Map();
+                routeMap.set("#", resolvedRoute => {
+                    app.route("#home");
+                });
+                routeMap.set("#home", resolvedRoute => {
+                    console.log(resolvedRoute);
+                });
+                routeMap.set("#about", resolvedRoute => {
+                    console.log(resolvedRoute);
+                });
+                routeMap.set("#contact", resolvedRoute => {
+                    console.log(resolvedRoute);
+                });
+                routeMap.set("#404", (resolvedRoute, request) => {
+                    console.log(resolvedRoute);
+                });
+                routeMap.set("#test/:id", (resolvedRoute, request) => {
+                    console.log(resolvedRoute);
+                });
+                routeMap.set("", (resolvedRoute, request) => {
+                    console.log("page not found: ", + resolvedRoute);
+                    app.route(`?page=3#404`);
+                });
+                //Create our routing middleware
+                document.body.addEventListener("hydrate.route", event => {
+                    console.log(event);
+                    let routes = app.resolve(new URL(event.detail.request.url), ...routeMap.keys());
+                    let route = routes[0].route;
+                    routeMap.get(route)(routes[0], event.detail.request);
+                });
+                //Route to current page
+                app.route();
+
                 // let event = new HydrateModelEvent();
                 // event.target = div;
                 // event.hydrate = app;

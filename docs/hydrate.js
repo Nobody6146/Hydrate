@@ -54,6 +54,9 @@ class HydrateAttributeNamesOptions {
     script = "script";
     template = "template"; //template changes queries user of the templates then regenerate
     component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
+    //Routing
+    route = "route"; //Make element only respond to route request
+    page = "page"; //Tells component the template is a page to be requested
 }
 class HydrateElementTrackingEvent extends CustomEvent {
     constructor(detail) {
@@ -95,7 +98,7 @@ class HydrateElementEventListenerEvent extends CustomEvent {
         });
     }
 }
-class HydrateElementTrackingEventDetails {
+class HydrateEventDetails {
     hydrate;
     element;
     type;
@@ -104,7 +107,7 @@ class HydrateElementTrackingEventDetails {
     modelPath;
     propName;
     propPath;
-    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, nested) {
+    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath) {
         this.hydrate = hydrate;
         this.element = element;
         this.type = eventType;
@@ -127,106 +130,37 @@ class HydrateElementTrackingEventDetails {
         return this.hydrate.state(this.propPath);
     }
 }
-class HydrateModelEventDetails {
-    hydrate;
-    element;
-    type;
-    baseName;
-    modelName;
-    modelPath;
-    propName;
-    propPath;
+class HydrateElementTrackingEventDetails extends HydrateEventDetails {
+    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, nested) {
+        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
+    }
+}
+class HydrateModelEventDetails extends HydrateEventDetails {
     nested;
     constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, nested) {
-        this.hydrate = hydrate;
-        this.element = element;
-        this.type = eventType;
-        this.baseName = baseName;
-        this.modelPath = modelPath;
-        this.modelName = modelName;
-        this.propPath = propPath;
-        this.propName = propName;
+        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
         this.nested = nested;
     }
-    get base() {
-        return this.hydrate.model(this.baseName);
-    }
-    get model() {
-        return this.hydrate.model(this.modelPath);
-    }
-    get state() {
-        return this.hydrate.state(this.modelPath);
-    }
-    get prop() {
-        return this.hydrate.state(this.propPath);
-    }
 }
-class HydrateElementMutationEventDetails {
-    hydrate;
-    element;
-    type;
-    baseName;
-    propName;
-    propPath;
-    modelName;
-    modelPath;
+class HydrateElementMutationEventDetails extends HydrateEventDetails {
     mutation;
     constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, mutation) {
-        this.hydrate = hydrate;
-        this.element = element;
-        this.type = eventType;
-        this.baseName = baseName;
-        this.modelPath = modelPath;
-        this.modelName = modelName;
-        this.propPath = propPath;
-        this.propName = propName;
+        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
         this.mutation = mutation;
     }
-    get base() {
-        return this.hydrate.model(this.baseName);
-    }
-    get model() {
-        return this.hydrate.model(this.modelPath);
-    }
-    get state() {
-        return this.hydrate.state(this.modelPath);
-    }
-    get prop() {
-        return this.hydrate.state(this.propPath);
-    }
 }
-class HydrateElementEventListenerEventDetails {
-    hydrate;
-    element;
-    type;
-    baseName;
-    modelName;
-    modelPath;
-    propName;
-    propPath;
+class HydrateElementEventListenerEventDetails extends HydrateEventDetails {
     event;
     constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, event) {
-        this.hydrate = hydrate;
-        this.element = element;
-        this.type = eventType;
-        this.baseName = baseName;
-        this.modelPath = modelPath;
-        this.modelName = modelName;
-        this.propPath = propPath;
-        this.propName = propName;
+        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
         this.event = event;
     }
-    get base() {
-        return this.hydrate.model(this.baseName);
-    }
-    get model() {
-        return this.hydrate.model(this.modelPath);
-    }
-    get state() {
-        return this.hydrate.state(this.modelPath);
-    }
-    get prop() {
-        return this.hydrate.state(this.propPath);
+}
+class HydrateRouteEventDetails extends HydrateEventDetails {
+    request;
+    constructor(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath, request) {
+        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
+        this.request = request;
     }
 }
 class HydrateRouteRequest {
@@ -271,6 +205,7 @@ class HydrateApp {
             //attributeFilter: [...this.#options.attribute.trackables],
         });
         this.root.addEventListener("input", this.#inputListener.bind(this));
+        window.addEventListener("popstate", this.#popStateListener.bind(this));
         this.#trackElements();
     }
     get root() {
@@ -282,19 +217,87 @@ class HydrateApp {
     // get exectuers() {
     //     return this.#htmlExcecuters;
     // }
-    navigate(uri, state) {
+    route(url, state) {
+        if (url == null) {
+            url = window.location.href;
+            state = history.state;
+        }
+        else if (state == null) {
+            state = {};
+        }
+        history.pushState(state, '', url);
+        this.#navigateTo(location.href, state);
+    }
+    #navigateTo(uri, state) {
         let url = new URL(uri);
         let request = {
-            path: !this.#options.router.hashRouting ? url.pathname
-                : (url.hash === "" ? "/" : url.hash),
+            path: this.#determineRoutePath(url),
             pathname: url.pathname,
             search: url.search,
             hash: url.hash,
             url: uri,
             state: state
         };
-        history.pushState(state, '', uri);
-        this.#dispatch(this.#root, "route", null, request);
+        this.#dispatch(this.#root, "route", undefined, request);
+    }
+    #determineRoutePath(url) {
+        return !this.#options.router.hashRouting ? url.pathname
+            : (url.hash === "" ? "#" : url.hash);
+    }
+    #popStateListener(event) {
+        this.#navigateTo(window.location.href, event.state);
+    }
+    /**
+     * Attempts to resolve the route. If it fails, you'll return null
+     */
+    resolve(url, ...routes) {
+        let results = [];
+        let path = this.#determineRoutePath(url);
+        for (let route of routes) {
+            let regexRoute = this.#routeToRegex(route);
+            let match = path.match(regexRoute);
+            if (match)
+                results.push({
+                    url: path,
+                    route: route,
+                    params: this.#getRouteParams(route, match),
+                    query: this.#getQueryParams(url.search),
+                });
+        }
+        return results.length > 0
+            ? results : null;
+    }
+    #routeToRegex(route) {
+        if (!route == null || route === "")
+            return new RegExp(".*");
+        let regex = route.replace(/\//g, "\\/").replace(/:\w+/g, "(.+)");
+        return RegExp("^" + regex + "$");
+    }
+    #getRouteParams(route, match) {
+        let params = {};
+        let keys = route.match(/:(\w+)/g);
+        if (keys)
+            for (let i = 0; i < keys.length; i++)
+                params[keys[i].substring(1)] = match[i + 1];
+        return params;
+    }
+    ;
+    #getQueryParams(search) {
+        let query = {};
+        location.search.substring(1, location.search.length).split("&").forEach(x => {
+            let [name, value] = x.split("=");
+            if (name === "")
+                return;
+            let variable = query[name];
+            if (variable == null)
+                query[name] = value;
+            else {
+                if (!Array.isArray(variable))
+                    query[name] = [variable];
+                query[name].push(value);
+            }
+        });
+        return query;
     }
     /**
      *
@@ -630,8 +633,7 @@ class HydrateApp {
         }
     }
     #addTrackableAttributes() {
-        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.delete), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.on), this.attribute(this.#options.attribute.names.component), 
-        // this.attribute(this.#options.attribute.names.route),
+        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.delete), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.on), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.route), 
         // this.attribute(this.#options.attribute.names.page),
         this.attribute(this.#options.attribute.names.mutation));
         let app = this;
@@ -683,6 +685,16 @@ class HydrateApp {
             //     return;
             if (arg.field !== "*" && arg.field !== eventDetails.type)
                 return;
+            //Don't call if we're listening to this route
+            if (eventDetails.type === "route") {
+                let routeAttribute = this.attribute(this.#options.attribute.names.route);
+                let route = eventDetails.element.getAttribute(routeAttribute);
+                if (route == null)
+                    return;
+                let url = new URL(window.location.href);
+                if (this.resolve(url, route) == null)
+                    return;
+            }
             eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.on), (arg, eventDetails) => {
@@ -693,44 +705,73 @@ class HydrateApp {
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.component), (arg, eventDetails) => {
             if (eventDetails.modelName !== "" && eventDetails.model == null)
                 return;
+            let routeAttribute = this.attribute(this.#options.attribute.names.route);
+            let route = eventDetails.element.getAttribute(routeAttribute);
+            if (route != null) {
+                let url = new URL(window.location.href);
+                if (this.resolve(url, route) == null) {
+                    //If route match failed, clear the component
+                    let element = eventDetails.element;
+                    while (element.firstChild)
+                        element.removeChild(element.firstChild);
+                    return;
+                }
+            }
             //Only generate the component if the model changed, not the child properties
             let modelAttribute = this.attribute(this.#options.attribute.names.model);
             if (eventDetails.element.getAttribute(modelAttribute) !== eventDetails.modelPath)
                 return;
             let element = eventDetails.element;
             let templateAttribute = this.attribute(this.#options.attribute.names.template);
-            let template = this.#root.querySelector(`template[${templateAttribute}=${arg.expression}]`);
-            if (template == null)
+            let templateName = arg.expression;
+            let pageAttribute = this.attribute(this.#options.attribute.names.page);
+            let isPage = element.hasAttribute(pageAttribute);
+            if (!isPage) {
+                let template = this.#root.querySelector(`template[${templateAttribute}=${templateName}]`);
+                if (template == null)
+                    return;
+                this.#buildComponent(template.content.childNodes, modelAttribute, eventDetails);
                 return;
-            let modelSelector = `[${modelAttribute}^=\\^]`;
-            const insertModelPath = function (element, path) {
-                element.setAttribute(modelAttribute, element.getAttribute(modelAttribute).replace("^", path));
-            };
-            let children = [];
-            let modelPaths = Array.isArray(eventDetails.state)
-                ? Object.keys(eventDetails.state).map(x => `${eventDetails.modelPath}.${x}`)
-                : [eventDetails.modelPath];
-            for (let modelPath of modelPaths) {
-                for (var child of template.content.childNodes) {
-                    let node = child.cloneNode(true);
-                    children.push(node);
-                    if (!(node instanceof HTMLElement))
-                        continue;
-                    //Inject model name and initialize component
-                    if (node.matches(modelSelector))
-                        insertModelPath(node, modelPath);
-                    if (node.matches(modelSelector))
-                        insertModelPath(node, modelPath);
-                    for (let element of node.querySelectorAll(modelSelector))
-                        insertModelPath(element, modelPath);
-                }
             }
-            //delete the current content
-            while (element.firstChild)
-                element.removeChild(element.firstChild);
-            for (let node of children)
-                eventDetails.element.appendChild(node);
+            fetch(templateName)
+                .then(res => res.text())
+                .then(html => {
+                let div = document.createElement("div");
+                div.innerHTML = html;
+                this.#buildComponent(div.childNodes, modelAttribute, eventDetails);
+            });
         });
+    }
+    #buildComponent(template, modelAttribute, eventDetails) {
+        let element = eventDetails.element;
+        let modelSelector = `[${modelAttribute}^=\\^]`;
+        const insertModelPath = function (element, path) {
+            element.setAttribute(modelAttribute, element.getAttribute(modelAttribute).replace("^", path));
+        };
+        let children = [];
+        let modelPaths = Array.isArray(eventDetails.state)
+            ? Object.keys(eventDetails.state).map(x => `${eventDetails.modelPath}.${x}`)
+            : [eventDetails.modelPath];
+        for (let modelPath of modelPaths) {
+            for (var child of template) {
+                let node = child.cloneNode(true);
+                children.push(node);
+                if (!(node instanceof HTMLElement))
+                    continue;
+                //Inject model name and initialize component
+                if (node.matches(modelSelector))
+                    insertModelPath(node, modelPath);
+                if (node.matches(modelSelector))
+                    insertModelPath(node, modelPath);
+                for (let element of node.querySelectorAll(modelSelector))
+                    insertModelPath(element, modelPath);
+            }
+        }
+        //delete the current content
+        while (element.firstChild)
+            element.removeChild(element.firstChild);
+        for (let node of children)
+            eventDetails.element.appendChild(node);
     }
     resolveArgumentValue(detail, arg, event) {
         let app = this;
@@ -927,7 +968,8 @@ class HydrateApp {
             'bind',
             'unbind',
             'set',
-            'on'
+            'on',
+            "route"
         ];
         for (let key of mutationEvents.keys()) {
             if (mutationEvents.get(key) === true)
@@ -1079,6 +1121,7 @@ class HydrateApp {
             'unbind',
             'set',
             "on",
+            "route",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -1112,6 +1155,7 @@ class HydrateApp {
             'track',
             'bind',
             "set",
+            "route",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -1244,7 +1288,7 @@ class HydrateApp {
                 }
             case "route":
                 {
-                    let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, nested);
+                    let detail = new HydrateRouteEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, data);
                     return new HydrateRouteEvent(detail);
                 }
             case "track":

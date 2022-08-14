@@ -74,8 +74,8 @@ class HydrateAttributeNamesOptions
     component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
 
     //Routing
-    // route = "route"; //Make element only respond to route request
-    // page = "page"; //Tells component how page should be inserted
+    route = "route"; //Make element only respond to route request
+    page = "page"; //Tells component the template is a page to be requested
 
     //Timing
     // delay = "delay";
@@ -122,9 +122,9 @@ class HydrateModelEvent extends CustomEvent<HydrateModelEventDetails> {
     }
 }
 
-class HydrateRouteEvent extends CustomEvent<HydrateModelEventDetails> {
+class HydrateRouteEvent extends CustomEvent<HydrateRouteEventDetails> {
 
-    constructor(detail:HydrateModelEventDetails) {
+    constructor(detail:HydrateRouteEventDetails) {
         super(`hydrate.${detail.type}`, {
             detail: detail,
             bubbles: true
@@ -152,7 +152,7 @@ class HydrateElementEventListenerEvent extends CustomEvent<HydrateElementEventLi
     }
 }
 
-class HydrateElementTrackingEventDetails
+abstract class HydrateEventDetails
 {
     hydrate: HydrateApp;
     element: HTMLElement;
@@ -166,7 +166,7 @@ class HydrateElementTrackingEventDetails
     propName:string;
     propPath:string;
 
-    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string, nested:HydrateModelEventDetails) {
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string) {
         this.hydrate = hydrate;
         this.element = element;
         this.type = eventType;
@@ -194,139 +194,48 @@ class HydrateElementTrackingEventDetails
     }
 }
 
-class HydrateModelEventDetails {
-    hydrate: HydrateApp;
-    element: HTMLElement;
-    type: HydrateEventType;
+class HydrateElementTrackingEventDetails extends HydrateEventDetails
+{
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string, nested:HydrateModelEventDetails) {
+        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
+    }
+}
 
-    baseName:string;
-
-    modelName: string;
-    modelPath:string;
-
-    propName:string;
-    propPath:string;
-
+class HydrateModelEventDetails extends HydrateEventDetails {
+    
     nested:HydrateModelEventDetails;
 
     constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string, nested:HydrateModelEventDetails) {
-        this.hydrate = hydrate;
-        this.element = element;
-        this.type = eventType;
-
-        this.baseName = baseName;
-
-        this.modelPath = modelPath;
-        this.modelName = modelName;
-
-        this.propPath = propPath;
-        this.propName = propName;
-
+        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
         this.nested = nested;
-    }
-
-    get base() {
-        return this.hydrate.model(this.baseName);
-    }
-    get model() {
-        return this.hydrate.model(this.modelPath);
-    }
-    get state() {
-        return this.hydrate.state(this.modelPath);
-    }
-    get prop() {
-        return this.hydrate.state(this.propPath);
     }
 }
 
-class HydrateElementMutationEventDetails {
-    hydrate: HydrateApp;
-    element: HTMLElement;
-    type: HydrateEventType;
-
-    baseName:string;
-
-    propName:string;
-    propPath:string;
-
-    modelName: string;
-    modelPath:string;
-
+class HydrateElementMutationEventDetails extends HydrateEventDetails {
     mutation:MutationRecord;
 
     constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string,
         modelPath:string, propName:string, propPath:string, mutation:MutationRecord) {
-        this.hydrate = hydrate;
-        this.element = element;
-        this.type = eventType;
-
-        this.baseName = baseName;
-
-        this.modelPath = modelPath;
-        this.modelName = modelName;
-
-        this.propPath = propPath;
-        this.propName = propName;
-
+        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
         this.mutation = mutation;
-    }
-
-    get base() {
-        return this.hydrate.model(this.baseName);
-    }
-    get model() {
-        return this.hydrate.model(this.modelPath);
-    }
-    get state() {
-        return this.hydrate.state(this.modelPath);
-    }
-    get prop() {
-        return this.hydrate.state(this.propPath);
     }
 }
 
-class HydrateElementEventListenerEventDetails {
-    hydrate: HydrateApp;
-    element: HTMLElement;
-    type: HydrateEventType;
-
-    baseName:string;
-
-    modelName: string;
-    modelPath:string;
-
-    propName:string;
-    propPath:string;
-
+class HydrateElementEventListenerEventDetails extends HydrateEventDetails {
     event:Event;
 
     constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string, event:Event) {
-        this.hydrate = hydrate;
-        this.element = element;
-        this.type = eventType;
-
-        this.baseName = baseName;
-
-        this.modelPath = modelPath;
-        this.modelName = modelName;
-
-        this.propPath = propPath;
-        this.propName = propName;
-
+        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
         this.event = event;
     }
+}
 
-    get base() {
-        return this.hydrate.model(this.baseName);
-    }
-    get model() {
-        return this.hydrate.model(this.modelPath);
-    }
-    get state() {
-        return this.hydrate.state(this.modelPath);
-    }
-    get prop() {
-        return this.hydrate.state(this.propPath);
+class HydrateRouteEventDetails extends HydrateEventDetails {
+    request:HydrateRouteRequest;
+
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string, request:HydrateRouteRequest) {
+        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
+        this.request = request;
     }
 }
 
@@ -346,6 +255,13 @@ class HydrateRouteRequest {
         this.hash = null;
         this.state = null;
     }
+}
+
+interface HydrateResolvedRoute {
+    url:string;
+    route:string;
+    params:object;
+    query:object;
 }
 
 class HydrateApp {
@@ -380,6 +296,7 @@ class HydrateApp {
             //attributeFilter: [...this.#options.attribute.trackables],
         });
         this.root.addEventListener("input", this.#inputListener.bind(this));
+        window.addEventListener("popstate", this.#popStateListener.bind(this));
         
         this.#trackElements();
     }
@@ -394,21 +311,95 @@ class HydrateApp {
     //     return this.#htmlExcecuters;
     // }
 
-    navigate(uri:string, state?:any) {
-        let url = new URL(uri);
+    route(url?:string, state?:any):void {
+        if(url == null)
+        {
+            url = window.location.href;
+            state = history.state;
+        }
+        else if (state == null)
+        {
+            state = {};
+        }
+        
+        history.pushState(state, '', url);
+        this.#navigateTo(location.href, state);
+    }
 
+    #navigateTo(uri:string, state:any):void {
+        let url = new URL(uri);
         let request:HydrateRouteRequest = {
-            path: !this.#options.router.hashRouting ? url.pathname
-                : (url.hash === "" ? "/" : url.hash),
+            path: this.#determineRoutePath(url),
             pathname: url.pathname,
             search: url.search,
             hash: url.hash,
             url: uri,
             state: state
         };
+        this.#dispatch(this.#root, "route", undefined, request);
+    }
 
-        history.pushState(state, '', uri);
-        this.#dispatch(this.#root, "route", null, request)
+    #determineRoutePath(url:URL):string {
+        return !this.#options.router.hashRouting ? url.pathname
+            : (url.hash === "" ? "#" : url.hash);
+    }
+
+    #popStateListener(event:PopStateEvent):void {
+        this.#navigateTo(window.location.href, event.state);
+    }
+
+    /**
+     * Attempts to resolve the route. If it fails, you'll return null
+     */
+    resolve(url:URL, ...routes:string[]):HydrateResolvedRoute[] {
+        let results:HydrateResolvedRoute[] = [];
+        let path = this.#determineRoutePath(url);
+        for(let route of routes) {
+            let regexRoute = this.#routeToRegex(route);
+            let match = path.match(regexRoute);
+            if(match)
+                results.push({
+                    url: path,
+                    route: route,
+                    params: this.#getRouteParams(route, match),
+                    query: this.#getQueryParams(url.search),
+                });
+        }
+        return results.length > 0
+            ? results : null;
+    }
+
+    #routeToRegex(route:string): RegExp {
+        if(!route == null || route === "")
+            return new RegExp(".*");
+        let regex = route.replace(/\//g, "\\/").replace(/:\w+/g, "(.+)");
+        return RegExp("^" + regex + "$");
+    }
+    #getRouteParams(route:string, match:RegExpMatchArray): object {
+        let params = {};
+        let keys = route.match(/:(\w+)/g);
+        if(keys)
+            for(let i = 0; i < keys.length; i++)
+                params[keys[i].substring(1)] = match[i + 1];
+        return params;
+    };
+    #getQueryParams(search: string): object {
+        let query = {};
+        location.search.substring(1, location.search.length).split("&").forEach(x => {
+            let [name, value] = x.split("=");
+            if(name === "")
+                return;
+            let variable = query[name];
+            if(variable == null)
+                query[name] = value;
+            else
+            {
+                if(!Array.isArray(variable))
+                    query[name] = [variable];
+                query[name].push(value);
+            }
+        });
+        return query;
     }
 
     /**
@@ -806,7 +797,7 @@ class HydrateApp {
             this.attribute(this.#options.attribute.names.event),
             this.attribute(this.#options.attribute.names.on),
             this.attribute(this.#options.attribute.names.component),
-            // this.attribute(this.#options.attribute.names.route),
+            this.attribute(this.#options.attribute.names.route),
             // this.attribute(this.#options.attribute.names.page),
             this.attribute(this.#options.attribute.names.mutation),
         );
@@ -860,6 +851,19 @@ class HydrateApp {
             //     return;
             if(arg.field !== "*" && arg.field !== eventDetails.type)
                 return;
+
+            //Don't call if we're listening to this route
+            if(eventDetails.type === "route")
+            {
+                let routeAttribute = this.attribute(this.#options.attribute.names.route);
+                let route = eventDetails.element.getAttribute(routeAttribute);
+                if(route == null)
+                    return;
+                let url = new URL(window.location.href);
+                if(this.resolve(url, route) == null)
+                    return;
+            }
+                
             eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.on), (arg:HydrateAttributeArgument, eventDetails:HydrateElementEventListenerEventDetails) => {
@@ -867,9 +871,24 @@ class HydrateApp {
                 return;
             eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, eventDetails.event);
         });
-        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.component), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.component), (arg:HydrateAttributeArgument, eventDetails:HydrateEventDetails) => {
             if(eventDetails.modelName !== "" && eventDetails.model == null)
                 return;
+            
+            let routeAttribute = this.attribute(this.#options.attribute.names.route);
+            let route = eventDetails.element.getAttribute(routeAttribute);
+            if(route != null)
+            {
+                let url = new URL(window.location.href);
+                if(this.resolve(url, route) == null)
+                {
+                    //If route match failed, clear the component
+                    let element = eventDetails.element;
+                    while(element.firstChild)
+                        element.removeChild(element.firstChild);
+                    return;
+                }
+            }
             
             //Only generate the component if the model changed, not the child properties
             let modelAttribute = this.attribute(this.#options.attribute.names.model);
@@ -878,11 +897,32 @@ class HydrateApp {
 
             let element = eventDetails.element;
             let templateAttribute = this.attribute(this.#options.attribute.names.template);
-            let template = this.#root.querySelector(`template[${templateAttribute}=${arg.expression}]`) as HTMLTemplateElement;
-            if(template == null)
-                return;           
+            let templateName = arg.expression;
+            let pageAttribute = this.attribute(this.#options.attribute.names.page);
+            let isPage = element.hasAttribute(pageAttribute);
+
+            if(!isPage)
+            {
+                let template = this.#root.querySelector(`template[${templateAttribute}=${templateName}]`) as HTMLTemplateElement;
+                if(template == null)
+                    return; 
+                this.#buildComponent(template.content.childNodes, modelAttribute, eventDetails);
+                return;
+            }
             
-            let modelSelector = `[${modelAttribute}^=\\^]`;
+            fetch(templateName)
+            .then(res => res.text())
+            .then(html => {
+                let div = document.createElement("div");
+                div.innerHTML = html;
+                this.#buildComponent(div.childNodes, modelAttribute, eventDetails);
+            });
+        });
+    }
+
+    #buildComponent(template:NodeListOf<ChildNode>, modelAttribute:string, eventDetails:HydrateEventDetails) {
+        let element = eventDetails.element;
+        let modelSelector = `[${modelAttribute}^=\\^]`;
             const insertModelPath = function(element:HTMLElement, path:string) {
                 element.setAttribute(modelAttribute, element.getAttribute(modelAttribute).replace("^", path));
             }
@@ -894,7 +934,7 @@ class HydrateApp {
 
             for(let modelPath of modelPaths)
             {
-                for(var child of template.content.childNodes)
+                for(var child of template)
                 {
                     let node = child.cloneNode(true);
                     children.push(node);
@@ -918,7 +958,7 @@ class HydrateApp {
                 element.removeChild(element.firstChild);
             for(let node of children)
                 eventDetails.element.appendChild(node);
-        });
+        
     }
 
     resolveArgumentValue(detail:any, arg:HydrateAttributeArgument, event:Event) {
@@ -1146,7 +1186,8 @@ class HydrateApp {
             'bind',
             'unbind',
             'set',
-            'on'
+            'on',
+            "route"
         ];
         for(let key of mutationEvents.keys())
         {
@@ -1313,6 +1354,7 @@ class HydrateApp {
             'unbind',
             'set',
             "on",
+            "route",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -1348,6 +1390,7 @@ class HydrateApp {
             'track',
             'bind',
             "set",
+            "route",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -1500,8 +1543,8 @@ class HydrateApp {
             }
             case "route":
             {
-                let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName,
-                    properties.modelPath, properties.propName, properties.propPath, nested);
+                let detail = new HydrateRouteEventDetails(this, target, eventType, properties.baseName, properties.modelName,
+                    properties.modelPath, properties.propName, properties.propPath, data);
                 return new HydrateRouteEvent(detail);
             }
             case "track":
