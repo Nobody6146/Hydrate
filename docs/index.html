@@ -42,11 +42,11 @@
                 <h1>Home</h1>
             </template>
             <template h-template="ContactPageTemplate">
-                <div h-model h-component="LoadingPageTemplate" h-routing="start">
+                <div h-model h-component="template: 'LoadingPageTemplate'" h-routing="start">
                     Loading...
                 </div>
-                <div h-model h-component="ContactPageContentTemplate" h-routing="resolve"></div>
-                <div h-model h-component="RejectedPageTemplate" h-routing="reject"></div>
+                <div h-model h-component="template: 'ContactPageContentTemplate'" h-routing="resolve"></div>
+                <div h-model h-component="template: 'RejectedPageTemplate'" h-routing="reject"></div>
             </template>
             <template h-template="ContactPageContentTemplate">
                 <h1>Contact</h1>
@@ -70,14 +70,14 @@
                     
                     <div>
                         <div h-route="#home">
-                            <div h-model h-component="LoadingTemplate" h-routing="start" h-event="routing.start: document.title = 'Demo | Home'"></div>
-                            <div h-model h-component="HomePageTemplate" h-routing="resolve"></div>
+                            <div h-model h-component="template: 'LoadingTemplate'" h-routing="start" h-event="routing.start: document.title = 'Demo | Home'"></div>
+                            <div h-model h-component="template: 'HomePageTemplate'" h-routing="resolve"></div>
                         </div>
-                        <div h-model h-component="demopages/about.html" h-page h-route="#about" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | About'"></div>
-                        <div h-model h-component="ContactPageTemplate" h-route="#contact" h-routing="start" h-event="routing.start: document.title = 'Demo | Contact'">
+                        <div h-model h-component="url: 'demopages/about.html'" h-route="#about" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | About'"></div>
+                        <div h-model h-component="template: 'ContactPageTemplate'" h-route="#contact" h-routing="start" h-event="routing.start: document.title = 'Demo | Contact'">
                             Check
                         </div>
-                        <div h-model h-component="PageNotFoundTemplate" h-route="#404" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | 404'"></div>
+                        <div h-model h-component="template: 'PageNotFoundTemplate'" h-route="#404" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | 404'"></div>
                     </div>
                 </div>
 
@@ -97,10 +97,10 @@
                 <div h-model="default" h-property="'innerHTML': text" h-attribute="name: text">
                     Sample text
                 </div>
-                <div h-model h-component="ExampleTemplate">
+                <div h-model h-component="template: 'ExampleTemplate'">
                     Placeholder text that will be deleted
                 </div>
-                <ul h-model="default.list" h-component="ListTemplate">
+                <ul h-model="default.list" h-component="template: 'ListTemplate'">
                     Placeholder list will be deleted
                 </ul>
                 <p h-model="default.person.name" h-property="textContent: `${first} ${last}`">lnkjhk</p>
@@ -108,7 +108,7 @@
 
                 <select h-model="default.selector" h-property="value: value" h-mutation="child: added">
                     <option selected value="" disabled>Select Value</option>
-                    <optgroup h-model="default.selector.options" h-component="SelectorTemplate">
+                    <optgroup h-model="default.selector.options" h-component="template: 'SelectorTemplate'">
                         <option>Test 1</option>
                         <option>Test 2</option>
                     </optgroup>

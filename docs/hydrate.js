@@ -57,7 +57,6 @@ class HydrateAttributeNamesOptions {
     //Routing
     route = "route"; //Mark a route associated with this element
     routing = "routing"; //Mark the element to say which router events it's responding to
-    page = "page"; //Tells component the template is a page to be requested
 }
 class HydrateElementTrackingEvent extends CustomEvent {
     constructor(detail) {
@@ -627,9 +626,7 @@ class HydrateApp {
         }
     }
     #addTrackableAttributes() {
-        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.delete), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.on), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.route), 
-        // this.attribute(this.#options.attribute.names.page),
-        this.attribute(this.#options.attribute.names.mutation));
+        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.delete), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.on), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.route), this.attribute(this.#options.attribute.names.mutation));
         let app = this;
         //this.#options.attribute.trackables.push(...this.#options.attribute.names.customs.map(x => app.attribute(x)));
     }
@@ -694,8 +691,9 @@ class HydrateApp {
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.component), (arg, eventDetails) => {
             if (eventDetails.modelName !== "" && eventDetails.model == null)
                 return;
+            let isRouting = this.#isRoutingEvent(eventDetails.type);
             if (eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing))) {
-                if (!this.#isRoutingEvent(eventDetails.type))
+                if (!isRouting)
                     return;
                 let url = new URL(eventDetails.request.url);
                 switch (this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type, url)) {
@@ -717,23 +715,30 @@ class HydrateApp {
                 return;
             let element = eventDetails.element;
             let templateAttribute = this.attribute(this.#options.attribute.names.template);
-            let templateName = arg.expression;
-            let pageAttribute = this.attribute(this.#options.attribute.names.page);
-            let isPage = element.hasAttribute(pageAttribute);
-            if (!isPage) {
-                let template = this.#root.querySelector(`template[${templateAttribute}=${templateName}]`);
-                if (template == null)
-                    return;
-                this.#buildComponent(template.content.childNodes, modelAttribute, eventDetails);
-                return;
+            let templateName = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
+            //Check template type
+            switch (arg.field) {
+                case "url":
+                    {
+                        fetch(templateName)
+                            .then(res => res.text())
+                            .then(html => {
+                            let div = document.createElement("div");
+                            div.innerHTML = html;
+                            this.#buildComponent(div.childNodes, modelAttribute, eventDetails);
+                        });
+                        break;
+                    }
+                case "template":
+                default:
+                    {
+                        let template = this.#root.querySelector(`template[${templateAttribute}=${templateName}]`);
+                        if (template == null)
+                            return;
+                        this.#buildComponent(template.content.childNodes, modelAttribute, eventDetails);
+                        return;
+                    }
             }
-            fetch(templateName)
-                .then(res => res.text())
-                .then(html => {
-                let div = document.createElement("div");
-                div.innerHTML = html;
-                this.#buildComponent(div.childNodes, modelAttribute, eventDetails);
-            });
         });
     }
     #isRoutingEvent(eventType) {
@@ -1210,7 +1215,7 @@ class HydrateApp {
             "mutation.child.attribute",
             "mutation.child.characterdata"
         ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false);
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
     }
     #getTrackableElements(target) {
         if (target == null)
