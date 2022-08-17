@@ -100,7 +100,7 @@
                     </optgroup>
                 </select>
 
-                <input h-model="default.toggle" h-class="red: shouldRed" h-toggle="disabled: shouldDisable" value="Test" > -->\
+                <input h-model="default.toggle" h-class="red: shouldRed" h-toggle="disabled: shouldDisable" value="Test" >
 
             </main>
     
@@ -134,10 +134,9 @@
                 // document.body.addEventListener("hydrate.route", event => console.log(event.type, event.detail));
                 //
                 document.body.addEventListener("hydrate.on", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate.router.start", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate.router.end", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate.router.resolve", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate.router.fail", event => console.log(event.type, event.detail));
+                document.body.addEventListener("hydrate.routing.start", event => console.log(event.type, event.detail));
+                document.body.addEventListener("hydrate.routing.resolve", event => console.log(event.type, event.detail));
+                document.body.addEventListener("hydrate.routing.reject", event => console.log(event.type, event.detail));
                 
 
                 let app = new HydrateApp();
@@ -165,8 +164,9 @@
                 routeMap.set("#home", resolvedRoute => {
                     console.log(resolvedRoute);
                 });
-                routeMap.set("#about", resolvedRoute => {
+                routeMap.set("#about", (resolvedRoute, request) => {
                     console.log(resolvedRoute);
+                    throw Error("Testing breaking route");
                 });
                 routeMap.set("#contact", resolvedRoute => {
                     console.log(resolvedRoute);
@@ -183,7 +183,7 @@
                 });
 
                 //Create our routing middleware
-                document.body.addEventListener("hydrate.router.start", event => {
+                document.body.addEventListener("hydrate.routing.start", event => {
                     try{
                         let routes = app.match(new URL(event.detail.request.url), ...routeMap.keys());
                         let route = routes[0].route;
@@ -194,7 +194,7 @@
                     }
                     catch(err) {
                         console.error(err);
-                        event.detail.request.fail();
+                        event.detail.request.reject();
                     }
                 });
 

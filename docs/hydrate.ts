@@ -95,7 +95,7 @@ type HydrateEventType = 'track' | 'untrack' | 'bind' | "unbind" | 'set' | "input
     | "mutation.target.added" | "mutation.target.removed" | "mutation.target.attribute" | "mutation.target.characterdata"
     | "mutation.parent.added" | "mutation.parent.removed" | "mutation.parent.attribute" | "mutation.parent.characterdata"
     | "mutation.child.added" | "mutation.child.removed" | "mutation.child.attribute" | "mutation.child.characterdata"
-    | 'router.start' | "router.end" | "router.resolve" | "router.fail";
+    | 'routing.start' | "routing.resolve" | "routing.reject";
 interface HydrateEventDetailProperties {
     propPath:string;
     propName:string;
@@ -250,7 +250,7 @@ interface HydrateRouteRequest {
     state:any;
     match:(url:URL, ...routes:string[]) => HydrateResolvedRoute[];
     resolve: () => void;
-    fail: () => void;
+    reject: () => void;
     response:any; //Empty field where you can attach any data needed by your handling code
 }
 
@@ -335,15 +335,14 @@ class HydrateApp {
             state: state,
             match: app.match.bind(app),
             resolve: function() {
-                app.#dispatch(app.#root, "router.resolve", undefined, request);
+                app.#dispatch(app.#root, "routing.resolve", undefined, request);
             },
-            fail: function() {
-                app.#dispatch(app.#root, "router.fail", undefined, request);
+            reject: function() {
+                app.#dispatch(app.#root, "routing.reject", undefined, request);
             },
             response: null
         };
-        this.#dispatch(this.#root, "router.start", undefined, request);
-        this.#dispatch(this.#root, "router.end", undefined, request);
+        this.#dispatch(this.#root, "routing.start", undefined, request);
     }
 
     #determineRoutePath(url:URL):string {
@@ -861,7 +860,7 @@ class HydrateApp {
 
             if(eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing)))
             {
-                if(!this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type))
+                if(this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type) === "handled")
                     return;
             }
                 
@@ -879,7 +878,7 @@ class HydrateApp {
             if(eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing)))
             {
                 
-                if(!eventDetails.type.startsWith("router"))
+                if(!this.#isRoutingEvent(eventDetails.type))
                     return;
                 switch(this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type))
                 {
@@ -926,6 +925,17 @@ class HydrateApp {
         });
     }
 
+    #isRoutingEvent(eventType:HydrateEventType): boolean {
+        switch(eventType) {
+            case "routing.start":
+            case "routing.resolve":
+            case "routing.reject":
+                return true;
+            default:
+                return false;
+        }
+    }
+
     #elementIsHandledByRoute(element:HTMLElement, eventType:HydrateEventType, url?:URL):"handled" | "unhandled" | "unchanged" {
         if(url == null)
             url = new URL(window.location.href);
@@ -946,8 +956,10 @@ class HydrateApp {
             return "unhandled";
         }
 
+        let routingType = eventType.substring(eventType.lastIndexOf(".") + 1);
+        let selector = `[${routingAttribute}~=${routingType}]`;
         if(this.match(url, route) == null)
-            return "unhandled";
+            return element.matches(selector) ? "unhandled" : "unchanged";
 
         if(routerElement === element && routing == null)
             return "unchanged";
@@ -955,10 +967,9 @@ class HydrateApp {
         let children = routerElement === element
             ? [element] : [...routerElement.children]
 
-        let routingType = eventType.substring(eventType.lastIndexOf(".") + 1);
         for(let child of children)
         {
-            if(child.matches(`[${routingAttribute}~=${routingType}]`))
+            if(child.matches(selector))
                 return child === element ?
                     "handled" : "unhandled";
         }
@@ -1232,10 +1243,9 @@ class HydrateApp {
             'unbind',
             'set',
             'on',
-            "router.start",
-            "router.end",
-            "router.resolve",
-            "router.fail",
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
         ];
         for(let key of mutationEvents.keys())
         {
@@ -1402,10 +1412,9 @@ class HydrateApp {
             'unbind',
             'set',
             "on",
-            "router.start",
-            "router.end",
-            "router.resolve",
-            "router.fail",
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -1441,10 +1450,9 @@ class HydrateApp {
             'track',
             'bind',
             "set",
-            "router.start",
-            "router.end",
-            "router.resolve",
-            "router.fail",
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -1595,10 +1603,9 @@ class HydrateApp {
                     properties.modelPath, properties.propName, properties.propPath, nested);
                 return new HydrateModelEvent(detail);
             }
-            case "router.start":
-            case "router.end":
-            case "router.resolve":
-            case "router.fail":
+            case "routing.start":
+            case "routing.resolve":
+            case "routing.reject":
             {
                 let detail = new HydrateRouteEventDetails(this, target, eventType, properties.baseName, properties.modelName,
                     properties.modelPath, properties.propName, properties.propPath, data);
