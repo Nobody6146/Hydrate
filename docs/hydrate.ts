@@ -342,6 +342,7 @@ class HydrateApp {
             },
             response: null
         };
+        
         this.#dispatch(this.#root, "routing.start", undefined, request);
     }
 
@@ -860,7 +861,8 @@ class HydrateApp {
 
             if(eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing)))
             {
-                if(this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type) === "handled")
+                let url = new URL((eventDetails as HydrateRouteEventDetails).request.url);
+                if(this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type, url) !== "handled")
                     return;
             }
                 
@@ -880,7 +882,8 @@ class HydrateApp {
                 
                 if(!this.#isRoutingEvent(eventDetails.type))
                     return;
-                switch(this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type))
+                let url = new URL((eventDetails as HydrateRouteEventDetails).request.url);
+                switch(this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type, url))
                 {
                     case "unhandled":{
                         let element = eventDetails.element;
@@ -948,7 +951,8 @@ class HydrateApp {
         if(route == null)
         {
             routerElement = element.parentElement;
-            route = routerElement.getAttribute(routeAttribute);
+            if(routerElement != null)
+                route = routerElement.getAttribute(routeAttribute);
         }
         
         if(route == null)

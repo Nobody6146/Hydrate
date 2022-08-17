@@ -42,13 +42,23 @@
                 <h1>Home</h1>
             </template>
             <template h-template="ContactPageTemplate">
+                <div h-model h-component="LoadingPageTemplate" h-routing="start">
+                    Loading...
+                </div>
+                <div h-model h-component="ContactPageContentTemplate" h-routing="resolve"></div>
+                <div h-model h-component="RejectedPageTemplate" h-routing="reject"></div>
+            </template>
+            <template h-template="ContactPageContentTemplate">
                 <h1>Contact</h1>
             </template>
             <template h-template="PageNotFoundTemplate">
                 <h1>Page not found!</h1>
             </template>
-            <template h-template="LoadingTemplate">
+            <template h-template="LoadingPageTemplate">
                 Loading...
+            </template>
+            <template h-template="RejectedPageTemplate">
+                Error loading page
             </template>
 
             <main>
@@ -58,22 +68,26 @@
                         Welcome
                     </h1>
                     
-                    <div h-route="#home">
-                        <div h-model h-component="LoadingTemplate" h-routing="start" h-event="route: document.title = 'Demo | Home'"></div>
-                        <div h-model h-component="HomePageTemplate" h-routing="resolve"></div>
+                    <div>
+                        <div h-route="#home">
+                            <div h-model h-component="LoadingTemplate" h-routing="start" h-event="routing.start: document.title = 'Demo | Home'"></div>
+                            <div h-model h-component="HomePageTemplate" h-routing="resolve"></div>
+                        </div>
+                        <div h-model h-component="demopages/about.html" h-page h-route="#about" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | About'"></div>
+                        <div h-model h-component="ContactPageTemplate" h-route="#contact" h-routing="start" h-event="routing.start: document.title = 'Demo | Contact'">
+                            Check
+                        </div>
+                        <div h-model h-component="PageNotFoundTemplate" h-route="#404" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | 404'"></div>
                     </div>
-                    <div h-model h-component="demopages/about.html" h-page h-route="#about" h-routing="resolve" h-event="route: document.title = 'Demo | About'"></div>
-                    <div h-model h-component="ContactPageTemplate" h-route="#contact" h-routing="resolve" h-event="route: document.title = 'Demo | Contact'"></div>
-                    <div h-model h-component="PageNotFoundTemplate" h-route="#404" h-routing="resolve" h-event="route: document.title = 'Demo | 404'"></div>
                 </div>
 
-                <a href="#">Home</a>
+                <a href="#home">Home</a>
                 <a href="#about">About</a>
                 <a href="#contact">Contact</a>
                 <a href="#badUrl">Bad Link</a>
                 <a href="?sort=Top#test/3">Test Link</a>
 
-                <div h-model="default" h-delete h-event="*: console.log($detail)">
+                <div h-model="default" h-delete>
                     We are a deleteable div!
                 </div>
                 <div h-model h-property="textContent: 'Overrided text from modeless component!'">Same Text</div>
@@ -133,10 +147,10 @@
                 // //
                 // document.body.addEventListener("hydrate.route", event => console.log(event.type, event.detail));
                 //
-                document.body.addEventListener("hydrate.on", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate.routing.start", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate.routing.resolve", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate.routing.reject", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate.on", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate.routing.start", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate.routing.resolve", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate.routing.reject", event => console.log(event.type, event.detail));
                 
 
                 let app = new HydrateApp();
@@ -162,23 +176,23 @@
                     app.route("#home");
                 });
                 routeMap.set("#home", resolvedRoute => {
-                    console.log(resolvedRoute);
+                    //console.log(resolvedRoute);
                 });
-                routeMap.set("#about", (resolvedRoute, request) => {
-                    console.log(resolvedRoute);
-                    throw Error("Testing breaking route");
+                routeMap.set("#about", resolvedRoute => {
+                    //console.log(resolvedRoute);
                 });
                 routeMap.set("#contact", resolvedRoute => {
-                    console.log(resolvedRoute);
+                    //console.log(resolvedRoute);
+                    throw Error("Testing breaking route");
                 });
                 routeMap.set("#404", (resolvedRoute, request) => {
-                    console.log(resolvedRoute);
+                    //console.log(resolvedRoute);
                 });
                 routeMap.set("#test/:id", (resolvedRoute, request) => {
-                    console.log(resolvedRoute);
+                    //console.log(resolvedRoute);
                 });
                 routeMap.set("", (resolvedRoute, request) => {
-                    console.log("page not found: ", + resolvedRoute);
+                    //console.log("page not found: ", + resolvedRoute);
                     app.route(`?page=3#404`);
                 });
 
@@ -187,9 +201,15 @@
                     try{
                         let routes = app.match(new URL(event.detail.request.url), ...routeMap.keys());
                         let route = routes[0].route;
-                        routeMap.get(route)(routes[0], event.detail.request);
                         setTimeout(() => {
-                            event.detail.request.resolve();
+                            try{
+                                routeMap.get(route)(routes[0], event.detail.request);
+                                event.detail.request.resolve();
+                            }
+                            catch(err) {
+                                console.error(err);
+                                event.detail.request.reject();
+                            }
                         }, 250);
                     }
                     catch(err) {
