@@ -47,6 +47,9 @@
             <template h-template="PageNotFoundTemplate">
                 <h1>Page not found!</h1>
             </template>
+            <template h-template="LoadingTemplate">
+                Loading...
+            </template>
 
             <main>
 
@@ -54,10 +57,14 @@
                     <h1>
                         Welcome
                     </h1>
-                    <div h-model h-component="HomePageTemplate" h-route="#home" h-event="route: document.title = 'Demo | Home'"></div>
-                    <div h-model h-component="demopages/about.html" h-route="#about" h-page h-event="route: document.title = 'Demo | About'"></div>
-                    <div h-model h-component="ContactPageTemplate" h-route="#contact" h-event="route: document.title = 'Demo | Contact'"></div>
-                    <div h-model h-component="PageNotFoundTemplate" h-route="#404" h-event="route: document.title = 'Demo | 404'"></div>
+                    
+                    <div h-route="#home">
+                        <div h-model h-component="LoadingTemplate" h-routing="start" h-event="route: document.title = 'Demo | Home'"></div>
+                        <div h-model h-component="HomePageTemplate" h-routing="resolve"></div>
+                    </div>
+                    <div h-model h-component="demopages/about.html" h-page h-route="#about" h-routing="resolve" h-event="route: document.title = 'Demo | About'"></div>
+                    <div h-model h-component="ContactPageTemplate" h-route="#contact" h-routing="resolve" h-event="route: document.title = 'Demo | Contact'"></div>
+                    <div h-model h-component="PageNotFoundTemplate" h-route="#404" h-routing="resolve" h-event="route: document.title = 'Demo | 404'"></div>
                 </div>
 
                 <a href="#">Home</a>
@@ -66,7 +73,7 @@
                 <a href="#badUrl">Bad Link</a>
                 <a href="?sort=Top#test/3">Test Link</a>
 
-                <!-- <div h-model="default" h-delete h-event="*: console.log($detail)">
+                <div h-model="default" h-delete h-event="*: console.log($detail)">
                     We are a deleteable div!
                 </div>
                 <div h-model h-property="textContent: 'Overrided text from modeless component!'">Same Text</div>
@@ -93,7 +100,8 @@
                     </optgroup>
                 </select>
 
-                <input h-model="default.toggle" h-class="red: shouldRed" h-toggle="disabled: shouldDisable" value="Test" > -->
+                <input h-model="default.toggle" h-class="red: shouldRed" h-toggle="disabled: shouldDisable" value="Test" > -->\
+
             </main>
     
             <footer>
@@ -126,7 +134,10 @@
                 // document.body.addEventListener("hydrate.route", event => console.log(event.type, event.detail));
                 //
                 document.body.addEventListener("hydrate.on", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate.route", event => console.log(event.type, event.detail));
+                document.body.addEventListener("hydrate.router.start", event => console.log(event.type, event.detail));
+                document.body.addEventListener("hydrate.router.end", event => console.log(event.type, event.detail));
+                document.body.addEventListener("hydrate.router.resolve", event => console.log(event.type, event.detail));
+                document.body.addEventListener("hydrate.router.fail", event => console.log(event.type, event.detail));
                 
 
                 let app = new HydrateApp();
@@ -170,13 +181,23 @@
                     console.log("page not found: ", + resolvedRoute);
                     app.route(`?page=3#404`);
                 });
+
                 //Create our routing middleware
-                document.body.addEventListener("hydrate.route", event => {
-                    console.log(event);
-                    let routes = app.resolve(new URL(event.detail.request.url), ...routeMap.keys());
-                    let route = routes[0].route;
-                    routeMap.get(route)(routes[0], event.detail.request);
+                document.body.addEventListener("hydrate.router.start", event => {
+                    try{
+                        let routes = app.match(new URL(event.detail.request.url), ...routeMap.keys());
+                        let route = routes[0].route;
+                        routeMap.get(route)(routes[0], event.detail.request);
+                        setTimeout(() => {
+                            event.detail.request.resolve();
+                        }, 250);
+                    }
+                    catch(err) {
+                        console.error(err);
+                        event.detail.request.fail();
+                    }
                 });
+
                 //Route to current page
                 app.route();
 

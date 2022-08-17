@@ -55,7 +55,8 @@ class HydrateAttributeNamesOptions {
     template = "template"; //template changes queries user of the templates then regenerate
     component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
     //Routing
-    route = "route"; //Make element only respond to route request
+    route = "route"; //Mark a route associated with this element
+    routing = "routing"; //Mark the element to say which router events it's responding to
     page = "page"; //Tells component the template is a page to be requested
 }
 class HydrateElementTrackingEvent extends CustomEvent {
@@ -163,22 +164,6 @@ class HydrateRouteEventDetails extends HydrateEventDetails {
         this.request = request;
     }
 }
-class HydrateRouteRequest {
-    path;
-    url;
-    pathname;
-    search;
-    hash;
-    state;
-    constructor() {
-        this.path = null;
-        this.url = null;
-        this.pathname = null;
-        this.search = null;
-        this.hash = null;
-        this.state = null;
-    }
-}
 class HydrateApp {
     #options;
     #htmlExcecuters; //element name -> event type -> model.prop -> callbacks
@@ -229,6 +214,7 @@ class HydrateApp {
         this.#navigateTo(location.href, state);
     }
     #navigateTo(uri, state) {
+        const app = this;
         let url = new URL(uri);
         let request = {
             path: this.#determineRoutePath(url),
@@ -236,9 +222,18 @@ class HydrateApp {
             search: url.search,
             hash: url.hash,
             url: uri,
-            state: state
+            state: state,
+            match: app.match.bind(app),
+            resolve: function () {
+                app.#dispatch(app.#root, "router.resolve", undefined, request);
+            },
+            fail: function () {
+                app.#dispatch(app.#root, "router.fail", undefined, request);
+            },
+            response: null
         };
-        this.#dispatch(this.#root, "route", undefined, request);
+        this.#dispatch(this.#root, "router.start", undefined, request);
+        this.#dispatch(this.#root, "router.end", undefined, request);
     }
     #determineRoutePath(url) {
         return !this.#options.router.hashRouting ? url.pathname
@@ -250,7 +245,7 @@ class HydrateApp {
     /**
      * Attempts to resolve the route. If it fails, you'll return null
      */
-    resolve(url, ...routes) {
+    match(url, ...routes) {
         let results = [];
         let path = this.#determineRoutePath(url);
         for (let route of routes) {
@@ -685,14 +680,8 @@ class HydrateApp {
             //     return;
             if (arg.field !== "*" && arg.field !== eventDetails.type)
                 return;
-            //Don't call if we're listening to this route
-            if (eventDetails.type === "route") {
-                let routeAttribute = this.attribute(this.#options.attribute.names.route);
-                let route = eventDetails.element.getAttribute(routeAttribute);
-                if (route == null)
-                    return;
-                let url = new URL(window.location.href);
-                if (this.resolve(url, route) == null)
+            if (eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing))) {
+                if (!this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type))
                     return;
             }
             eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
@@ -705,16 +694,20 @@ class HydrateApp {
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.component), (arg, eventDetails) => {
             if (eventDetails.modelName !== "" && eventDetails.model == null)
                 return;
-            let routeAttribute = this.attribute(this.#options.attribute.names.route);
-            let route = eventDetails.element.getAttribute(routeAttribute);
-            if (route != null) {
-                let url = new URL(window.location.href);
-                if (this.resolve(url, route) == null) {
-                    //If route match failed, clear the component
-                    let element = eventDetails.element;
-                    while (element.firstChild)
-                        element.removeChild(element.firstChild);
+            if (eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing))) {
+                if (!eventDetails.type.startsWith("router"))
                     return;
+                switch (this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type)) {
+                    case "unhandled": {
+                        let element = eventDetails.element;
+                        while (element.firstChild)
+                            element.removeChild(element.firstChild);
+                        return;
+                    }
+                    case "unchanged":
+                        return;
+                    case "handled":
+                        break;
                 }
             }
             //Only generate the component if the model changed, not the child properties
@@ -741,6 +734,35 @@ class HydrateApp {
                 this.#buildComponent(div.childNodes, modelAttribute, eventDetails);
             });
         });
+    }
+    #elementIsHandledByRoute(element, eventType, url) {
+        if (url == null)
+            url = new URL(window.location.href);
+        let routeAttribute = this.attribute(this.#options.attribute.names.route);
+        let routingAttribute = this.attribute(this.#options.attribute.names.routing);
+        let routing = element.getAttribute(routingAttribute);
+        let routerElement = element;
+        let route = routerElement.getAttribute(routeAttribute);
+        if (route == null) {
+            routerElement = element.parentElement;
+            route = routerElement.getAttribute(routeAttribute);
+        }
+        if (route == null) {
+            return "unhandled";
+        }
+        if (this.match(url, route) == null)
+            return "unhandled";
+        if (routerElement === element && routing == null)
+            return "unchanged";
+        let children = routerElement === element
+            ? [element] : [...routerElement.children];
+        let routingType = eventType.substring(eventType.lastIndexOf(".") + 1);
+        for (let child of children) {
+            if (child.matches(`[${routingAttribute}~=${routingType}]`))
+                return child === element ?
+                    "handled" : "unhandled";
+        }
+        return "unchanged";
     }
     #buildComponent(template, modelAttribute, eventDetails) {
         let element = eventDetails.element;
@@ -969,7 +991,10 @@ class HydrateApp {
             'unbind',
             'set',
             'on',
-            "route"
+            "router.start",
+            "router.end",
+            "router.resolve",
+            "router.fail",
         ];
         for (let key of mutationEvents.keys()) {
             if (mutationEvents.get(key) === true)
@@ -1121,7 +1146,10 @@ class HydrateApp {
             'unbind',
             'set',
             "on",
-            "route",
+            "router.start",
+            "router.end",
+            "router.resolve",
+            "router.fail",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -1155,7 +1183,10 @@ class HydrateApp {
             'track',
             'bind',
             "set",
-            "route",
+            "router.start",
+            "router.end",
+            "router.resolve",
+            "router.fail",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -1286,7 +1317,10 @@ class HydrateApp {
                     let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, nested);
                     return new HydrateModelEvent(detail);
                 }
-            case "route":
+            case "router.start":
+            case "router.end":
+            case "router.resolve":
+            case "router.fail":
                 {
                     let detail = new HydrateRouteEventDetails(this, target, eventType, properties.baseName, properties.modelName, properties.modelPath, properties.propName, properties.propPath, data);
                     return new HydrateRouteEvent(detail);
