@@ -13,34 +13,64 @@
                 <li>
                     <a href="#framework-event-types">Framework Event Types</a>
                     <ul>
-                        <li><a href="#track-event">hydrate:track</a></li>
-                        <li><a href="#untrack-event">hydrate:untrack</a></li>
-                        <li><a href="#bind-event">hydrate:bind</a></li>
-                        <li><a href="#unbind-event">hydrate:unbind</a></li>
-                        <li><a href="#set-event">hydrate:set</a></li>
-                        <li><a href="#mutation-target-added-event">hydrate:mutation.target.added</a></li>
-                        <li><a href="#mutation-target-removed-event">hydrate:mutation.target.removed</a></li>
-                        <li><a href="#mutation-target-attribute-event">hydrate:mutation.target.attribute</a></li>
-                        <li><a href="#mutation-target-characterdata-event">hydrate:mutation.target.characterdata</a></li>
-                        <li><a href="#mutation-parent-added-event">hydrate:mutation.parent.added</a></li>
-                        <li><a href="#mutation-parent-removed-event">hydrate:mutation.parent.removed</a></li>
-                        <li><a href="#mutation-parent-attribute-event">hydrate:mutation.parent.attribute</a></li>
-                        <li><a href="#mutation-parent-characterdata-event">hydrate:mutation.parent.characterdata</a></li>
-                        <li><a href="#mutation-child-added-event">hydrate:mutation.child.added</a></li>
-                        <li><a href="#mutation-child-removed-event">hydrate:mutation.child.removed</a></li>
-                        <li><a href="#mutation-child-attribute-event">hydrate:mutation.child.attribute</a></li>
-                        <li><a href="#mutation-child-characterdata-event">hydrate:mutation.child.characterdata</a></li>
+                        <li><a href="#track-event">hydrate.track</a></li>
+                        <li><a href="#untrack-event">hydrate.untrack</a></li>
+                        <li><a href="#bind-event">hydrate.bind</a></li>
+                        <li><a href="#unbind-event">hydrate.unbind</a></li>
+                        <li><a href="#set-event">hydrate.set</a></li>
+                        <li><a href="#input-event">hydrate.input</a></li>
+                        <li><a href="#on-event">hydrate.on</a></li>
+                        <li><a href="#routing-start-event">hydrate.routing.start</a></li>
+                        <li><a href="#routing-resolve-event">hydrate.routing.resolve</a></li>
+                        <li><a href="#routing-reject-event">hydrate.routing.reject</a></li>
+                        <li><a href="#mutation-target-added-event">hydrate.mutation.target.added</a></li>
+                        <li><a href="#mutation-target-removed-event">hydrate.mutation.target.removed</a></li>
+                        <li><a href="#mutation-target-attribute-event">hydrate.mutation.target.attribute</a></li>
+                        <li><a href="#mutation-target-characterdata-event">hydrate.mutation.target.characterdata</a></li>
+                        <li><a href="#mutation-parent-added-event">hydrate.mutation.parent.added</a></li>
+                        <li><a href="#mutation-parent-removed-event">hydrate.mutation.parent.removed</a></li>
+                        <li><a href="#mutation-parent-attribute-event">hydrate.mutation.parent.attribute</a></li>
+                        <li><a href="#mutation-parent-characterdata-event">hydrate.mutation.parent.characterdata</a></li>
+                        <li><a href="#mutation-child-added-event">hydrate.mutation.child.added</a></li>
+                        <li><a href="#mutation-child-removed-event">hydrate.mutation.child.removed</a></li>
+                        <li><a href="#mutation-child-attribute-event">hydrate.mutation.child.attribute</a></li>
+                        <li><a href="#mutation-child-characterdata-event">hydrate.mutation.child.characterdata</a></li>
                     </ul>
                 </li>
                 <li>
                     <a href="#framework-element-attributes">Framework Element Attributes</a>
                     <ul>
-                        <li><a href="#model-attribute">h-model</a></li>
-                        <li><a href="#property-attribute">h-property</a></li>
-                        <li><a href="#attribute-attribute">h-attribute</a></li>
-                        <li><a href="#input-attribute">h-input</a></li>
-                        <li><a href="#mutation-attribute">h-mutation</a></li>
-                        <li><a href="#event-attribute">h-event</a></li>
+                        <b>Model binding</b>
+                        <ul>
+                            <li><a href="#model-attribute">h-model</a></li>
+                            <li><a href="#nested-attribute">h-nested</a></li>
+                            <li><a href="#mutation-attribute">h-mutation</a></li>
+                        </ul>
+                        <b>Element manipulation</b>
+                        <ul>
+                            <li><a href="#property-attribute">h-property</a></li>
+                            <li><a href="#attribute-attribute">h-attribute</a></li>
+                            <li><a href="#toggle-attribute">h-toggle</a></li>
+                            <li><a href="#class-attribute">h-class</a></li>
+                            <li><a href="#delete-attribute">h-delete</a></li>
+                        </ul>
+                        <b>Element callbacks</b>
+                        <ul>
+                            <li><a href="#input-attribute">h-input</a></li>
+                            <li><a href="#on-attribute">h-on</a></li>
+                            <li><a href="#event-attribute">h-event</a></li>
+                        </ul>
+                        <b>Templating and Resuable HTML/JS</b>
+                        <ul>
+                            <li><a href="#script-attribute">h-script</a></li>
+                            <li><a href="#template-attribute">h-template</a></li>
+                            <li><a href="#component-attribute">h-component</a></li>
+                        </ul>
+                        <b>Routing</b>
+                        <ul>
+                            <li><a href="#route-attribute">h-route</a></li>
+                            <li><a href="#routing-attribute">h-routing</a></li>
+                        </ul>
                     </ul>
                 </li>
             </ul>
@@ -205,20 +235,20 @@
                 <p>
                     Hydrate generates several different types of events that components and event listeners can respond to
                     <ul>
-                        <li>When referenced via the JS event system, all Hydrate events will have the name formatted "hydrate:[HYDRATE_EVENT_TYPE]"</li>
+                        <li>When referenced via the JS event system, all Hydrate events will have the name formatted "hydrate.[HYDRATE_EVENT_TYPE]"</li>
                         <li>
                             Exampe:
                             <ul>
-                                <li>hydrate:track</li>
-                                <li>hydrate:bind</li>
+                                <li>hydrate.track</li>
+                                <li>hydrate.bind</li>
                             </ul>
                         </li>
-                        <li>When referenced inside the framework internally, the "hydrate:" is dropped for easier referencing</li>
+                        <li>When referenced inside the framework internally, the "hydrate." is dropped for easier referencing</li>
                         <li>The following event definitions will use the JS event type names</li>
                     </ul>
                 </p>
                 <fieldset id="track-event">
-                    <legend><h3>hydrate:track</h3></legend>
+                    <legend><h3>hydrate.track</h3></legend>
                     <p>
                         <b>Trigger:</b> When an element goes from being plain HTML to an element that is being tracked by the framework as a component
                     </p>
@@ -240,7 +270,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="untrack-event">
-                    <legend><h3>hydrate:untrack</h3></legend>
+                    <legend><h3>hydrate.untrack</h3></legend>
                     <p>
                         <b>Trigger:</b> When an element goes from being a component tracked by the framework back to being just a plain HTML element.
                     </p>
@@ -256,7 +286,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="bind-event">
-                    <legend><h3>hydrate:bind</h3></legend>
+                    <legend><h3>hydrate.bind</h3></legend>
                     <p>
                         <b>Trigger:</b> When a new model is bound to the framework or a new model is bound to an element.
                     </p>
@@ -279,7 +309,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="unbind-event">
-                    <legend><h3>hydrate:unbind</h3></legend>
+                    <legend><h3>hydrate.unbind</h3></legend>
                     <p>
                         <b>Trigger:</b> When an existing model is unbound or rebound from the framework. An unbind can also be generated if an existing model property is removed
                     </p>
@@ -296,7 +326,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="set-event">
-                    <legend><h3>hydrate:set</h3></legend>
+                    <legend><h3>hydrate.set</h3></legend>
                     <p>
                         <b>Trigger:</b> When the set operator is called on a existing model property
                     </p>
@@ -306,12 +336,57 @@
                     <p>
                         <b>Notes:</b>
                         <ul>
-                            <li>A set event means that a <a href="#model-attribute">bind event</a> would not occur</li>
+                            <li>A set event means that a <a href="#bind-event">bind event</a> would not occur</li>
                         </ul>
                     </p>
                 </fieldset>
+                <fieldset id="input-event">
+                    <legend><h3>hydrate.input</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When a component with the <a href="#input-attribute">Input Attribute</a> generates an HTML input event
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#model-event-type"><b>HydrateModelEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="on-event">
+                    <legend><h3>hydrate.on</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When a component with a <a href="#on-attribute">On Attribute</a> fires the event listener for the event it's listening to
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="element-event-listener-event"><b>HydrateElementEventListenerEventDetails</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="routing-start-event">
+                    <legend><h3>hydrate.routing.start</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When a request to client side routing starts
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#routing-event-type"><b>HydrateRouteEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="routing-resolve-event">
+                    <legend><h3>hydrate.routing.resolve</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When you call "resolve" on a client side routing request
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#routing-event-type"><b>HydrateRouteEvent</b></a>
+                    </p>
+                </fieldset>
+                <fieldset id="routing-reject-event">
+                    <legend><h3>hydrate.routing.reject</h3></legend>
+                    <p>
+                        <b>Trigger:</b> When you call "reject" on a client side routing request
+                    </p>
+                    <p>
+                        <b>JS Event Class:</b> <a href="#routing-event-type"><b>HydrateRouteEvent</b></a>
+                    </p>
+                </fieldset>
                 <fieldset id="mutation-target-added-event">
-                    <legend><h3>hydrate:mutation.target.added</h3></legend>
+                    <legend><h3>hydrate.mutation.target.added</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element had a child element added to it
                     </p>
@@ -320,7 +395,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="mutation-target-removed-event">
-                    <legend><h3>hydrate:mutation.target.removed</h3></legend>
+                    <legend><h3>hydrate.mutation.target.removed</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element had a child element removed from it
                     </p>
@@ -329,7 +404,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="mutation-target-attribute-event">
-                    <legend><h3>hydrate:mutation.target.attribute</h3></legend>
+                    <legend><h3>hydrate.mutation.target.attribute</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element had an attribute change value
                     </p>
@@ -338,7 +413,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="mutation-target-characterdata-event">
-                    <legend><h3>hydrate:mutation.target.characterdata</h3></legend>
+                    <legend><h3>hydrate.mutation.target.characterdata</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element had it's character data change value
                     </p>
@@ -348,7 +423,7 @@
                 </fieldset>
                 
                 <fieldset id="mutation-parent-added-event">
-                    <legend><h3>hydrate:mutation.parent.added</h3></legend>
+                    <legend><h3>hydrate.mutation.parent.added</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element had it's parent element added to the DOM
                     </p>
@@ -357,7 +432,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="mutation-parent-removed-event">
-                    <legend><h3>hydrate:mutation.parent.removed</h3></legend>
+                    <legend><h3>hydrate.mutation.parent.removed</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element had it's parent element removed from the DOM
                     </p>
@@ -366,7 +441,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="mutation-parent-attribute-event">
-                    <legend><h3>hydrate:mutation.parent.attribute</h3></legend>
+                    <legend><h3>hydrate.mutation.parent.attribute</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element had its parent element had an attribute change value
                     </p>
@@ -375,7 +450,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="mutation-parent-characterdata-event">
-                    <legend><h3>hydrate:mutation.parent.characterdata</h3></legend>
+                    <legend><h3>hydrate.mutation.parent.characterdata</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element had its parent element change character data value
                     </p>
@@ -385,7 +460,7 @@
                 </fieldset>
 
                 <fieldset id="mutation-child-added-event">
-                    <legend><h3>hydrate:mutation.child.added</h3></legend>
+                    <legend><h3>hydrate.mutation.child.added</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element had a child element added to the DOM
                     </p>
@@ -394,7 +469,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="mutation-child-removed-event">
-                    <legend><h3>hydrate:mutation.child.removed</h3></legend>
+                    <legend><h3>hydrate.mutation.child.removed</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element had a child element removed from the DOM
                     </p>
@@ -403,7 +478,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="mutation-child-attribute-event">
-                    <legend><h3>hydrate:mutation.child.attribute</h3></legend>
+                    <legend><h3>hydrate.mutation.child.attribute</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element ha a child element have an attribute change value
                     </p>
@@ -412,7 +487,7 @@
                     </p>
                 </fieldset>
                 <fieldset id="mutation-child-characterdata-event">
-                    <legend><h3>hydrate:mutation.child.characterdata</h3></legend>
+                    <legend><h3>hydrate.mutation.child.characterdata</h3></legend>
                     <p>
                         <b>Trigger:</b> When the target element had a child element change character data value
                     </p>
@@ -746,7 +821,7 @@
                         <b>Syntax:</b> <code>h-event="EVENT_TYPE: CALLBACK"</code>
                         <ul>
                             <li>
-                                <i>EVENT_TYPE -</i> The name of Hydrate event type (without the "hydrate::" prefix)
+                                <i>EVENT_TYPE -</i> The name of Hydrate event type (without the "hydrate.:" prefix)
                                 <ul>
                                     <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
                                     <li>For the event type, you can also use a wildcard (*) operator to mean any event that the component responded to</li>
@@ -771,6 +846,33 @@
                                     </li>
                                 </ul>
                             </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Default Event types:</b> This attribute will respond to the following event types if you have the <a href="#mutation-attribute">Mutation attribute</a>
+                        <ul>
+                            <li>track</li>
+                            <li>untrack</li>
+                            <li>bind</li>
+                            <li>unbind</li>
+                            <li>set</li>
+                            <li>input</li>
+                            <li>on</li>
+                            <li>routing.start</li>
+                            <li>routing.resolve</li>
+                            <li>routing.reject</li>
+                            <li>mutation.target.added</li>
+                            <li>mutation.target.removed</li>
+                            <li>mutation.target.attribute</li>
+                            <li>mutation.target.characterdata</li>
+                            <li>mutation.parent.added</li>
+                            <li>mutation.parent.removed</li>
+                            <li>mutation.parent.attribute</li>
+                            <li>mutation.parent.characterdata</li>
+                            <li>mutation.child.added</li>
+                            <li>mutation.child.removed</li>
+                            <li>mutation.child.attribute</li>
+                            <li>mutation.child.characterdata</li>
                         </ul>
                     </p>
                 </fieldset>

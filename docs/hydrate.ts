@@ -77,10 +77,11 @@ class HydrateAttributeNamesOptions
     route = "route"; //Mark a route associated with this element
     routing = "routing"; //Mark the element to say which router events it's responding to
 
-    //Timing
+    //Execution and Timing
     // delay = "delay";
-    // debounce = "debounce";
-    // throttle = "throttle";
+    debounce = "debounce";
+    throttle = "throttle";
+    iterate = "iterate";
 
     // customs:string[] = []; 
 }
@@ -148,6 +149,16 @@ class HydrateElementMutationEvent extends CustomEvent<HydrateElementMutationEven
 class HydrateElementEventListenerEvent extends CustomEvent<HydrateElementEventListenerEventDetails> {
 
     constructor(detail:HydrateElementEventListenerEventDetails) {
+        super(`hydrate.${detail.type}`, {
+            detail: detail,
+            bubbles: true
+        });
+    }
+}
+
+class HydrateElementInputEvent extends CustomEvent<HydrateElementInputEventDetails> {
+
+    constructor(detail:HydrateElementInputEventDetails) {
         super(`hydrate.${detail.type}`, {
             detail: detail,
             bubbles: true
@@ -224,6 +235,16 @@ class HydrateElementMutationEventDetails extends HydrateEventDetails {
     }
 }
 
+class HydrateElementInputEventDetails extends HydrateEventDetails {
+    
+    event:Event;
+
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string, event:Event) {
+        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
+        this.event = event;
+    }
+}
+
 class HydrateElementEventListenerEventDetails extends HydrateEventDetails {
     event:Event;
 
@@ -267,6 +288,8 @@ class HydrateApp {
     #options:HydrateAppOptions;
     #htmlExcecuters: Map<HTMLElement, Map<HydrateEventType, Map<string, HydrateModelEventExecuter[]>>>; //element name -> event type -> model.prop -> callbacks
     #onDomEventListeners: Map<HTMLElement, Map<string, EventListenerOrEventListenerObject>>; //A list of dynamic (h-on) event listeners added by the framework
+    #elementThrottlers:Map<HTMLElement, Map<HydrateEventType, boolean>>;
+    #elementDebouncers:Map<HTMLElement, Map<HydrateEventType, boolean>>;
     #root:HTMLElement;
     #models:object;
 
@@ -277,6 +300,8 @@ class HydrateApp {
         this.#options = options ?? new HydrateAppOptions();
         this.#htmlExcecuters = new Map();
         this.#onDomEventListeners = new Map();
+        this.#elementThrottlers = new Map();
+        this.#elementDebouncers = new Map();
         this.#root = document.querySelector(this.#options.dom.rootSelector);
         this.#models = {};
 
@@ -777,20 +802,21 @@ class HydrateApp {
         let state = this.state(modelName);
         if(!(state instanceof Object))
             return;
-        let modelEvent = this.#createEvent(target, "input", this.#determineEventDetailProperties(modelName, "property"), null, undefined);
-        let args = this.parseAttributeArguments(target, this.attribute(this.#options.attribute.names.input));
+        this.#dispatch(target, "input", modelName, event);
+        // let modelEvent = this.#createEvent(target, "input", this.#determineEventDetailProperties(modelName, "property"), null, undefined);
+        // let args = this.parseAttributeArguments(target, this.attribute(this.#options.attribute.names.input));
         
-        for(let i = 0; i < args.length; i++)
-        {
-            //How do we want to format the input attribute?
-            //this.#createEvent(target, "input", this.state())
-            let arg = args[i];
-            let propName = arg.field;
-            let value = this.resolveArgumentValue(modelEvent.detail, arg, event);
-            if(state[propName] === value)
-                continue;
-            model[propName] = value;
-        }
+        // for(let i = 0; i < args.length; i++)
+        // {
+        //     //How do we want to format the input attribute?
+        //     //this.#createEvent(target, "input", this.state())
+        //     let arg = args[i];
+        //     let propName = arg.field;
+        //     let value = this.resolveArgumentValue(modelEvent.detail, arg, event);
+        //     if(state[propName] === value)
+        //         continue;
+        //     model[propName] = value;
+        // }
     }
 
     #addTrackableAttributes() {
@@ -867,6 +893,16 @@ class HydrateApp {
             }
                 
             eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
+        });
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.input), (arg:HydrateAttributeArgument, eventDetails:HydrateElementInputEventDetails) => {
+            if(eventDetails.modelName !== "" && eventDetails.model == null
+                && eventDetails.propPath !== null && eventDetails.type !== 'unbind')
+                return;
+            
+            let value = this.resolveArgumentValue(eventDetails, arg, eventDetails.event);
+            if(eventDetails.state[arg.field] === value)
+                return;
+            eventDetails.model[arg.field] = value;
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.on), (arg:HydrateAttributeArgument, eventDetails:HydrateElementEventListenerEventDetails) => {
             if(arg.field !== eventDetails.event.type)
@@ -1174,6 +1210,7 @@ class HydrateApp {
         }
 
         this.#removeOnAttributeEventListeners(element);
+        this.#updateThrottlers(element);
         let newTrack = this.#updateExecuters(element);
         if(newTrack)
         {
@@ -1182,6 +1219,22 @@ class HydrateApp {
             this.#dispatch(element, "track", modelName, undefined);
         }
         return newTrack;
+    }
+
+    #updateThrottlers(element:HTMLElement) {
+        let throttleAttribute = this.attribute(this.#options.attribute.names.throttle);
+        if(!element.hasAttribute(throttleAttribute))
+        {
+            this.#elementThrottlers.delete(element);
+            return;
+        }
+        
+        let elementThrottlers = this.#elementThrottlers.get(element);
+        if(elementThrottlers == null)
+        {
+            elementThrottlers = new Map();
+            this.#elementThrottlers.set(element, elementThrottlers);
+        }
     }
 
     #untrackElement(element:HTMLElement) {
@@ -1253,6 +1306,7 @@ class HydrateApp {
             'unbind',
             'set',
             'on',
+            'input',
             "routing.start",
             "routing.resolve",
             "routing.reject",
@@ -1268,6 +1322,7 @@ class HydrateApp {
         this.#addToggleClassHandler(element, modelPath, possibleEventTypes);
         this.#addToggleAttributeHandler(element, modelPath, possibleEventTypes);
         this.#addDeleteElementHandler(element, modelPath, possibleEventTypes);
+        this.#addInputHandler(element, modelPath, possibleEventTypes);
         this.#addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes);
         this.#addElementEventListenersHandler(element, modelPath, possibleEventTypes);
         this.#addGenerateComponentHandler(element, modelPath, possibleEventTypes);
@@ -1413,6 +1468,14 @@ class HydrateApp {
         return args;
     }
 
+    #addInputHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
+        let attribute = this.attribute(this.#options.attribute.names.input);
+        let eventTypes:HydrateEventType[] = [
+            "input"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
+    }
+
     #addExecuteEventCallbackHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
         let attribute = this.attribute(this.#options.attribute.names.event);
         let eventTypes:HydrateEventType[] = [
@@ -1421,6 +1484,7 @@ class HydrateApp {
             'bind',
             'unbind',
             'set',
+            'input',
             "on",
             "routing.start",
             "routing.resolve",
@@ -1565,6 +1629,15 @@ class HydrateApp {
         let elementExecuters = this.#getExcecuters(eventType, elements, propPath);
         for(let element of elementExecuters.keys())
         {
+            let throttleAttribute = this.attribute(this.#options.attribute.names.throttle);
+            let throttleArg = this.parseAttributeArguments(element, throttleAttribute)
+                .find(x => x.field === eventType);
+            if(this.#elementThrottlers?.get(element)?.get(eventType) === true)
+                continue;
+            let debounceAttribute = this.attribute(this.#options.attribute.names.throttle);
+            let debounceArg = this.parseAttributeArguments(element, debounceAttribute)
+                .find(x => x.field === eventType);
+
             let modelExecuters = elementExecuters.get(element);
             for(let modelPath of modelExecuters.keys())
             {
@@ -1596,6 +1669,27 @@ class HydrateApp {
                     }
                 }
             }
+
+            if(throttleArg)
+            {
+                this.#elementThrottlers.get(element).set(eventType, true);
+                const app = this;
+                let delay = 0;
+                try {
+                    delay = this.resolveArgumentValue(detail, throttleArg, null);
+                    if(!Number.isInteger(delay))
+                        console.error("delay is not a number")
+                    setTimeout(() => {
+                        console.log("timeout reached");
+                        let elementThrottler = app.#elementThrottlers.get(element);
+                        if(elementThrottler && elementThrottler.has(eventType))
+                            elementThrottler.set(eventType, false);
+                    }, delay);
+                }
+                catch(err) {
+                    console.error(err);
+                }
+            }
         }
 
         return listenerEvent.defaultPrevented;
@@ -1607,11 +1701,16 @@ class HydrateApp {
             case "bind":
             case "set":
             case "unbind":
-            case "input":
             {
                 let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName,
                     properties.modelPath, properties.propName, properties.propPath, nested);
                 return new HydrateModelEvent(detail);
+            }
+            case "input":
+            {
+                let detail = new HydrateElementInputEventDetails(this, target, eventType, properties.baseName, properties.modelName,
+                    properties.modelPath, properties.propName, properties.propPath, data);
+                return new HydrateElementInputEvent(detail);
             }
             case "routing.start":
             case "routing.resolve":

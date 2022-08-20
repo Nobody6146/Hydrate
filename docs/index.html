@@ -91,8 +91,8 @@
                     We are a deleteable div!
                 </div>
                 <div h-model h-property="textContent: 'Overrided text from modeless component!'">Same Text</div>
-                <input h-model="default" h-property="value: text" h-input="text: $element.value" value="Testing" h-event="track: console.log('got data!', $detail)">
-                <input h-model="default" h-property="value: text" h-on="input: $model.text = $element.value" value="Testing">
+                <input h-model="default" h-property="value: text" h-input="text: $element.value" value="Testing" h-event="track: console.log('got data!', $detail)" h-throttle="input: 750">
+                <input h-model="default" h-property="value: text" h-on="input: $model.text = $element.value">
                 <button h-model="default" h-on="click: alert(`Hello! Text: ${text}`);click: console.log('clicked me!')">Alert</button>
                 <div h-model="default" h-property="'innerHTML': text" h-attribute="name: text">
                     Sample text
@@ -147,6 +147,7 @@
                 // //
                 // document.body.addEventListener("hydrate.route", event => console.log(event.type, event.detail));
                 //
+                document.body.addEventListener("hydrate.input", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.on", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.routing.start", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.routing.resolve", event => console.log(event.type, event.detail));
