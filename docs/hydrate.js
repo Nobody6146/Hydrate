@@ -58,7 +58,7 @@ class HydrateAttributeNamesOptions {
     route = "route"; //Mark a route associated with this element
     routing = "routing"; //Mark the element to say which router events it's responding to
     //Execution and Timing
-    // delay = "delay";
+    delay = "delay";
     debounce = "debounce";
     throttle = "throttle";
     iterate = "iterate";
@@ -187,8 +187,7 @@ class HydrateApp {
     #options;
     #htmlExcecuters; //element name -> event type -> model.prop -> callbacks
     #onDomEventListeners; //A list of dynamic (h-on) event listeners added by the framework
-    #elementThrottlers;
-    #elementDebouncers;
+    #elementHandlerDelays;
     #root;
     #models;
     #observer;
@@ -196,8 +195,7 @@ class HydrateApp {
         this.#options = options ?? new HydrateAppOptions();
         this.#htmlExcecuters = new Map();
         this.#onDomEventListeners = new Map();
-        this.#elementThrottlers = new Map();
-        this.#elementDebouncers = new Map();
+        this.#elementHandlerDelays = new Map();
         this.#root = document.querySelector(this.#options.dom.rootSelector);
         this.#models = {};
         this.#addTrackableAttributes();
@@ -977,7 +975,7 @@ class HydrateApp {
             return;
         }
         this.#removeOnAttributeEventListeners(element);
-        this.#updateThrottlers(element);
+        this.#updateDelayedAttributes(element);
         let newTrack = this.#updateExecuters(element);
         if (newTrack) {
             //Send a track event
@@ -986,17 +984,16 @@ class HydrateApp {
         }
         return newTrack;
     }
-    #updateThrottlers(element) {
+    #updateDelayedAttributes(element) {
         let throttleAttribute = this.attribute(this.#options.attribute.names.throttle);
-        if (!element.hasAttribute(throttleAttribute)) {
-            this.#elementThrottlers.delete(element);
+        let debounceAttribute = this.attribute(this.#options.attribute.names.debounce);
+        let delayAttribute = this.attribute(this.#options.attribute.names.delay);
+        if (!element.hasAttribute(throttleAttribute) && !element.hasAttribute(debounceAttribute) && !element.hasAttribute(delayAttribute)) {
+            this.#elementHandlerDelays.delete(element);
             return;
         }
-        let elementThrottlers = this.#elementThrottlers.get(element);
-        if (elementThrottlers == null) {
-            elementThrottlers = new Map();
-            this.#elementThrottlers.set(element, elementThrottlers);
-        }
+        if (!this.#elementHandlerDelays.has(element))
+            this.#elementHandlerDelays.set(element, new Map());
     }
     #untrackElement(element) {
         let elementExecuters = this.#htmlExcecuters.get(element);
@@ -1350,62 +1347,160 @@ class HydrateApp {
             elements = this.#getTrackableElements(target);
         let elementExecuters = this.#getExcecuters(eventType, elements, propPath);
         for (let element of elementExecuters.keys()) {
-            let throttleAttribute = this.attribute(this.#options.attribute.names.throttle);
-            let throttleArg = this.parseAttributeArguments(element, throttleAttribute)
-                .find(x => x.field === eventType);
-            if (this.#elementThrottlers?.get(element)?.get(eventType) === true)
-                continue;
-            let debounceAttribute = this.attribute(this.#options.attribute.names.throttle);
-            let debounceArg = this.parseAttributeArguments(element, debounceAttribute)
-                .find(x => x.field === eventType);
             let modelExecuters = elementExecuters.get(element);
-            for (let modelPath of modelExecuters.keys()) {
-                // let nameIndex = property.indexOf(".");
-                // let rootModelName = nameIndex < 0 ? property : property.substring(0, nameIndex);
-                // let state = this.state(rootModelName);
-                let event;
-                if (propPath === modelPath) {
-                    event = this.#createEvent(element, eventType, this.#determineEventDetailProperties(propPath, "model"), null, data);
-                }
-                else if (modelPath === detail.modelPath) {
-                    //Touched property of the model
-                    event = this.#createEvent(element, eventType, this.#determineEventDetailProperties(propPath, "property"), null, data);
-                    //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, this.state(property), nestedEvent);
-                }
-                else {
-                    let nestedEvent = this.#createEvent(target, eventType, this.#determineEventDetailProperties(propPath, "property"), null, data);
-                    event = this.#createEvent(element, eventType, this.#determineEventDetailProperties(modelPath, "model"), nestedEvent.detail, data);
-                }
-                for (let executer of modelExecuters.get(modelPath)) {
-                    try {
-                        executer.handler(executer.arg, event.detail);
-                    }
-                    catch (error) {
-                        console.error(error);
-                    }
-                }
+            if (this.#throttle(eventType, element, propPath, detail, target, data))
+                continue;
+            if (this.#debounce(eventType, element, propPath, detail, target, data))
+                continue;
+            if (this.#delay(eventType, element, propPath, detail, target, data))
+                continue;
+            this.#dispatchDomEvents(eventType, element, modelExecuters, propPath, detail, target, data);
+        }
+        return listenerEvent.defaultPrevented;
+    }
+    #throttle(eventType, element, propPath, detail, target, data) {
+        let throttleAttribute = this.attribute(this.#options.attribute.names.throttle);
+        let throttleArg = this.parseAttributeArguments(element, throttleAttribute)
+            .find(x => x.field === eventType);
+        if (throttleArg == null)
+            return false;
+        let delayHandlers = this.#elementHandlerDelays.get(element);
+        if (delayHandlers == null)
+            return false;
+        let dispatch = delayHandlers.get(eventType);
+        if (dispatch?.timeout == null) {
+            let delay = this.#parseDelayMs(detail, throttleArg);
+            const app = this;
+            dispatch = {
+                timeout: null,
+                eventType: null,
+                element: null,
+                propPath: null,
+                detail: null,
+                target: null,
+                data: null
+            };
+            delayHandlers.set(eventType, dispatch);
+            dispatch.timeout = setTimeout(() => {
+                console.log("timeout reached");
+                let dispatch = app.#elementHandlerDelays?.get(element)?.get(eventType);
+                if (dispatch == null)
+                    return;
+                dispatch.timeout = null;
+                if (dispatch?.element == null)
+                    return;
+                let modelExecuters = app.#getExcecuters(dispatch.eventType, [dispatch.element], dispatch.propPath)?.get(dispatch.element);
+                app.#dispatchDomEvents(dispatch.eventType, dispatch.element, modelExecuters, dispatch.propPath, dispatch.detail, dispatch.target, dispatch.data);
+            }, delay);
+            return false;
+        }
+        else {
+            dispatch = {
+                timeout: dispatch.timeout,
+                eventType: eventType,
+                element: element,
+                propPath: propPath,
+                detail: detail,
+                target: target,
+                data: data
+            };
+            delayHandlers.set(eventType, dispatch);
+            return true;
+        }
+    }
+    #parseDelayMs(detail, arg) {
+        let delay = 0;
+        try {
+            delay = this.resolveArgumentValue(detail, arg, null);
+            if (!Number.isInteger(delay))
+                console.error("delay is not a number");
+        }
+        catch (err) {
+            console.error(err);
+        }
+        return delay;
+    }
+    #debounce(eventType, element, propPath, detail, target, data) {
+        let debounceAttribute = this.attribute(this.#options.attribute.names.debounce);
+        let arg = this.parseAttributeArguments(element, debounceAttribute)
+            .find(x => x.field === eventType);
+        if (arg == null)
+            return false;
+        let delayHandlers = this.#elementHandlerDelays.get(element);
+        if (delayHandlers == null)
+            return false;
+        let dispatch = delayHandlers.get(eventType);
+        if (dispatch?.timeout != null)
+            clearTimeout(dispatch.timeout);
+        let delay = this.#parseDelayMs(detail, arg);
+        const app = this;
+        dispatch = {
+            timeout: null,
+            eventType: eventType,
+            element: element,
+            propPath: propPath,
+            detail: detail,
+            target: target,
+            data: data
+        };
+        delayHandlers.set(eventType, dispatch);
+        dispatch.timeout = setTimeout(() => {
+            console.log("timeout reached");
+            let dispatch = app.#elementHandlerDelays?.get(element)?.get(eventType);
+            if (dispatch == null)
+                return;
+            dispatch.timeout = null;
+            if (dispatch?.element == null)
+                return;
+            let modelExecuters = app.#getExcecuters(dispatch.eventType, [dispatch.element], dispatch.propPath)?.get(dispatch.element);
+            app.#dispatchDomEvents(dispatch.eventType, dispatch.element, modelExecuters, dispatch.propPath, dispatch.detail, dispatch.target, dispatch.data);
+        }, delay);
+        return true;
+    }
+    #delay(eventType, element, propPath, detail, target, data) {
+        let delayAttribute = this.attribute(this.#options.attribute.names.delay);
+        let arg = this.parseAttributeArguments(element, delayAttribute)
+            .find(x => x.field === eventType);
+        if (arg == null)
+            return false;
+        let delay = this.#parseDelayMs(detail, arg);
+        const app = this;
+        setTimeout(() => {
+            console.log("timeout reached");
+            let modelExecuters = app.#getExcecuters(eventType, [element], propPath)?.get(element);
+            app.#dispatchDomEvents(eventType, element, modelExecuters, propPath, detail, target, data);
+        }, delay);
+        return true;
+    }
+    #dispatchDomEvents(eventType, element, modelExecuters, propPath, detail, target, data) {
+        if (modelExecuters == null)
+            return;
+        for (let modelPath of modelExecuters.keys()) {
+            // let nameIndex = property.indexOf(".");
+            // let rootModelName = nameIndex < 0 ? property : property.substring(0, nameIndex);
+            // let state = this.state(rootModelName);
+            let event;
+            if (propPath === modelPath) {
+                event = this.#createEvent(element, eventType, this.#determineEventDetailProperties(propPath, "model"), null, data);
             }
-            if (throttleArg) {
-                this.#elementThrottlers.get(element).set(eventType, true);
-                const app = this;
-                let delay = 0;
+            else if (modelPath === detail.modelPath) {
+                //Touched property of the model
+                event = this.#createEvent(element, eventType, this.#determineEventDetailProperties(propPath, "property"), null, data);
+                //eventDetails = new HydrateModelEventDetails(this, element, eventType, property, this.state(property), nestedEvent);
+            }
+            else {
+                let nestedEvent = this.#createEvent(target, eventType, this.#determineEventDetailProperties(propPath, "property"), null, data);
+                event = this.#createEvent(element, eventType, this.#determineEventDetailProperties(modelPath, "model"), nestedEvent.detail, data);
+            }
+            for (let executer of modelExecuters.get(modelPath)) {
                 try {
-                    delay = this.resolveArgumentValue(detail, throttleArg, null);
-                    if (!Number.isInteger(delay))
-                        console.error("delay is not a number");
-                    setTimeout(() => {
-                        console.log("timeout reached");
-                        let elementThrottler = app.#elementThrottlers.get(element);
-                        if (elementThrottler && elementThrottler.has(eventType))
-                            elementThrottler.set(eventType, false);
-                    }, delay);
+                    executer.handler(executer.arg, event.detail);
                 }
-                catch (err) {
-                    console.error(err);
+                catch (error) {
+                    console.error(error);
                 }
             }
         }
-        return listenerEvent.defaultPrevented;
     }
     #createEvent(target, eventType, properties, nested, data) {
         switch (eventType) {
