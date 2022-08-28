@@ -3,88 +3,149 @@ type HydrateModelEventExecuter = {arg:HydrateAttributeArgument, handler:HydrateM
 
 class HydrateAppOptions {
 
-    dom:HydrateDomOptions;
-    model:HydrateModelOptions;
-    attribute:HydrateAttributeOptions;
-    router:HydrateRouterOptions;
+    dom?:HydrateDomOptions;
+    model?:HydrateModelOptions;
+    attribute?:HydrateAttributeOptions;
+    router?:HydrateRouterOptions;
+    debug?:HydrateDebugOptions;
 
     constructor() {
         this.dom = new HydrateDomOptions();
         this.model = new HydrateModelOptions();
         this.attribute = new HydrateAttributeOptions();
         this.router = new HydrateRouterOptions();
+        this.debug = new HydrateDebugOptions();
+    }
+}
+
+class HydrateDebugOptions {
+    dispatchTimer?:boolean;
+
+    constructor() {
+        this.dispatchTimer = false;
     }
 }
 
 class HydrateRouterOptions {
-    hashRouting:boolean = true;
+    hashRouting?:boolean = true;
 }
 
 class HydrateDomOptions {
-    rootSelector:string = "body";
+    rootSelector?:string = "body";
 }
 
 class HydrateModelOptions {
-    baseProperty = "__base";
-    parentProperty = "__parent";
-    nameProperty = "__name";
-    stateProperty = "__state";
+    baseProperty?:string;
+    parentProperty?:string;
+    nameProperty?:string;
+    stateProperty?:string;
+
+    constructor() {
+        this.baseProperty = "__base";
+        this.parentProperty = "__parent";
+        this.nameProperty = "__name";
+        this.stateProperty = "__state";
+    }
 }
 
 class HydrateAttributeOptions
 {
-    names = new HydrateAttributeNamesOptions();
-    handlers = new Map<string, HydrateModelEventHandler>();
-    standardPrefix = "h";
-    customPrefix = "hc";
-    trackables:string[] = []
+    names?:HydrateAttributeNamesOptions;
+    handlers?:Map<string, HydrateModelEventHandler>;
+    standardPrefix?:string;
+    customPrefix?:string;
+    trackables?:string[];
 
     constructor() {
+        this.names = new HydrateAttributeNamesOptions();
+        this.handlers = new Map<string, HydrateModelEventHandler>();
+        this.standardPrefix = "h";
+        this.customPrefix = "hc";
+        this.trackables = []
     }
 }
 
 class HydrateAttributeNamesOptions
 {
     //Linking
-    model = "model";
-    nested = "nested";//Will also respond to nested property changes
+    model?:string
+    nested?:string;//Will also respond to nested property changes
 
     //Basic element manipulation
-    property = "property";
-    attribute = "attribute";
-    toggle = "toggle"; //Toggles an attribute
-    class = "class"; //Toggles the inclusion of a class to an element
-    delete = "delete"; //removes an element
+    property?:string;
+    attribute?:string;
+    toggle?:string//Toggles an attribute
+    class?:string; //Toggles the inclusion of a class to an element
+    delete?:string; //removes an element
 
     //Binding
-    input = "input";
-    mutation = "mutation";
+    input?:string;
+    mutation?:string;
 
     //Conditionals
     //static = "static"; //Executes once
     //condition = "condition";
 
     //Functions and execution
-    event = "event"; //Calls a callback any time the framework event type is triggered
-    on = "on"; //Fires a callback when the "on" event of the element is fired
+    event?:string; //Calls a callback any time the framework event type is triggered
+    on?:string; //Fires a callback when the "on" event of the element is fired
 
     //Templating and Components
-    script = "script";
-    template = "template"; //template changes queries user of the templates then regenerate
-    component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
-    duplicate = "duplicate"; //Duplicates the component x times 
-    id = "id"; //Places an id
+    script?:string;
+    template?:string; //template changes queries user of the templates then regenerate
+    component?:string; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
+    duplicate?:string; //Duplicates the component x times 
+    id?:string; //Places an id
 
     //Routing
-    route = "route"; //Mark a route associated with this element
-    routing = "routing"; //Mark the element to say which router events it's responding to
+    route?:string; //Mark a route associated with this element
+    routing?:string; //Mark the element to say which router events it's responding to
 
     //Execution and Timing
-    delay = "delay";
-    debounce = "debounce";
-    throttle = "throttle";
+    delay?:string;
+    debounce?:string;
+    throttle?:string;
 
     // customs:string[] = []; 
+
+    constructor() {
+        //Linking
+        this.model = "model";
+        this.nested = "nested";//Will also respond to nested property changes
+
+        //Basic element manipulation
+        this.property = "property";
+        this.attribute = "attribute";
+        this.toggle = "toggle"; //Toggles an attribute
+        this.class = "class"; //Toggles the inclusion of a class to an element
+        this.delete = "delete"; //removes an element
+
+        //Binding
+        this.input = "input";
+        this.mutation = "mutation";
+
+        //Functions and execution
+        this.event = "event"; //Calls a callback any time the framework event type is triggered
+        this.on = "on"; //Fires a callback when the "on" event of the element is fired
+
+        //Templating and Components
+        this.script = "script";
+        this.template = "template"; //template changes queries user of the templates then regenerate
+        this.component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
+        this.duplicate = "duplicate"; //Duplicates the component x times 
+        this.id = "id"; //Places an id
+
+        //Routing
+        this.route = "route"; //Mark a route associated with this element
+        this.routing = "routing"; //Mark the element to say which router events it's responding to
+
+        //Execution and Timing
+        this.delay = "delay";
+        this.debounce = "debounce";
+        this.throttle = "throttle";
+
+        // customs:string[] = []; 
+    }
 }
 
 interface HydrateAttributeArgument {
@@ -305,6 +366,7 @@ interface HydrateElementDelayDispatch {
 }
 
 class HydrateApp {
+    #dispatchId = 0;
 
     #options:HydrateAppOptions;
     #htmlExcecuters: Map<HTMLElement, Map<HydrateEventType, Map<string, HydrateModelEventExecuter[]>>>; //element name -> event type -> model.prop -> callbacks
@@ -317,7 +379,7 @@ class HydrateApp {
 
     constructor(options?:HydrateAppOptions) {
         
-        this.#options = options ?? new HydrateAppOptions();
+        this.#options = {...new HydrateAppOptions(), ...options};
         this.#htmlExcecuters = new Map();
         this.#onDomEventListeners = new Map();
         this.#elementHandlerDelays = new Map();
@@ -1650,6 +1712,15 @@ class HydrateApp {
     }
 
     #dispatch(target:HTMLElement, eventType:HydrateEventType, propPath:string, data:any):boolean {
+        let dispatchId:number;
+        let dispatchTimer:string;
+        if(this.#options.debug.dispatchTimer)
+        {
+            dispatchId = this.#dispatchId++;
+            dispatchTimer = `hydrate.dispatch.${dispatchId}`;
+            console.time(dispatchTimer);
+        }
+        
         //Data is any additional object data that may be needed for an event
         let detail = this.#determineEventDetailProperties(propPath, "property");
         let listenerEvent = this.#createEvent(target, eventType, detail, null, data);
@@ -1688,6 +1759,11 @@ class HydrateApp {
             this.#dispatchDomEvents(eventType, element, modelExecuters, propPath, detail, target, data);
         }
 
+        if(this.#options.debug.dispatchTimer)
+        {
+            console.timeEnd(dispatchTimer);
+        }
+        
         return listenerEvent.defaultPrevented;
     }
 

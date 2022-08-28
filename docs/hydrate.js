@@ -3,11 +3,19 @@ class HydrateAppOptions {
     model;
     attribute;
     router;
+    debug;
     constructor() {
         this.dom = new HydrateDomOptions();
         this.model = new HydrateModelOptions();
         this.attribute = new HydrateAttributeOptions();
         this.router = new HydrateRouterOptions();
+        this.debug = new HydrateDebugOptions();
+    }
+}
+class HydrateDebugOptions {
+    dispatchTimer;
+    constructor() {
+        this.dispatchTimer = false;
     }
 }
 class HydrateRouterOptions {
@@ -17,52 +25,95 @@ class HydrateDomOptions {
     rootSelector = "body";
 }
 class HydrateModelOptions {
-    baseProperty = "__base";
-    parentProperty = "__parent";
-    nameProperty = "__name";
-    stateProperty = "__state";
+    baseProperty;
+    parentProperty;
+    nameProperty;
+    stateProperty;
+    constructor() {
+        this.baseProperty = "__base";
+        this.parentProperty = "__parent";
+        this.nameProperty = "__name";
+        this.stateProperty = "__state";
+    }
 }
 class HydrateAttributeOptions {
-    names = new HydrateAttributeNamesOptions();
-    handlers = new Map();
-    standardPrefix = "h";
-    customPrefix = "hc";
-    trackables = [];
+    names;
+    handlers;
+    standardPrefix;
+    customPrefix;
+    trackables;
     constructor() {
+        this.names = new HydrateAttributeNamesOptions();
+        this.handlers = new Map();
+        this.standardPrefix = "h";
+        this.customPrefix = "hc";
+        this.trackables = [];
     }
 }
 class HydrateAttributeNamesOptions {
     //Linking
-    model = "model";
-    nested = "nested"; //Will also respond to nested property changes
+    model;
+    nested; //Will also respond to nested property changes
     //Basic element manipulation
-    property = "property";
-    attribute = "attribute";
-    toggle = "toggle"; //Toggles an attribute
-    class = "class"; //Toggles the inclusion of a class to an element
-    delete = "delete"; //removes an element
+    property;
+    attribute;
+    toggle; //Toggles an attribute
+    class; //Toggles the inclusion of a class to an element
+    delete; //removes an element
     //Binding
-    input = "input";
-    mutation = "mutation";
+    input;
+    mutation;
     //Conditionals
     //static = "static"; //Executes once
     //condition = "condition";
     //Functions and execution
-    event = "event"; //Calls a callback any time the framework event type is triggered
-    on = "on"; //Fires a callback when the "on" event of the element is fired
+    event; //Calls a callback any time the framework event type is triggered
+    on; //Fires a callback when the "on" event of the element is fired
     //Templating and Components
-    script = "script";
-    template = "template"; //template changes queries user of the templates then regenerate
-    component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
-    duplicate = "duplicate"; //Duplicates the component x times 
-    id = "id"; //Places an id
+    script;
+    template; //template changes queries user of the templates then regenerate
+    component; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
+    duplicate; //Duplicates the component x times 
+    id; //Places an id
     //Routing
-    route = "route"; //Mark a route associated with this element
-    routing = "routing"; //Mark the element to say which router events it's responding to
+    route; //Mark a route associated with this element
+    routing; //Mark the element to say which router events it's responding to
     //Execution and Timing
-    delay = "delay";
-    debounce = "debounce";
-    throttle = "throttle";
+    delay;
+    debounce;
+    throttle;
+    // customs:string[] = []; 
+    constructor() {
+        //Linking
+        this.model = "model";
+        this.nested = "nested"; //Will also respond to nested property changes
+        //Basic element manipulation
+        this.property = "property";
+        this.attribute = "attribute";
+        this.toggle = "toggle"; //Toggles an attribute
+        this.class = "class"; //Toggles the inclusion of a class to an element
+        this.delete = "delete"; //removes an element
+        //Binding
+        this.input = "input";
+        this.mutation = "mutation";
+        //Functions and execution
+        this.event = "event"; //Calls a callback any time the framework event type is triggered
+        this.on = "on"; //Fires a callback when the "on" event of the element is fired
+        //Templating and Components
+        this.script = "script";
+        this.template = "template"; //template changes queries user of the templates then regenerate
+        this.component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
+        this.duplicate = "duplicate"; //Duplicates the component x times 
+        this.id = "id"; //Places an id
+        //Routing
+        this.route = "route"; //Mark a route associated with this element
+        this.routing = "routing"; //Mark the element to say which router events it's responding to
+        //Execution and Timing
+        this.delay = "delay";
+        this.debounce = "debounce";
+        this.throttle = "throttle";
+        // customs:string[] = []; 
+    }
 }
 class HydrateElementTrackingEvent extends CustomEvent {
     constructor(detail) {
@@ -192,6 +243,7 @@ class HydrateRouteEventDetails extends HydrateEventDetails {
     }
 }
 class HydrateApp {
+    #dispatchId = 0;
     #options;
     #htmlExcecuters; //element name -> event type -> model.prop -> callbacks
     #onDomEventListeners; //A list of dynamic (h-on) event listeners added by the framework
@@ -200,7 +252,7 @@ class HydrateApp {
     #models;
     #observer;
     constructor(options) {
-        this.#options = options ?? new HydrateAppOptions();
+        this.#options = { ...new HydrateAppOptions(), ...options };
         this.#htmlExcecuters = new Map();
         this.#onDomEventListeners = new Map();
         this.#elementHandlerDelays = new Map();
@@ -1358,6 +1410,13 @@ class HydrateApp {
         return results;
     }
     #dispatch(target, eventType, propPath, data) {
+        let dispatchId;
+        let dispatchTimer;
+        if (this.#options.debug.dispatchTimer) {
+            dispatchId = this.#dispatchId++;
+            dispatchTimer = `hydrate.dispatch.${dispatchId}`;
+            console.time(dispatchTimer);
+        }
         //Data is any additional object data that may be needed for an event
         let detail = this.#determineEventDetailProperties(propPath, "property");
         let listenerEvent = this.#createEvent(target, eventType, detail, null, data);
@@ -1390,6 +1449,9 @@ class HydrateApp {
             if (this.#delay(eventType, element, propPath, listenerEvent.detail, target, data))
                 continue;
             this.#dispatchDomEvents(eventType, element, modelExecuters, propPath, detail, target, data);
+        }
+        if (this.#options.debug.dispatchTimer) {
+            console.timeEnd(dispatchTimer);
         }
         return listenerEvent.defaultPrevented;
     }
