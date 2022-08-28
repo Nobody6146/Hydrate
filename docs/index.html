@@ -63,8 +63,8 @@
 
 
             <template h-template="StarTemplate">
-                <div h-model="^" h-property="innerText: $id <= $state ? '&#9733' : '&#9734'" h-id
-                    h-on="click: $detail.parent[$detail.modelName] = $id">
+                <div h-model="^" h-property="innerText: $id() <= $state ? '&#9733' : '&#9734'" h-id
+                    h-on="click: $detail.parent[$detail.modelName] = $id()">
                 Star</div>
             </template>
 

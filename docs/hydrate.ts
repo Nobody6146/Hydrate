@@ -1044,14 +1044,16 @@ class HydrateApp {
     #buildComponent(template:NodeListOf<ChildNode>, modelAttribute:string, eventDetails:HydrateEventDetails) {
         let element = eventDetails.element;
         let modelSelector = `[${modelAttribute}^=\\^]`;
+        
         const insertModelPath = function(element:HTMLElement, path:string) {
             element.setAttribute(modelAttribute, element.getAttribute(modelAttribute).replace("^", path));
         }
 
+        let id = 1;
         const idAttribute = this.attribute(this.#options.attribute.names.id);
         const idSelector = `[${idAttribute}]`;
-        const insertId = function(element:HTMLElement, id:number) {
-            element.setAttribute(idAttribute, (id + 1).toString());
+        const insertId = function(element:HTMLElement) {
+            element.setAttribute(idAttribute, (id++).toString());
         }
         
         let children:Node[] = [];
@@ -1072,9 +1074,8 @@ class HydrateApp {
                 modelPaths.push(eventDetails.modelPath)
         }
 
-        for(let i = 0; i < modelPaths.length; i++)
+        for(let modelPath of modelPaths)
         {
-            let modelPath = modelPaths[i];
             for(var child of template)
             {
                 let node = child.cloneNode(true);
@@ -1090,9 +1091,9 @@ class HydrateApp {
                     insertModelPath(element, modelPath);
 
                 if(node.matches(idSelector))
-                    insertId(node, i);
+                    insertId(node);
                 for(let element of node.querySelectorAll<HTMLElement>(idSelector))
-                    insertId(element, i);
+                    insertId(element);
             }
         }
         
@@ -1104,7 +1105,7 @@ class HydrateApp {
         
     }
 
-    resolveArgumentValue(detail:any, arg:HydrateAttributeArgument, event:Event) {
+    resolveArgumentValue(detail:HydrateEventDetails, arg:HydrateAttributeArgument, event:Event) {
         let app = this;
         let functionArgs = {
             $hydrate: this,
@@ -1123,9 +1124,13 @@ class HydrateApp {
                     return null;
                 return func;
             },
-            get $id() {
+            $id: function(query?:HTMLElement|string) {
+                if(query == null)
+                    query = detail.element;
+                let element = (query instanceof HTMLElement)
+                    ? query : app.#root.querySelector(query);
                 const idAttribute = app.attribute(app.#options.attribute.names.id);
-                return detail.element.getAttribute(idAttribute);
+                return element.getAttribute(idAttribute);
             }
         }
         
@@ -1673,12 +1678,12 @@ class HydrateApp {
         let elementExecuters = this.#getExcecuters(eventType, elements, propPath);
         for(let element of elementExecuters.keys())
         {
-            let modelExecuters = elementExecuters.get(element);
-            if(this.#throttle(eventType, element, propPath, detail, target, data))
+           let modelExecuters = elementExecuters.get(element);
+            if(this.#throttle(eventType, element, propPath, listenerEvent.detail, target, data))
                 continue;
-            if(this.#debounce(eventType, element, propPath, detail, target, data))
+            if(this.#debounce(eventType, element, propPath, listenerEvent.detail, target, data))
                 continue;
-            if(this.#delay(eventType, element, propPath, detail, target, data))
+            if(this.#delay(eventType, element, propPath, listenerEvent.detail, target, data))
                 continue;
             this.#dispatchDomEvents(eventType, element, modelExecuters, propPath, detail, target, data);
         }
@@ -1686,7 +1691,7 @@ class HydrateApp {
         return listenerEvent.defaultPrevented;
     }
 
-    #throttle(eventType:HydrateEventType, element:HTMLElement, propPath:string, detail:HydrateEventDetailProperties, target:HTMLElement, data:any):boolean 
+    #throttle(eventType:HydrateEventType, element:HTMLElement, propPath:string, detail:HydrateEventDetails, target:HTMLElement, data:any):boolean 
     {
         let throttleAttribute = this.attribute(this.#options.attribute.names.throttle);
         let throttleArg = this.parseAttributeArguments(element, throttleAttribute)
@@ -1741,7 +1746,7 @@ class HydrateApp {
         }
     }
 
-    #parseDelayMs(detail:HydrateEventDetailProperties, arg:HydrateAttributeArgument):number {
+    #parseDelayMs(detail:HydrateEventDetails, arg:HydrateAttributeArgument):number {
         let delay = 0;
         try {
             delay = this.resolveArgumentValue(detail, arg, null);
@@ -1754,7 +1759,7 @@ class HydrateApp {
         return delay;
     }
 
-    #debounce(eventType:HydrateEventType, element:HTMLElement, propPath:string, detail:HydrateEventDetailProperties, target:HTMLElement, data:any):boolean 
+    #debounce(eventType:HydrateEventType, element:HTMLElement, propPath:string, detail:HydrateEventDetails, target:HTMLElement, data:any):boolean 
     {
         let debounceAttribute = this.attribute(this.#options.attribute.names.debounce);
         let arg = this.parseAttributeArguments(element, debounceAttribute)
@@ -1796,7 +1801,7 @@ class HydrateApp {
         return true;
     }
 
-    #delay(eventType:HydrateEventType, element:HTMLElement, propPath:string, detail:HydrateEventDetailProperties, target:HTMLElement, data:any):boolean 
+    #delay(eventType:HydrateEventType, element:HTMLElement, propPath:string, detail:HydrateEventDetails, target:HTMLElement, data:any):boolean 
     {
         let delayAttribute = this.attribute(this.#options.attribute.names.delay);
         let arg = this.parseAttributeArguments(element, delayAttribute)

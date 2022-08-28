@@ -829,10 +829,11 @@ class HydrateApp {
         const insertModelPath = function (element, path) {
             element.setAttribute(modelAttribute, element.getAttribute(modelAttribute).replace("^", path));
         };
+        let id = 1;
         const idAttribute = this.attribute(this.#options.attribute.names.id);
         const idSelector = `[${idAttribute}]`;
-        const insertId = function (element, id) {
-            element.setAttribute(idAttribute, (id + 1).toString());
+        const insertId = function (element) {
+            element.setAttribute(idAttribute, (id++).toString());
         };
         let children = [];
         let modelPaths = Array.isArray(eventDetails.state)
@@ -849,8 +850,7 @@ class HydrateApp {
             for (let i = 0; i < loopCount; i++)
                 modelPaths.push(eventDetails.modelPath);
         }
-        for (let i = 0; i < modelPaths.length; i++) {
-            let modelPath = modelPaths[i];
+        for (let modelPath of modelPaths) {
             for (var child of template) {
                 let node = child.cloneNode(true);
                 children.push(node);
@@ -862,9 +862,9 @@ class HydrateApp {
                 for (let element of node.querySelectorAll(modelSelector))
                     insertModelPath(element, modelPath);
                 if (node.matches(idSelector))
-                    insertId(node, i);
+                    insertId(node);
                 for (let element of node.querySelectorAll(idSelector))
-                    insertId(element, i);
+                    insertId(element);
             }
         }
         //delete the current content
@@ -892,9 +892,13 @@ class HydrateApp {
                     return null;
                 return func;
             },
-            get $id() {
+            $id: function (query) {
+                if (query == null)
+                    query = detail.element;
+                let element = (query instanceof HTMLElement)
+                    ? query : app.#root.querySelector(query);
                 const idAttribute = app.attribute(app.#options.attribute.names.id);
-                return detail.element.getAttribute(idAttribute);
+                return element.getAttribute(idAttribute);
             }
         };
         const validIndentifier = /^[$A-Z_][0-9A-Z_$]*$/i;
@@ -1379,11 +1383,11 @@ class HydrateApp {
         let elementExecuters = this.#getExcecuters(eventType, elements, propPath);
         for (let element of elementExecuters.keys()) {
             let modelExecuters = elementExecuters.get(element);
-            if (this.#throttle(eventType, element, propPath, detail, target, data))
+            if (this.#throttle(eventType, element, propPath, listenerEvent.detail, target, data))
                 continue;
-            if (this.#debounce(eventType, element, propPath, detail, target, data))
+            if (this.#debounce(eventType, element, propPath, listenerEvent.detail, target, data))
                 continue;
-            if (this.#delay(eventType, element, propPath, detail, target, data))
+            if (this.#delay(eventType, element, propPath, listenerEvent.detail, target, data))
                 continue;
             this.#dispatchDomEvents(eventType, element, modelExecuters, propPath, detail, target, data);
         }
