@@ -61,6 +61,14 @@
                 Error loading page
             </template>
 
+
+            <template h-template="StarTemplate">
+                <div h-model="^" h-property="innerText: $id <= $state ? '&#9733' : '&#9734'" h-id
+                    h-on="click: $detail.parent[$detail.modelName] = $id">
+                Star</div>
+            </template>
+
+
             <main>
 
                 <div>
@@ -116,7 +124,10 @@
                 </select>
 
                 <input h-model="default.toggle" h-class="red: shouldRed" h-toggle="disabled: shouldDisable" value="Test" >
-
+                
+                <div h-model="default.rank" h-component="template: 'StarTemplate'" h-duplicate="5"
+                    style="display: flex;">
+                </div>
             </main>
     
             <footer>
@@ -171,6 +182,7 @@
                     shouldRed: false,
                     shouldDisable: false
                 }
+                model.rank = 3;
 
                 //Define our client side routes
                 let routeMap = new Map();

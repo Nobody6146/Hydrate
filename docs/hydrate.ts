@@ -72,6 +72,8 @@ class HydrateAttributeNamesOptions
     script = "script";
     template = "template"; //template changes queries user of the templates then regenerate
     component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
+    duplicate = "duplicate"; //Duplicates the component x times 
+    id = "id"; //Places an id
 
     //Routing
     route = "route"; //Mark a route associated with this element
@@ -81,7 +83,6 @@ class HydrateAttributeNamesOptions
     delay = "delay";
     debounce = "debounce";
     throttle = "throttle";
-    iterate = "iterate";
 
     // customs:string[] = []; 
 }
@@ -104,6 +105,8 @@ interface HydrateEventDetailProperties {
     modelPath:string;
     modelName:string;
     baseName:string;
+    parentName:string;
+    parentPath:string;
 }
 
 class HydrateElementTrackingEvent extends CustomEvent<HydrateElementTrackingEventDetails> {
@@ -180,12 +183,18 @@ abstract class HydrateEventDetails
     propName:string;
     propPath:string;
 
-    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string) {
+    parentPath:string;
+    parentName:string;
+
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, parentName:string, parentPath, modelName:string, modelPath:string, propName:string, propPath:string) {
         this.hydrate = hydrate;
         this.element = element;
         this.type = eventType;
 
         this.baseName = baseName;
+
+        this.parentName = parentName;
+        this.parentPath = parentPath;
 
         this.modelPath = modelPath;
         this.modelName = modelName;
@@ -196,6 +205,9 @@ abstract class HydrateEventDetails
 
     get base() {
         return this.hydrate.model(this.baseName);
+    }
+    get parent() {
+        return this.hydrate.model(this.parentPath);
     }
     get model() {
         return this.hydrate.model(this.modelPath);
@@ -210,8 +222,8 @@ abstract class HydrateEventDetails
 
 class HydrateElementTrackingEventDetails extends HydrateEventDetails
 {
-    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string, nested:HydrateModelEventDetails) {
-        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, properties:HydrateEventDetailProperties) {
+        super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
     }
 }
 
@@ -219,8 +231,8 @@ class HydrateModelEventDetails extends HydrateEventDetails {
     
     nested:HydrateModelEventDetails;
 
-    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string, nested:HydrateModelEventDetails) {
-        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, properties:HydrateEventDetailProperties, nested:HydrateModelEventDetails) {
+        super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
         this.nested = nested;
     }
 }
@@ -228,9 +240,8 @@ class HydrateModelEventDetails extends HydrateEventDetails {
 class HydrateElementMutationEventDetails extends HydrateEventDetails {
     mutation:MutationRecord;
 
-    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string,
-        modelPath:string, propName:string, propPath:string, mutation:MutationRecord) {
-        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, properties:HydrateEventDetailProperties, mutation:MutationRecord) {
+        super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
         this.mutation = mutation;
     }
 }
@@ -239,8 +250,8 @@ class HydrateElementInputEventDetails extends HydrateEventDetails {
     
     event:Event;
 
-    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string, event:Event) {
-        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType,properties:HydrateEventDetailProperties, event:Event) {
+        super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
         this.event = event;
     }
 }
@@ -248,8 +259,8 @@ class HydrateElementInputEventDetails extends HydrateEventDetails {
 class HydrateElementEventListenerEventDetails extends HydrateEventDetails {
     event:Event;
 
-    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string, event:Event) {
-        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, properties:HydrateEventDetailProperties, event:Event) {
+        super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
         this.event = event;
     }
 }
@@ -257,8 +268,8 @@ class HydrateElementEventListenerEventDetails extends HydrateEventDetails {
 class HydrateRouteEventDetails extends HydrateEventDetails {
     request:HydrateRouteRequest;
 
-    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, baseName:string, modelName:string, modelPath:string, propName:string, propPath:string, request:HydrateRouteRequest) {
-        super(hydrate, element, eventType, baseName, modelName, modelPath, propName, propPath);
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, properties:HydrateEventDetailProperties, request:HydrateRouteRequest) {
+        super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
         this.request = request;
     }
 }
@@ -1033,41 +1044,63 @@ class HydrateApp {
     #buildComponent(template:NodeListOf<ChildNode>, modelAttribute:string, eventDetails:HydrateEventDetails) {
         let element = eventDetails.element;
         let modelSelector = `[${modelAttribute}^=\\^]`;
-            const insertModelPath = function(element:HTMLElement, path:string) {
-                element.setAttribute(modelAttribute, element.getAttribute(modelAttribute).replace("^", path));
-            }
-            
-            let children:Node[] = [];
-            let modelPaths = Array.isArray(eventDetails.state)
-                ? Object.keys(eventDetails.state).map(x => `${eventDetails.modelPath}.${x}`)
-                : [eventDetails.modelPath];
+        const insertModelPath = function(element:HTMLElement, path:string) {
+            element.setAttribute(modelAttribute, element.getAttribute(modelAttribute).replace("^", path));
+        }
 
-            for(let modelPath of modelPaths)
+        const idAttribute = this.attribute(this.#options.attribute.names.id);
+        const idSelector = `[${idAttribute}]`;
+        const insertId = function(element:HTMLElement, id:number) {
+            element.setAttribute(idAttribute, (id + 1).toString());
+        }
+        
+        let children:Node[] = [];
+        let modelPaths = Array.isArray(eventDetails.state)
+            ? Object.keys(eventDetails.state).map(x => `${eventDetails.modelPath}.${x}`)
+            : [eventDetails.modelPath];
+
+        const duplicateAttribute = this.attribute(this.#options.attribute.names.duplicate);
+        if(element.hasAttribute(duplicateAttribute))
+        {
+            let arg:HydrateAttributeArgument = {
+                field: "",
+                expression: element.getAttribute(duplicateAttribute)
+            };
+            const loopCount = this.resolveArgumentValue(eventDetails, arg, null);
+            modelPaths = [];
+            for(let i = 0; i < loopCount; i++)
+                modelPaths.push(eventDetails.modelPath)
+        }
+
+        for(let i = 0; i < modelPaths.length; i++)
+        {
+            let modelPath = modelPaths[i];
+            for(var child of template)
             {
-                for(var child of template)
-                {
-                    let node = child.cloneNode(true);
-                    children.push(node);
+                let node = child.cloneNode(true);
+                children.push(node);
 
-                    if(!(node instanceof HTMLElement))
-                        continue;
+                if(!(node instanceof HTMLElement))
+                    continue;
 
-                    //Inject model name and initialize component
-                    if(node.matches(modelSelector))
-                        insertModelPath(node, modelPath);
-                    
-                    if(node.matches(modelSelector))
-                        insertModelPath(node, modelPath);
-                    for(let element of node.querySelectorAll<HTMLElement>(modelSelector))
-                        insertModelPath(element, modelPath);
-                }
+                //Inject model name and initialize component
+                if(node.matches(modelSelector))
+                    insertModelPath(node, modelPath);
+                for(let element of node.querySelectorAll<HTMLElement>(modelSelector))
+                    insertModelPath(element, modelPath);
+
+                if(node.matches(idSelector))
+                    insertId(node, i);
+                for(let element of node.querySelectorAll<HTMLElement>(idSelector))
+                    insertId(element, i);
             }
-            
-            //delete the current content
-            while(element.firstChild)
-                element.removeChild(element.firstChild);
-            for(let node of children)
-                eventDetails.element.appendChild(node);
+        }
+        
+        //delete the current content
+        while(element.firstChild)
+            element.removeChild(element.firstChild);
+        for(let node of children)
+            eventDetails.element.appendChild(node);
         
     }
 
@@ -1089,6 +1122,10 @@ class HydrateApp {
                 if(!(func instanceof Function))
                     return null;
                 return func;
+            },
+            get $id() {
+                const idAttribute = app.attribute(app.#options.attribute.names.id);
+                return detail.element.getAttribute(idAttribute);
             }
         }
         
@@ -1821,29 +1858,25 @@ class HydrateApp {
             case "set":
             case "unbind":
             {
-                let detail = new HydrateModelEventDetails(this, target, eventType, properties.baseName, properties.modelName,
-                    properties.modelPath, properties.propName, properties.propPath, nested);
+                let detail = new HydrateModelEventDetails(this, target, eventType, properties, nested);
                 return new HydrateModelEvent(detail);
             }
             case "input":
             {
-                let detail = new HydrateElementInputEventDetails(this, target, eventType, properties.baseName, properties.modelName,
-                    properties.modelPath, properties.propName, properties.propPath, data);
+                let detail = new HydrateElementInputEventDetails(this, target, eventType, properties, data);
                 return new HydrateElementInputEvent(detail);
             }
             case "routing.start":
             case "routing.resolve":
             case "routing.reject":
             {
-                let detail = new HydrateRouteEventDetails(this, target, eventType, properties.baseName, properties.modelName,
-                    properties.modelPath, properties.propName, properties.propPath, data);
+                let detail = new HydrateRouteEventDetails(this, target, eventType, properties, data);
                 return new HydrateRouteEvent(detail);
             }
             case "track":
             case "untrack":
             {
-                let detail = new HydrateElementTrackingEventDetails(this, target, eventType, properties.baseName, properties.modelName,
-                    properties.modelPath, properties.propName, properties.propPath, nested);
+                let detail = new HydrateElementTrackingEventDetails(this, target, eventType, properties);
                 return new HydrateElementTrackingEvent(detail);
             }
             case "mutation.target.attribute":
@@ -1859,14 +1892,12 @@ class HydrateApp {
             case "mutation.child.added":
             case "mutation.child.removed":
             {
-                let detail = new HydrateElementMutationEventDetails(this, target, eventType, properties.baseName, properties.modelName,
-                    properties.modelPath, properties.propName, properties.propPath, data);
+                let detail = new HydrateElementMutationEventDetails(this, target, eventType, properties, data);
                 return new HydrateElementMutationEvent(detail);
             }
             case "on":
             {
-                let detail = new HydrateElementEventListenerEventDetails(this, target, eventType, properties.baseName, properties.modelName,
-                    properties.modelPath, properties.propName, properties.propPath, data);
+                let detail = new HydrateElementEventListenerEventDetails(this, target, eventType, properties, data);
                 return new HydrateElementEventListenerEvent(detail);
             }
         }
@@ -1881,6 +1912,11 @@ class HydrateApp {
         index = modelPath != null ? modelPath.lastIndexOf(".") : -1;
         let modelName = index < 0 ? modelPath : modelPath.substring(index + 1);
 
+        index = modelPath != null ? modelPath.lastIndexOf(".") : -1;
+        let parentPath = index < 0 ? null : modelPath.substring(0, index);
+        index = parentPath != null ? parentPath.lastIndexOf(".") : -1;
+        let parentName = index < 0 ? parentPath : parentPath.substring(index + 1);
+
         index = modelPath != null ? modelPath.indexOf(".") : -1;
         let baseName = index < 0 ? modelPath : modelPath.substring(0, index);
 
@@ -1889,7 +1925,9 @@ class HydrateApp {
             propPath,
             modelPath,
             modelName,
-            baseName
+            baseName,
+            parentName,
+            parentPath
         }
     }
 }
