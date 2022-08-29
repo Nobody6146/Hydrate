@@ -59,7 +59,7 @@ class HydrateAttributeNamesOptions {
     attribute;
     toggle; //Toggles an attribute
     class; //Toggles the inclusion of a class to an element
-    delete; //removes an element
+    remove; //removes an element
     //Binding
     input;
     mutation;
@@ -92,7 +92,7 @@ class HydrateAttributeNamesOptions {
         this.attribute = "attribute";
         this.toggle = "toggle"; //Toggles an attribute
         this.class = "class"; //Toggles the inclusion of a class to an element
-        this.delete = "delete"; //removes an element
+        this.remove = "remove"; //removes an element
         //Binding
         this.input = "input";
         this.mutation = "mutation";
@@ -710,7 +710,7 @@ class HydrateApp {
         // }
     }
     #addTrackableAttributes() {
-        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.delete), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.on), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.route), this.attribute(this.#options.attribute.names.mutation));
+        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.remove), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.on), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.route), this.attribute(this.#options.attribute.names.mutation));
         let app = this;
         //this.#options.attribute.trackables.push(...this.#options.attribute.names.customs.map(x => app.attribute(x)));
     }
@@ -749,7 +749,7 @@ class HydrateApp {
             let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             eventDetails.element.toggleAttribute(arg.field, value);
         });
-        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.delete), (arg, eventDetails) => {
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.remove), (arg, eventDetails) => {
             if (eventDetails.modelName !== "" && eventDetails.model == null
                 && eventDetails.propPath !== null && eventDetails.type !== 'unbind')
                 return;
@@ -1154,7 +1154,7 @@ class HydrateApp {
         this.#addSetAttributeHandler(element, modelPath, possibleEventTypes);
         this.#addToggleClassHandler(element, modelPath, possibleEventTypes);
         this.#addToggleAttributeHandler(element, modelPath, possibleEventTypes);
-        this.#addDeleteElementHandler(element, modelPath, possibleEventTypes);
+        this.#addRemoveElementHandler(element, modelPath, possibleEventTypes);
         this.#addInputHandler(element, modelPath, possibleEventTypes);
         this.#addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes);
         this.#addElementEventListenersHandler(element, modelPath, possibleEventTypes);
@@ -1224,8 +1224,8 @@ class HydrateApp {
         ];
         this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
     }
-    #addDeleteElementHandler(element, modelPath, possibleEventTypes) {
-        let attribute = this.attribute(this.#options.attribute.names.delete);
+    #addRemoveElementHandler(element, modelPath, possibleEventTypes) {
+        let attribute = this.attribute(this.#options.attribute.names.remove);
         let eventTypes = [
             'unbind'
         ];

@@ -76,7 +76,7 @@ class HydrateAttributeNamesOptions
     attribute?:string;
     toggle?:string//Toggles an attribute
     class?:string; //Toggles the inclusion of a class to an element
-    delete?:string; //removes an element
+    remove?:string; //removes an element
 
     //Binding
     input?:string;
@@ -118,7 +118,7 @@ class HydrateAttributeNamesOptions
         this.attribute = "attribute";
         this.toggle = "toggle"; //Toggles an attribute
         this.class = "class"; //Toggles the inclusion of a class to an element
-        this.delete = "delete"; //removes an element
+        this.remove = "remove"; //removes an element
 
         //Binding
         this.input = "input";
@@ -908,7 +908,7 @@ class HydrateApp {
             this.attribute(this.#options.attribute.names.property),
             this.attribute(this.#options.attribute.names.toggle),
             this.attribute(this.#options.attribute.names.class),
-            this.attribute(this.#options.attribute.names.delete),
+            this.attribute(this.#options.attribute.names.remove),
             this.attribute(this.#options.attribute.names.event),
             this.attribute(this.#options.attribute.names.on),
             this.attribute(this.#options.attribute.names.component),
@@ -954,7 +954,7 @@ class HydrateApp {
             let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             eventDetails.element.toggleAttribute(arg.field, value);
         });
-        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.delete), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.remove), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
             if(eventDetails.modelName !== "" && eventDetails.model == null
                 && eventDetails.propPath !== null && eventDetails.type !== 'unbind')
                 return;
@@ -1431,7 +1431,7 @@ class HydrateApp {
         this.#addSetAttributeHandler(element, modelPath, possibleEventTypes);
         this.#addToggleClassHandler(element, modelPath, possibleEventTypes);
         this.#addToggleAttributeHandler(element, modelPath, possibleEventTypes);
-        this.#addDeleteElementHandler(element, modelPath, possibleEventTypes);
+        this.#addRemoveElementHandler(element, modelPath, possibleEventTypes);
         this.#addInputHandler(element, modelPath, possibleEventTypes);
         this.#addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes);
         this.#addElementEventListenersHandler(element, modelPath, possibleEventTypes);
@@ -1505,8 +1505,8 @@ class HydrateApp {
         this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
     }
 
-    #addDeleteElementHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
-        let attribute = this.attribute(this.#options.attribute.names.delete);
+    #addRemoveElementHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
+        let attribute = this.attribute(this.#options.attribute.names.remove);
         let eventTypes:HydrateEventType[] = [
             'unbind'
         ];
