@@ -1176,6 +1176,8 @@ class HydrateApp {
             $model: detail.model,
             $event: event, //The native event that caused this action to happen (such as an input event, window event, etc)
             $state: detail.state,
+            $parent: detail.parent,
+            $modelName: detail.modelName,
             $script: function(name) {
                 let selector = `[${app.attribute(app.options.attribute.names.script)}=${name}]`;
                 let scriptElement = app.root.querySelector(selector);
@@ -1717,7 +1719,7 @@ class HydrateApp {
         if(this.#options.debug.dispatchTimer)
         {
             dispatchId = this.#dispatchId++;
-            dispatchTimer = `hydrate.dispatch.${dispatchId}`;
+            dispatchTimer = `hydrate.dispatch.${eventType}.${dispatchId}`;
             console.time(dispatchTimer);
         }
         
@@ -1771,7 +1773,7 @@ class HydrateApp {
     {
         let throttleAttribute = this.attribute(this.#options.attribute.names.throttle);
         let throttleArg = this.parseAttributeArguments(element, throttleAttribute)
-            .find(x => x.field === eventType);
+            .find(x => x.field === eventType || x.field === "*");
         if(throttleArg == null)
             return false;
         let delayHandlers = this.#elementHandlerDelays.get(element);
@@ -1839,7 +1841,7 @@ class HydrateApp {
     {
         let debounceAttribute = this.attribute(this.#options.attribute.names.debounce);
         let arg = this.parseAttributeArguments(element, debounceAttribute)
-            .find(x => x.field === eventType);
+            .find(x => x.field === eventType || x.field === "*");
         if(arg == null)
             return false;
         let delayHandlers = this.#elementHandlerDelays.get(element);
@@ -1881,7 +1883,7 @@ class HydrateApp {
     {
         let delayAttribute = this.attribute(this.#options.attribute.names.delay);
         let arg = this.parseAttributeArguments(element, delayAttribute)
-            .find(x => x.field === eventType);
+            .find(x => x.field === eventType || x.field === "*");
         if(arg == null)
             return false;
         

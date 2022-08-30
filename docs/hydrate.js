@@ -934,6 +934,8 @@ class HydrateApp {
             $model: detail.model,
             $event: event,
             $state: detail.state,
+            $parent: detail.parent,
+            $modelName: detail.modelName,
             $script: function (name) {
                 let selector = `[${app.attribute(app.options.attribute.names.script)}=${name}]`;
                 let scriptElement = app.root.querySelector(selector);
@@ -1414,7 +1416,7 @@ class HydrateApp {
         let dispatchTimer;
         if (this.#options.debug.dispatchTimer) {
             dispatchId = this.#dispatchId++;
-            dispatchTimer = `hydrate.dispatch.${dispatchId}`;
+            dispatchTimer = `hydrate.dispatch.${eventType}.${dispatchId}`;
             console.time(dispatchTimer);
         }
         //Data is any additional object data that may be needed for an event
@@ -1458,7 +1460,7 @@ class HydrateApp {
     #throttle(eventType, element, propPath, detail, target, data) {
         let throttleAttribute = this.attribute(this.#options.attribute.names.throttle);
         let throttleArg = this.parseAttributeArguments(element, throttleAttribute)
-            .find(x => x.field === eventType);
+            .find(x => x.field === eventType || x.field === "*");
         if (throttleArg == null)
             return false;
         let delayHandlers = this.#elementHandlerDelays.get(element);
@@ -1520,7 +1522,7 @@ class HydrateApp {
     #debounce(eventType, element, propPath, detail, target, data) {
         let debounceAttribute = this.attribute(this.#options.attribute.names.debounce);
         let arg = this.parseAttributeArguments(element, debounceAttribute)
-            .find(x => x.field === eventType);
+            .find(x => x.field === eventType || x.field === "*");
         if (arg == null)
             return false;
         let delayHandlers = this.#elementHandlerDelays.get(element);
@@ -1557,7 +1559,7 @@ class HydrateApp {
     #delay(eventType, element, propPath, detail, target, data) {
         let delayAttribute = this.attribute(this.#options.attribute.names.delay);
         let arg = this.parseAttributeArguments(element, delayAttribute)
-            .find(x => x.field === eventType);
+            .find(x => x.field === eventType || x.field === "*");
         if (arg == null)
             return false;
         let delay = this.#parseDelayMs(detail, arg);

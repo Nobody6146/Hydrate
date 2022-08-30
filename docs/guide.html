@@ -83,6 +83,7 @@
                 </li>
             </ul>
         </section>
+        <hr/>
 
         <section id="field-expression-syntax">
             <h2>Field Expression Syntax</h2>
@@ -179,7 +180,7 @@
                                     </ul>
                                 </li>
                                 <li>
-                                    <b>$model -</b> Points to the proxy model that is bond to this component
+                                    <b>$model -</b> Points to the proxy model that is bound to this component
                                     <ul>
                                         <li>Example:
                                             <ul><li>
@@ -200,11 +201,31 @@
                                     </ul>
                                 </li>
                                 <li>
-                                    <b>$state -</b> Points to the state behind the model that is bond to this component
+                                    <b>$state -</b> Points to the state behind the model that is bound to this component
                                     <ul>
                                         <li>Example:
                                             <ul><li>
                                                 <code>&lt;div h-model="default" h-property="innerText: $state.value"&gt;</code>
+                                            </li></ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <b>$parent -</b> Points to the parent of the model bound to this component
+                                    <ul>
+                                        <li>Example:
+                                            <ul><li>
+                                                <code>&lt;div h-model="default" h-property="innerText: $parent[$modelName]"&gt;</code>
+                                            </li></ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <b>$modelName -</b> The name of the model bound to this component
+                                    <ul>
+                                        <li>Example:
+                                            <ul><li>
+                                                <code>&lt;div h-model="default" h-property="innerText: $modelName"&gt;</code>
                                             </li></ul>
                                         </li>
                                     </ul>
@@ -276,6 +297,7 @@
                 </p>
             </div>
         </section>
+        <hr/>
 
         <section id="framework-event-types">
             <h2>Framework Event Types</h2>
@@ -296,6 +318,7 @@
                         <li>The following event definitions will use the JS event type names</li>
                     </ul>
                 </p>
+                
                 <fieldset id="track-event">
                     <legend><h3>hydrate.track</h3></legend>
                     <p>
@@ -546,10 +569,12 @@
                 </fieldset>
             </div>
         </section>
+        <hr/>
 
         <section id="framework-element-attributes">
             <h2>Framework Element Attributes</h2>
             <div style="margin-left: 4rem;">
+                <h3>Model Binding Attributes</h3>
                 <fieldset id="model-attribute">
                     <legend><h3>h-model</h3></legend>
                     <p>
@@ -588,6 +613,40 @@
                                         </li>
                                     </ul>
                                 </li>
+                                <li>
+                                    <i>Model Name Insertion Operator (^)-</i> Normally a "^" is not a vald character for a JS identifier, however, inside the model attribute, it carries special meaning
+                                    <ul>
+                                        <li>
+                                            The "^" symbol is the dynamic model name insertion Operator inside of model attribute, and is only allowed to be used inside a model attribute that's part of a template created using the <a href="#template-attribute">template attribute</a>
+                                        </li>
+                                        <li>
+                                            During component generation, the template is read and the insertion character is replaced with the passed in model name for the component being generated, before the HTML is generated.
+                                        </li>
+                                        <li>
+                                            Say we have the following template and it is being passed in the model name "default":
+                                            <code>
+                                                &lt;template h-template="BasicTemplate"&gt;
+                                                    &lt;span h-model="^" h-property="innerText: value"&gt;&lt;/span&gt;
+                                                    &lt;span h-model="^.value" h-property="innerText: $state"&gt;&lt;/span&gt;
+                                                &lt;/template&gt;
+                                            </code>
+                                            <ul>
+                                                <li>
+                                                    The result HTML inserted into the DOM would be:
+                                                    <code>
+                                                        &lt;div h-model="default" h-component="BasicTemplate"&gt;
+                                                            &lt;span h-model="default" h-property="innerText: value"&gt;&lt;/span&gt;
+                                                            &lt;span h-model="default.value" h-property="innerText: $state"&gt;&lt;/span&gt;
+                                                        &lt;/template&gt;
+                                                    </code>
+                                                </li>
+                                            </ul>
+                                        </li>
+                                        <li>
+                                            You can use the insertion name operator any number of times inside a template
+                                        </li>
+                                    </ul>
+                                </li>
                             </li>
                         </ul>
                     </p>
@@ -596,6 +655,7 @@
                         <ul>
                             <li>This attribute is <b><i>REQUIRED</i></b> for all elements that want to interact with the framework</li>
                             <li>Not every component needs to be hooked up to a global model in order to interact with the framework. For these we can use modeless components</li>
+                            <li>You can nest the model name as far as you want into an object. However, because datatype literals cannot be wrapped in a proxy, $model will always be null</li>
                         </ul>
                     </p>
                 </fieldset>
@@ -636,6 +696,104 @@
                     </p>
                 </fieldset>
 
+                <fieldset id="mutation-attribute">
+                    <legend><h3>h-mutation</h3></legend>
+                    <p>
+                        <b>Usage:</b> Opts the component into responding to the specified mutation events
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-mutation="MUTATION_SOURCE_1: LIST_OF_MUTATIONS; MUTATION_SOURCE_2: LIST_OF_MUTATIONS;..."</code>
+                        <ul>
+                            <li>
+                                <i>MUTATION_SOURCE -</i> The name of the source of mutation.
+                                <ul>
+                                    <li>
+                                        The possible values are as follows
+                                        <ul>
+                                            <li><u>target</u> - The element itself mutated</li>
+                                            <li><u>child</u> - The element had a element that mutated</li>
+                                            <li><u>parent</u> - The element's parent mutated</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                                <ul>
+                                    <li>The attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b></li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-mutation="parent: attribute"</code></li>
+                                            <li><code>h-mutation="child: attribute"</code></li>
+                                            <li><code>h-input="parent: attribute; child: attribute"</code></li>
+                                        </ul>
+                                    </li>
+                                    <li>And empty attribute body is a quick way to specify that the component will respond to all mutation events of elements associated with it</u>
+                                        <ul>
+                                            <li><code>h-mutation=""</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>LIST_OF_MUTATIONS -</i> A comma delimited list of mutation types to respond to
+                                <ul>
+                                    <li>
+                                        The possible values are as follows
+                                        <ul>
+                                            <li><u>attribute</u> - An element attribute changed</li>
+                                            <li><u>added</u> - A child element was added</li>
+                                            <li><u>removed</u> - A child element was removed</li>
+                                            <li><u>characterdata</u> - The element's character date changed</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-mutation="child: attribute"</code></li>
+                                            <li><code>h-property="target: attribute, added, removed"</code></li>
+                                            <li><code>h-property="child: attribute; target: attribute, added, removed"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>Wild Cards -</i> A wild card (*) can be used in place of some values to mean all sources/mutations
+                                <ul>
+                                    <li>
+                                        A wild card can be used inside the attribute value similar to an empty value to make the component to respond to all mutation events related to elements associated with it
+                                        <ul>
+                                            <li><code>h-mutation="*"</code></li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        A wild card can be used in a list of mutations to make the component respond to all mutation types for a source type
+                                        <ul>
+                                            <li><code>h-mutation="target: *"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Event types:</b> This attribute will allow components to respond to
+                        <ul>
+                            <li>mutation.target.added</li>
+                            <li>mutation.target.removed</li>
+                            <li>mutation.target.attribute</li>
+                            <li>mutation.target.characterdata</li>
+                            <li>mutation.parent.added</li>
+                            <li>mutation.parent.removed</li>
+                            <li>mutation.parent.attribute</li>
+                            <li>mutation.parent.characterdata</li>
+                            <li>mutation.child.added</li>
+                            <li>mutation.child.removed</li>
+                            <li>mutation.child.attribute</li>
+                            <li>mutation.child.characterdata</li>
+                        </ul>
+                    </p>
+                </fieldset>
+                <h3>Element Manipulation Attributes</h3>
                 <fieldset id="property-attribute">
                     <legend><h3>h-property</h3></legend>
                     <p>
@@ -917,7 +1075,7 @@
                         </ul>
                     </p>
                 </fieldset>
-
+                <h3>Element Callback Attributes</h3>
                 <fieldset id="input-attribute">
                     <legend><h3>h-input</h3></legend>
                     <p>
@@ -1055,9 +1213,9 @@
                             <li>set</li>
                             <li>input</li>
                             <li>on</li>
-                            <li>routing.start</li>
-                            <li>routing.resolve</li>
-                            <li>routing.reject</li>
+                        </ul>
+                        <b>Mutation Event types:</b> This attribute will respond to the following event types if you have the <a href="#mutation-attribute">Mutation attribute</a>
+                        <ul>
                             <li>mutation.target.added</li>
                             <li>mutation.target.removed</li>
                             <li>mutation.target.attribute</li>
@@ -1071,26 +1229,358 @@
                             <li>mutation.child.attribute</li>
                             <li>mutation.child.characterdata</li>
                         </ul>
+                        <b>Routing Event types:</b> This attribute will respond to the following event types if you have the <a href="#routing-attribute">routing attribute</a>
+                        <ul>
+                            <li>routing.start</li>
+                            <li>routing.resolve</li>
+                            <li>routing.reject</li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Routing:</b>
+                        <ul>
+                            <li>A component with a <a href="#routing-attribute">routing attribute</a> will only trigger on routing event types when the <a href="#route-attribute">route attribute</a>
+                                and <a href="#routing-attribute">routing attribute</a> match the correct criteria</li>
+                            <li>If a component receives a route request for a route that doesn't match, the component's inner HTML will be cleared</li>
+                            <li>This is useful for doing things such as triggering scripts when routing occurs</li>
+                            <li>Visit the <a href="#routing-attribute">routing attribute</a> and other routing sections for additional information</a></li>
+                        </ul>
+                    </p>
+                </fieldset>
+                <h3>Callback Timing Attributes</h3>
+                <fieldset id="delay-attribute">
+                    <legend><h3>h-delay</h3></legend>
+                    <p>
+                        <b>Usage:</b> For the event types chosen, it delays the execution of the components framework handlers for the specified amount of time
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-delay="EVENT_TYPE: EXPRESSION"</code>
+                        <ul>
+                            <li>
+                                <i>EVENT_TYPE -</i> The name of Hydrate event type (without the "hydrate.:" prefix)
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li>For the event type, you can also use a wildcard (*) operator to mean any event that the component responded to</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-delay="track: 500"</code></li>
+                                            <li><code>h-delay="bind: 500"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>Expression -</i> Any JS code expression resulting in the integer value of how many milliseconds to wait
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-delay="track: 500"</code></li>
+                                            <li><code>h-delay="track: $model.delayTime"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b> Only one timing change function will be applied to each event type response. They resolve in the following order
+                        <ul>
+                            <li>throttle</li>
+                            <li>debounc</li>
+                            <li>delay</li>
+                        </ul>
                     </p>
                 </fieldset>
 
-                <fieldset id="mutation-attribute">
-                    <legend><h3>h-mutation</h3></legend>
+                <fieldset id="throttle-attribute">
+                    <legend><h3>h-throttle</h3></legend>
                     <p>
-                        <b>Usage:</b> Opts the component into responding to the specified mutation events
+                        <b>Usage:</b> For the event types chosen, it throttles the execution of the components framework handlers for the specified amount of time
                     </p>
                     <p>
-                        <b>Syntax:</b> <code>h-mutation="MUTATION_SOURCE_1: LIST_OF_MUTATIONS; MUTATION_SOURCE_2: LIST_OF_MUTATIONS;..."</code>
+                        <b>Syntax:</b> <code>h-throttle="EVENT_TYPE: EXPRESSION"</code>
                         <ul>
                             <li>
-                                <i>MUTATION_SOURCE -</i> The name of the source of mutation.
+                                <i>EVENT_TYPE -</i> The name of Hydrate event type (without the "hydrate.:" prefix)
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li>For the event type, you can also use a wildcard (*) operator to mean any event that the component responded to</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-throttle="input: 500"</code></li>
+                                            <li><code>h-throttle="set: 500"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>Expression -</i> Any JS code expression resulting in the integer value of how many milliseconds to wait
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-throttle="input: 500"</code></li>
+                                            <li><code>h-throttle="input: $model.delayTime"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b> Only one timing change function will be applied to each event type response. They resolve in the following order
+                        <ul>
+                            <li>throttle</li>
+                            <li>debounc</li>
+                            <li>delay</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="debounce-attribute">
+                    <legend><h3>h-delay</h3></legend>
+                    <p>
+                        <b>Usage:</b> For the event types chosen, it debounces the execution of the components framework handlers for the specified amount of time
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-debounc="EVENT_TYPE: EXPRESSION"</code>
+                        <ul>
+                            <li>
+                                <i>EVENT_TYPE -</i> The name of Hydrate event type (without the "hydrate.:" prefix)
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li>For the event type, you can also use a wildcard (*) operator to mean any event that the component responded to</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-debounc="input: 500"</code></li>
+                                            <li><code>h-debounc="set: 500"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>Expression -</i> Any JS code expression resulting in the integer value of how many milliseconds to wait
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-debounc="input: 500"</code></li>
+                                            <li><code>h-debounc="input: $model.delayTime"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b> Only one timing change function will be applied to each event type response. They resolve in the following order
+                        <ul>
+                            <li>throttle</li>
+                            <li>debounc</li>
+                            <li>delay</li>
+                        </ul>
+                    </p>
+                </fieldset>
+                
+                <fieldset id="debounce-attribute">
+                    <legend><h3>h-delay</h3></legend>
+                    <p>
+                        <b>Usage:</b> For the event types chosen, it debounces the execution of the components framework handlers for the specified amount of time
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-debounc="EVENT_TYPE: EXPRESSION"</code>
+                        <ul>
+                            <li>
+                                <i>EVENT_TYPE -</i> The name of Hydrate event type (without the "hydrate.:" prefix)
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li>For the event type, you can also use a wildcard (*) operator to mean any event that the component responded to</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-debounc="input: 500"</code></li>
+                                            <li><code>h-debounc="set: 500"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>Expression -</i> Any JS code expression resulting in the integer value of how many milliseconds to wait
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-debounc="input: 500"</code></li>
+                                            <li><code>h-debounc="input: $model.delayTime"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b> Only one timing change function will be applied to each event type response. They resolve in the following order
+                        <ul>
+                            <li>throttle</li>
+                            <li>debounc</li>
+                            <li>delay</li>
+                        </ul>
+                    </p>
+                </fieldset>
+                <h3>Templating and Reusable HTML/JS Attributes</h3>
+                <fieldset id="script-attribute">
+                    <legend><h3>h-script</h3></legend>
+                    <p>
+                        <b>Usage:</b> References the inner text of the element as a function decleration which can be referenced with the provided name and called later
+                    </p>
+                    <p>
+                        <b>Syntax:</b> 
+                        <code>
+                            &lt;script h-script="SCRIPT_NAME"&gt;
+                                FUNCTION_DECLERATION
+                            &lt;/script&gt;
+                        </code>
+                        <ul>
+                            <li>
+                                <i>SCRIPT_NAME -</i> The name to reference the script by
+                                <ul>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-script="Script1"</code></li>
+                                            <li><code>h-script="ExampleScript"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>FUNCTION_DECLERATION -</i> The decleration of the function
+                                <ul>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>
+                                                &lt;script h-script="SCRIPT_NAME"&gt;
+                                                    function(firstname, lastname) {
+                                                        console.log(`hello ${firstname} ${lastname}`);
+                                                    }
+                                                &lt;/script&gt;
+                                            </code></li>
+                                            <li><code>
+                                                &lt;script h-script="SCRIPT_NAME"&gt;
+                                                    (firstname, lastname) => {
+                                                        console.log(`hello ${firstname} ${lastname}`);
+                                                    }
+                                                &lt;/script&gt;
+                                            </code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b> Only one timing change function will be applied to each event type response. They resolve in the following order
+                        <ul>
+                            <li>
+                                The script can be accessed via the <b>$script</b> function of the field-expression syntax of a framework attribute. E.g.
+                                <ul>
+                                    <li><code>&lt;div h-script="TestScript" h-event="track: $script('TestScript')"&gt;</code></li>
+                                </ul>
+                            </li>
+                            <li>The element with the script attribute does not have to be an HTML script element, but it is probably prefered</li>
+                            <li>The script decleration should be the only text inside this element's inner text</li>
+                            <li>There should only ever be one function per script element</li>
+                            <li>The inner contents of the script can be any valid explicit or anonymous function decleration</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="template-attribute">
+                    <legend><h3>h-template</h3></legend>
+                    <p>
+                        <b>Usage:</b> References the inner HTML of the element as a component template that can be later referenced by name
+                    </p>
+                    <p>
+                        <b>Syntax:</b>
+                        <code>&lt;template h-template="TEMPLATE_NAME"&gt;
+                            TEMPLATE_HTML
+                        &lt;/template&gt;
+                    </code>
+                        <ul>
+                            <li>
+                                <i>TEMPLATE_NAME -</i> The name of the template to reference it
+                                <ul>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>&lt;template h-template="BasicTemplate"&gt;
+                                                    Hello World
+                                                &lt;/template&gt;
+                                            </code></li>
+                                            <li><code>&lt;div h-template="BasicTemplate"&gt;
+                                                    Hello World
+                                                &lt;/div&gt;
+                                            </code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>TEMPLATE_HTML -</i> The HTML you want to be generated
+                                <ul>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>&lt;template h-template="BasicTemplate"&gt;
+                                                Hello World
+                                            &lt;/template&gt;
+                                            </code></li>
+                                            <li><code>&lt;template h-template="BasicTemplate"&gt;
+                                                    &lt;div&gt;
+                                                        Hello World
+                                                    &lt;/div&gt;
+                                                &lt;/template&gt;
+                                            </code></li>
+                                            <li><code>
+                                                &lt;template h-template="BasicTemplate"&gt;
+                                                    &lt;span h-model="^" h-property="innerText: value"&gt;&lt;/span&gt;
+                                                    &lt;span h-model="^.value" h-property="innerText: $state"&gt;&lt;/span&gt;
+                                                &lt;/template&gt;
+                                            </code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>
+                                Templates are used for defining HTML bodies for components. See <a href="#component-attribute">component attribute</a> for further instruction on how to utilize templates
+                            </li>
+                            <li>Although you can use any container HMTL element to hold your template body, the dedicated HTML template tag is the prefered method</li>
+                            <li>
+                                When inside a template, you can use the <b>model name insertion operator</b> to inject the name of the model name coming from the component.
+                                You can read more about it under the <a href="#model-attribute">model attribute</a> section.
+                            </li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="component-attribute">
+                    <legend><h3>h-component</h3></legend>
+                    <p>
+                        <b>Usage:</b> Used to generate a component(s) from an HTML template passing in model data
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-component="TEMPLATE_SOURCE_TYPE: TEMPLATE_NAME_EXPRESSION"</code>
+                        <ul>
+                            <li>
+                                <i>TEMPLATE_SOURCE_TYPE -</i> The type of source the HTML template will come from
                                 <ul>
                                     <li>
                                         The possible values are as follows
                                         <ul>
-                                            <li><u>target</u> - The element itself mutated</li>
-                                            <li><u>child</u> - The element had a element that mutated</li>
-                                            <li><u>parent</u> - The element's parent mutated</li>
+                                            <li><u>template</u> - The DOM will be queried for a <a href="#template-attribute">template attribute</a> whos name matches the expression </li>
+                                            <li><u>url</u> - A fetch request will be performed to download the HTML for the component</li>
                                         </ul>
                                     </li>
                                 </ul>
@@ -1098,55 +1588,20 @@
                                     <li>The attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b></li>
                                     <li><u>Examples:</u>
                                         <ul>
-                                            <li><code>h-mutation="parent: attribute"</code></li>
-                                            <li><code>h-mutation="child: attribute"</code></li>
-                                            <li><code>h-input="parent: attribute; child: attribute"</code></li>
-                                        </ul>
-                                    </li>
-                                    <li>And empty attribute body is a quick way to specify that the component will respond to all mutation events of elements associated with it</u>
-                                        <ul>
-                                            <li><code>h-mutation=""</code></li>
+                                            <li><code>h-component="template: 'BasicTemplate'"</code></li>
+                                            <li><code>h-component="url: 'pages/index.html'"</code></li>
                                         </ul>
                                     </li>
                                 </ul>
                             </li>
                             <li>
-                                <i>LIST_OF_MUTATIONS -</i> A comma delimited list of mutation types to respond to
-                                <ul>
-                                    <li>
-                                        The possible values are as follows
-                                        <ul>
-                                            <li><u>attribute</u> - An element attribute changed</li>
-                                            <li><u>added</u> - A child element was added</li>
-                                            <li><u>removed</u> - A child element was removed</li>
-                                            <li><u>characterdata</u> - The element's character date changed</li>
-                                        </ul>
-                                    </li>
-                                </ul>
+                                <i>TEMPLATE_NAME_EXPRESSION -</i> An expression that results into the string used to find the template
                                 <ul>
                                     <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
                                     <li><u>Examples:</u>
                                         <ul>
-                                            <li><code>h-mutation="child: attribute"</code></li>
-                                            <li><code>h-property="target: attribute, added, removed"</code></li>
-                                            <li><code>h-property="child: attribute; target: attribute, added, removed"</code></li>
-                                        </ul>
-                                    </li>
-                                </ul>
-                            </li>
-                            <li>
-                                <i>Wild Cards -</i> A wild card (*) can be used in place of some values to mean all sources/mutations
-                                <ul>
-                                    <li>
-                                        A wild card can be used inside the attribute value similar to an empty value to make the component to respond to all mutation events related to elements associated with it
-                                        <ul>
-                                            <li><code>h-mutation="*"</code></li>
-                                        </ul>
-                                    </li>
-                                    <li>
-                                        A wild card can be used in a list of mutations to make the component respond to all mutation types for a source type
-                                        <ul>
-                                            <li><code>h-mutation="target: *"</code></li>
+                                            <li><code>h-component="template: 'BasicTemplate'"</code></li>
+                                            <li><code>h-component="template: `${color}Template`"</code></li>
                                         </ul>
                                     </li>
                                 </ul>
@@ -1154,7 +1609,13 @@
                         </ul>
                     </p>
                     <p>
-                        <b>Event types:</b> This attribute will allow components to respond to
+                        <b>Default Event types:</b> This attribute will respond to the following event types by default
+                        <ul>
+                            <li>track</li>
+                            <li>bind</li>
+                            <li>set</li>
+                        </ul>
+                        <b>Mutation Event types:</b> This attribute will respond to the following event types if you have the <a href="#mutation-attribute">Mutation attribute</a>
                         <ul>
                             <li>mutation.target.added</li>
                             <li>mutation.target.removed</li>
@@ -1169,12 +1630,226 @@
                             <li>mutation.child.attribute</li>
                             <li>mutation.child.characterdata</li>
                         </ul>
+                        <b>Routing Event types:</b> This attribute will respond to the following event types if you have the <a href="#routing-attribute">routing attribute</a>
+                        <ul>
+                            <li>routing.start</li>
+                            <li>routing.resolve</li>
+                            <li>routing.reject</li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>When this attribute responds to a change, the contents of the component are cleared and regenerated</li>
+                            <li>
+                                When the model bound to the component is an object, the entire object is passed into component genration and the template is inserted just once
+                            </li>
+                            <li>
+                                When the model bound to the component is an array, the HTML template is inserted for each item in the array being passed in one at a time.
+                            </li>
+                            <li>Although you can use any container HMTL element to hold your template body, the dedicated HTML template tag is the prefered method</li>
+                            <li>
+                                When inside a template, you can use the <b>model name insertion operator</b> to inject the name of the model name coming from the component.
+                                You can read more about it under the <a href="#model-attribute">model attribute</a> and <a href="#template-attribute">template attribute</a> section.
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Routing:</b>
+                        <ul>
+                            <li>A component with a <a href="#routing-attribute">routing attribute</a> will only generate the component on route changes and not for other event types like it normally would</li>
+                            <li>If a component receives a route request for a route that doesn't match, the component's inner HTML will be cleared</li>
+                            <li>
+                                If an element matches a route and has children, the following happens:
+                                <ul>
+                                    <li>There is no child element with a matching routing type - no changes to the component is made</li>
+                                    <li>There is a child element that matches the routing type - the first child with a matching type will be updated.
+                                        All other children components will have their inner HTML cleared
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>The same rules apply for an element that contains both the route and routing attribute, except it doesn't affect it's children</li>
+                            <li>This is useful for things such as showing different page based on your route or showing loading/error modals on routing</li>
+                            <li>Visit the <a href="#routing-attribute">routing attribute</a> and other routing sections for additional information</a></li>
+                        </ul>
                     </p>
                 </fieldset>
 
-                
+                <fieldset id="duplicate-attribute">
+                    <legend><h3>h-duplicate</h3></legend>
+                    <p>
+                        <b>Usage:</b> Used to duplicate a dynamic component generated from the <a href="#component-attribute">component attribute</a> any number of times for the model being passed into it
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-duplicate="EXPRESSION"</code>
+                        <ul>
+                            <li>
+                                <i>EXPRESSION -</i> An expression that results into the number of times you want the template to be inserted
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-duplicate="3"</code></li>
+                                            <li><code>h-duplicate="value * 3"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>If the expression cannot be parsed, the number of times is zero</li>
+                            <li>When this attribute is used, the model will always be treated like an object (arrays will not get a record for each item). This is useful to force arrays to be treated like an objet</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="id-attribute">
+                    <legend><h3>h-id</h3></legend>
+                    <p>
+                        <b>Usage:</b> Used inside a template marked with the <a href="#template-attribute">template attribute</a> to generate a unique id for the component
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-id</code>
+                        <ul>
+                            <li>This property will be dynamically set with the value assigned when the template is filled out and inserted into the DOM</li>
+                            <li><u>Examples:</u>
+                                <ul>
+                                    <li><code>
+                                        &lt;template="ArrayTemplate"&gt;
+                                            &lt;div h-model h-id h-property="innerText: $id()"&gt;&lt;/div&gt;
+                                        &lt;template="ArrayTemplate"&gt;
+                                    </code></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>
+                                The id value of an element can be referenced via the <b>$id function</b>. Read the <a href="#field-expression-syntax">field-expression syntax</a> section for further information
+                            </li>
+                            <li>
+                                The id value starts at "1" for each component and is incremented by 1 for each instance of the id attribute used when inserting the template for each iteration of the components passed in data
+                                <ul>
+                                    <li>
+                                        Ex: The first call would be 1, 2, 3, etc...
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                Each time the component is regenerated from stratch via the <a href="#component-attribute">component attribute</a> and it's event responses, the id count is reset back to 1 before generating
+                            </li>
+                            <li>
+                                Each dynamic component's inner HTML has their own id values.
+                                <ul>
+                                    <li>
+                                        This means any two components used throughtout the page can have their own id of value 1, 2, 3, etc.
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                </fieldset>
+                <h3>Routing Attributes</h3>
+                <fieldset id="route-attribute">
+                    <legend><h3>h-route</h3></legend>
+                    <p>
+                        <b>Usage:</b> Used to tell a component or child components what route it is listening to
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-route="ROUTE_PATH"</code>
+                        <ul>
+                            <li>
+                                <i>ROUTE_PATH -</i> A regular-expression type string that represent the route's path
+                                <ul>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-route="#about"</code></li>
+                                            <li><code>h-route="#albums/:id"</code></li>
+                                            <li><code>h-route="/index.html</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>The path can include Regex</li>
+                            <li>All paths are assumed to be absoulte paths (start and end of string)</li>
+                            <li>route variables can be used as part of the path</li>
+                            <li>The route attribute will apply to the element it's on and the elements children (unless the child has it's own route)</li>
+                            <li>For more information about build a route path, see the <a href="routing-paths">routing paths</a> section</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="routing-attribute">
+                    <legend><h3>h-routing</h3></legend>
+                    <p>
+                        <b>Usage:</b> Used to tell a component which routing events to respond to
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-routing="ROUTING_TYPE_1, ROUTING_TYPE_2, ..."</code>
+                        <ul>
+                            <li>
+                                <i>ROUTING_TYPE_1 -</i> A delimited string representing all the routing types to respond to
+                                <ul>
+                                    <li>
+                                        The possible values are as follows
+                                        <ul>
+                                            <li><u>start</u> - <a href="#routing-start-event">routing start event</a></li>
+                                            <li><u>resolve</u> - <a href="#routing-resolve-event">routing start event</a></li>
+                                            <li><u>reject</u> - <a href="#routing-resolve-event">routing start event</a></li>
+                                        </ul>
+                                    </li>
+                                    <li>Any number of routing types can be specified</li>
+                                </ul>
+                                <ul>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>h-routing="start"</code></li>
+                                            <li><code>h-routing="resolve, reject"</code></li>
+                                            <li><code>h-routing="start resolve"</code></li>
+                                            <li><code>h-routing="start; reject;"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>
+                                In order to respond to a routing event, either the target component or it's parent element must have a <a href="#route-attribute">route attribute</a> attached to it
+                                Example:
+                                <ul>
+                                    <li><code>
+                                        &lt;div h-route="#id" h-routing="start"&lt;/div&gt;
+                                    </code></li>
+                                    <li><code>
+                                        &lt;div h-route="#id"&gt;
+                                            &lt;div&gt;h-routing="start"&lt;/div&gt;
+                                            &lt;div&gt;h-routing="endt"&lt;/div&gt;
+                                        &lt;/div&gt;
+                                    </code></li>
+                                </ul>
+                            </li>
+                            <li>Not all attributes work with the routing attribute, so check under the respective attribute to see if it is supported</li>
+                            <li>For attributes that support routiing events, they will all respond in some way to a route request even if the route doesn't match. Check the respective attribute details for more information on how it handles routing request</li>
+                            <li></li>
+                        </ul>
+                    </p>
+                </fieldset>
             </div>
         </section>
+        <hr/>
         
     </body>
 </html>
