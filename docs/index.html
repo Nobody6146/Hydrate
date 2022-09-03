@@ -191,45 +191,50 @@
 
                 //Define our client side routes
                 let routeMap = new Map();
-                routeMap.set("#", resolvedRoute => {
-                    app.route("#home");
+                routeMap.set("#", (resolvedRoute, request) => {
+                    console.log("routing");
                 });
-                routeMap.set("#home", resolvedRoute => {
+                routeMap.set("#", (resolvedRoute, request) => {
+                    request.response = () => app.route("#home");
+                });
+                routeMap.set("#home", (resolvedRoute, request) => {
                     //console.log(resolvedRoute);
+                    request.response = () => request.resolve();
                 });
-                routeMap.set("#about", resolvedRoute => {
-                    //console.log(resolvedRoute);
+                routeMap.set("#about", (resolvedRoute, request) => {
+                    request.response = () => request.resolve();
                 });
-                routeMap.set("#contact", resolvedRoute => {
+                routeMap.set("#contact", (resolvedRoute, request) => {
                     //console.log(resolvedRoute);
                     throw Error("Testing breaking route");
                 });
                 routeMap.set("#404", (resolvedRoute, request) => {
                     //console.log(resolvedRoute);
+                    request.response = () => request.resolve();
                 });
                 routeMap.set("#test/:id", (resolvedRoute, request) => {
-                    //console.log(resolvedRoute);
+                    request.response = () => request.resolve();
                 });
                 routeMap.set("", (resolvedRoute, request) => {
                     //console.log("page not found: ", + resolvedRoute);
-                    app.route(`?page=3#404`);
+                    request.response = () => app.route(`?page=3#404`);
                 });
 
                 //Create our routing middleware
                 document.body.addEventListener("hydrate.routing.start", event => {
                     try{
-                        let routes = app.match(new URL(event.detail.request.url), ...routeMap.keys());
-                        let route = routes[0].route;
-                        setTimeout(() => {
-                            try{
-                                routeMap.get(route)(routes[0], event.detail.request);
-                                event.detail.request.resolve();
+                        let request = event.detail.request;
+                        let routes = request.match(request.url, ...routeMap.keys());
+                        for(let route of routes)
+                        {
+                            routeMap.get(route.route)(route, request);
+                            if(request.response)
+                            {
+                                event.preventDefault();
+                                request.response();
+                                break;
                             }
-                            catch(err) {
-                                console.error(err);
-                                event.detail.request.reject();
-                            }
-                        }, 250);
+                        }
                     }
                     catch(err) {
                         console.error(err);
