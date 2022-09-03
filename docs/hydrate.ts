@@ -827,7 +827,9 @@ class HydrateApp {
                             return;
                         addedElement = true;
                         this.#trackElement(node);
-                        let modelName = node.getAttribute(modelAttribute);
+                        let elements = node.querySelectorAll<HTMLElement>(trackableSelector);
+                        for(let element of elements)
+                            this.#trackElement(element);
                         //this.#dispatch(node, "bind", modelName, this.state(modelName), undefined);
                     });
                     if(addedElement)
@@ -844,6 +846,9 @@ class HydrateApp {
                             return;
                         removedElement = true;
                         this.#untrackElement(node);
+                        let elements = node.querySelectorAll<HTMLElement>(trackableSelector);
+                        for(let element of elements)
+                            this.#untrackElement(element);
                     }
                     if(removedElement)
                     {
