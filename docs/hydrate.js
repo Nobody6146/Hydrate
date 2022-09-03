@@ -686,7 +686,6 @@ class HydrateApp {
                             let elements = node.querySelectorAll(trackableSelector);
                             for (let element of elements)
                                 this.#trackElement(element);
-                            //this.dispatch(node, "bind", modelName, this.state(modelName), undefined);
                         });
                         if (addedElement) {
                             this.dispatch(mutation.target, "mutation.parent.added", undefined, mutation);

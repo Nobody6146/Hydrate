@@ -856,7 +856,6 @@ class HydrateApp {
                         let elements = node.querySelectorAll<HTMLElement>(trackableSelector);
                         for(let element of elements)
                             this.#trackElement(element);
-                        //this.dispatch(node, "bind", modelName, this.state(modelName), undefined);
                     });
                     if(addedElement)
                     {
