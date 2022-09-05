@@ -1038,7 +1038,7 @@ class HydrateApp {
             if(arg.field !== "*" && arg.field !== eventDetails.type)
                 return;
 
-            if(eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing)))
+            if(this.#isRoutingEvent(eventDetails.type))
             {
                 var routeRequest = (eventDetails as HydrateRouteEventDetails)?.request;
                 if(this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type, routeRequest) !== "handled")
@@ -1136,7 +1136,7 @@ class HydrateApp {
     }
 
     #elementIsHandledByRoute(element:HTMLElement, eventType:HydrateEventType, routeRequest:HydrateRouteRequest):"handled" | "unhandled" | "unchanged" {
-        if(!eventType.startsWith("routing"))
+        if(!this.#isRoutingEvent(eventType))
             return "unchanged";
 
         let routeAttribute = this.attribute(this.#options.attribute.names.route);
