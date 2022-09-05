@@ -257,10 +257,11 @@ class HydrateRouteRequest {
     hash;
     state;
     response; //Empty field where you can attach any data needed by your handling code
-    #ended;
+    #finished;
     #resolved;
     #rejected;
-    constructor(hydrate, url, state) {
+    #redirectRequest;
+    constructor(hydrate, url, state, finished) {
         this.hydrate = hydrate;
         this.path = this.#determineRoutePath(url);
         this.pathname = url.pathname;
@@ -269,9 +270,10 @@ class HydrateRouteRequest {
         this.url = url.href;
         this.state = state;
         this.response = null;
-        this.#ended = false;
+        this.#finished = finished;
         this.#resolved = false;
         this.#rejected = false;
+        this.#redirectRequest = null;
     }
     #determineRoutePath(url) {
         return !this.hydrate.options.router.hashRouting ? url.pathname
@@ -309,11 +311,14 @@ class HydrateRouteRequest {
         });
         return query;
     }
-    get ended() {
-        return this.#ended;
+    get handled() {
+        return this.resolved || this.rejected || this.redirected;
     }
     get resolved() {
         return this.#resolved;
+    }
+    get redirected() {
+        return this.#redirectRequest != null;
     }
     get rejected() {
         return this.#rejected;
@@ -326,13 +331,18 @@ class HydrateRouteRequest {
         let results = [];
         let path = this.#determineRoutePath(url);
         for (let route of routes) {
-            let regexRoute = this.#routeToRegex(route);
+            if (typeof route === "string") {
+                route = {
+                    path: route
+                };
+            }
+            let regexRoute = this.#routeToRegex(route.path);
             let match = path.match(regexRoute);
             if (match)
                 results.push({
                     url: path,
                     route: route,
-                    params: this.#getRouteParams(route, match),
+                    params: this.#getRouteParams(route.path, match),
                     query: this.#getQueryParams(url.search),
                 });
         }
@@ -340,16 +350,28 @@ class HydrateRouteRequest {
             ? results : null;
     }
     resolve() {
-        this.#ended = true;
         this.#resolved = true;
         this.#rejected = false;
-        this.hydrate.dispatch(this.hydrate.root, "routing.resolve", undefined, this);
+        this.#redirectRequest = null;
+        if (this.#finished())
+            this.hydrate.dispatch(this.hydrate.root, "routing.resolve", undefined, this);
     }
     reject() {
-        this.#ended = false;
         this.#resolved = false;
         this.#rejected = true;
-        this.hydrate.dispatch(this.hydrate.root, "routing.reject", undefined, this);
+        this.#redirectRequest = null;
+        if (this.#finished())
+            this.hydrate.dispatch(this.hydrate.root, "routing.reject", undefined, this);
+    }
+    redirect(url, state) {
+        this.#resolved = false;
+        this.#rejected = false;
+        this.#redirectRequest = {
+            url: url ?? this.#redirectRequest?.url,
+            state: state ?? this.#redirectRequest?.state
+        };
+        if (this.#finished())
+            this.hydrate.route(this.#redirectRequest.url, this.#redirectRequest.state);
     }
 }
 class HydrateApp {
@@ -406,8 +428,21 @@ class HydrateApp {
     }
     #navigateTo(uri, state) {
         let url = new URL(uri);
-        let request = new HydrateRouteRequest(this, url, state);
-        this.dispatch(this.#root, "routing.start", undefined, request);
+        let finished = false;
+        let isFinished = function () {
+            return finished;
+        };
+        let request = new HydrateRouteRequest(this, url, state, isFinished);
+        let preventedDefault = this.dispatch(this.#root, "routing.start", undefined, request);
+        finished = true;
+        if (preventedDefault)
+            return;
+        if (request.resolved)
+            return request.resolve();
+        if (request.rejected)
+            return request.reject();
+        if (request.redirected)
+            return request.redirect();
     }
     #popStateListener(event) {
         this.#navigateTo(window.location.href, event.state);
@@ -826,10 +861,11 @@ class HydrateApp {
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.component), (arg, eventDetails) => {
             if (eventDetails.modelName !== "" && eventDetails.model == null)
                 return;
-            let isRouting = this.#isRoutingEvent(eventDetails.type);
-            if (eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing))) {
-                if (!isRouting)
-                    return;
+            let hasRoutintAttribute = eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing));
+            //Only allow non-route events and non-routing components or the opposite
+            if (this.#isRoutingEvent(eventDetails.type) !== hasRoutintAttribute)
+                return;
+            if (hasRoutintAttribute) {
                 var routeRequest = eventDetails?.request;
                 switch (this.#elementIsHandledByRoute(eventDetails.element, eventDetails.type, routeRequest)) {
                     case "unhandled": {
@@ -904,8 +940,8 @@ class HydrateApp {
         }
         let routingType = eventType.substring(eventType.lastIndexOf(".") + 1);
         let selector = `[${routingAttribute}~=${routingType}]`;
-        if (routeRequest.match(routeRequest.url, route) == null)
-            return element.matches(selector) ? "unhandled" : "unchanged";
+        if (routeRequest.match(routeRequest.url, { path: route }) == null)
+            return "unhandled";
         if (routerElement === element && routing == null)
             return "unchanged";
         let children = routerElement === element

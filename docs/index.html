@@ -42,8 +42,8 @@
                 <h1>Home</h1>
             </template>
             <template h-template="ContactPageTemplate">
-                <div h-model h-component="template: 'LoadingPageTemplate'" h-routing="start">
-                    Loading...
+                <div h-model h-component="template: 'LoadingPageTemplate'" h-routing="start" h-event="routing.start: document.title = 'Demo | Contact'">
+                    
                 </div>
                 <div h-model h-component="template: 'ContactPageContentTemplate'" h-routing="resolve"></div>
                 <div h-model h-component="template: 'RejectedPageTemplate'" h-routing="reject"></div>
@@ -82,7 +82,7 @@
                             <div h-model h-component="template: 'HomePageTemplate'" h-routing="resolve"></div>
                         </div>
                         <div h-model h-component="url: 'demopages/about.html'" h-route="#about" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | About'"></div>
-                        <div h-model h-component="template: 'ContactPageTemplate'" h-route="#contact" h-routing="start" h-event="routing.start: document.title = 'Demo | Contact'">
+                        <div h-model h-component="template: 'ContactPageTemplate'" h-route="#contact">
                             Check
                         </div>
                         <div h-model h-component="template: 'PageNotFoundTemplate'" h-route="#404" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | 404'"></div>
@@ -162,13 +162,13 @@
                 document.body.addEventListener("hydrate.input", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.on", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.routing.start", event => console.log(event.type, event.detail));
-                // document.body.addEventListener("hydrate.routing.resolve", event => console.log(event.type, event.detail));
-                // document.body.addEventListener("hydrate.routing.reject", event => console.log(event.type, event.detail));
+                document.body.addEventListener("hydrate.routing.resolve", event => console.log(event.type, event.detail));
+                document.body.addEventListener("hydrate.routing.reject", event => console.log(event.type, event.detail));
                 
 
                 let options = {
                     debug: {
-                        dispatchTimer: true
+                        dispatchTimer: false
                     }
                 };
                 let app = new HydrateApp(options);
@@ -190,55 +190,80 @@
                 model.rank = 3;
 
                 //Define our client side routes
-                let routeMap = new Map();
-                routeMap.set("#", (resolvedRoute, request) => {
-                    console.log("routing");
+                let routeMap = [];
+                routeMap.push({
+                    path: "",
+                    action: (resolvedRoute, request) => {
+                        //Logging middleware
+                        console.log(request);
+                    }
                 });
-                routeMap.set("#", (resolvedRoute, request) => {
-                    request.response = () => app.route("#home");
+                routeMap.push({
+                    path: "#",
+                    action: (resolvedRoute, request) => {
+                        request.redirect("#home");
+                    }
                 });
-                routeMap.set("#home", (resolvedRoute, request) => {
-                    //console.log(resolvedRoute);
-                    request.response = () => request.resolve();
+                routeMap.push({
+                    path: "#home",
+                    action: (resolvedRoute, request) => {
+                        //console.log(resolvedRoute);
+                        request.resolve();
+                    }
                 });
-                routeMap.set("#about", (resolvedRoute, request) => {
-                    request.response = () => request.resolve();
+                routeMap.push({
+                    path: "#about",
+                    action: (resolvedRoute, request) => {
+                        //console.log(resolvedRoute);
+                        request.resolve();
+                    }
                 });
-                routeMap.set("#contact", (resolvedRoute, request) => {
-                    //console.log(resolvedRoute);
-                    throw Error("Testing breaking route");
+                routeMap.push({
+                    path: "#contact",
+                    action: (resolvedRoute, request) => {
+                        throw Error("testing broken route");
+                        //request.resolve();
+                    }
                 });
-                routeMap.set("#404", (resolvedRoute, request) => {
-                    //console.log(resolvedRoute);
-                    request.response = () => request.resolve();
+                routeMap.push({
+                    path: "#404",
+                    action: (resolvedRoute, request) => {
+                        //console.log(resolvedRoute);
+                        request.resolve();
+                    }
                 });
-                routeMap.set("#test/:id", (resolvedRoute, request) => {
-                    request.response = () => request.resolve();
+                routeMap.push({
+                    path: "#test/:id",
+                    action: (resolvedRoute, request) => {
+                        //console.log(resolvedRoute);
+                        request.resolve();
+                    }
                 });
-                routeMap.set("", (resolvedRoute, request) => {
-                    //console.log("page not found: ", + resolvedRoute);
-                    request.response = () => app.route(`?page=3#404`);
+                routeMap.push({
+                    path: "",
+                    action: (resolvedRoute, request) => {
+                        //Page not found
+                        //console.log(resolvedRoute);
+                        request.redirect(`?page=3#404`);
+                    }
                 });
 
                 //Create our routing middleware
                 document.body.addEventListener("hydrate.routing.start", event => {
+                    let request = event.detail.request;
                     try{
-                        let request = event.detail.request;
-                        let routes = request.match(request.url, ...routeMap.keys());
-                        for(let route of routes)
+                        let matchedResults = request.match(request.url, ...routeMap);
+                        for(let result of matchedResults)
                         {
-                            routeMap.get(route.route)(route, request);
-                            if(request.response)
-                            {
-                                event.preventDefault();
-                                request.response();
+                            let route = result.route;
+                            route.action(route, request);
+                            if(request.handled)
                                 break;
-                            }
                         }
                     }
                     catch(err) {
                         console.error(err);
-                        event.detail.request.reject();
+                        request.reject();
                     }
                 });
 
