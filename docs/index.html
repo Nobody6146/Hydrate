@@ -27,45 +27,68 @@
                 </div>
             </main> -->
     
-            <template h-template="ExampleTemplate">
+            <template h-template="Example-template" h-model>
                 <h1>Example Component</h1>
                 <p h-model="^.name" h-property="textContent: `${first} ${last}`"></p>
             </template>
-            <template h-template="ListTemplate">
+            <template h-template="List-template">
                 <li h-model="^" h-property="textContent: `key: ${$detail.modelName}, value: ${$detail.state}`"></li>
             </template>
-            <template h-template="SelectorTemplate">
+            <template h-template="Selector-template">
                 <option h-model="^" h-property="textContent: name; value: value;">Option</option>
             </template>
 
-            <template h-template="HomePageTemplate">
+            <template h-template="HomePage-template" h-model h-routing="resolve">
                 <h1>Home</h1>
             </template>
-            <template h-template="ContactPageTemplate">
-                <div h-model h-component="template: 'LoadingPageTemplate'" h-routing="start" h-event="routing.start: document.title = 'Demo | Contact'">
-                    
-                </div>
-                <div h-model h-component="template: 'ContactPageContentTemplate'" h-routing="resolve"></div>
-                <div h-model h-component="template: 'RejectedPageTemplate'" h-routing="reject"></div>
+            <template h-template="ContactPage-template" h-model h-route="#contact">
+                <loadingpage-template></loadingpage-template>
+                <contactpagecontent-template></ContactPageContent-template>
+                <rejectedpage-template></rejectedpage-template>
             </template>
-            <template h-template="ContactPageContentTemplate">
+            <template h-template="ContactPageContent-template" h-model h-routing="resolve">
                 <h1>Contact</h1>
             </template>
-            <template h-template="PageNotFoundTemplate">
+            <template h-template="PageNotFound-template"  h-model h-route="#404" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | 404'">
                 <h1>Page not found!</h1>
             </template>
-            <template h-template="LoadingPageTemplate">
+            <template h-template="LoadingPage-template" h-model h-routing="start" h-event="routing.start: document.title = 'Demo | Contact'">
                 Loading...
             </template>
-            <template h-template="RejectedPageTemplate">
+            <template h-template="RejectedPage-template" h-model h-routing="reject">
                 Error loading page
             </template>
+            <template h-template="aboutpage-template" h-model h-source="demopages/about.html" h-route="#about" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | About'"></template>
 
 
-            <template h-template="StarTemplate">
+            <template h-template="Star-template">
                 <div h-model="^" h-property="innerText: $id() <= $state ? '&#9733' : '&#9734'" h-id
                     h-on="click: $detail.parent[$detail.modelName] = $id()">
                 Star</div>
+            </template>
+
+            <template h-template="calculator-template" h-model="default.calculator">
+                <input h-model="^" h-property="value: value" h-input="value: $element.value">
+                <h1 h-model="^" h-property="textContent: $component.calculate(value)"></h1>
+                <script h-script>
+                    {
+                        calculate: function(value) {
+                            return value * 3;
+                        },
+                        onInit: function(eventDetail) {
+                            console.log("initialize calculator", eventDetail);
+                            console.log(this);
+                            this.$model.value = 10;
+                        },
+                        onRender: function(eventDetail) {
+                            console.log("Rendered calculator", eventDetail);
+                        },
+                        onDestroy: function() {
+                            console.log("initialize calculator");
+                            this.$hydrate.unbind(this.$model);
+                        }
+                    }
+                </script>
             </template>
 
 
@@ -78,14 +101,14 @@
                     
                     <div>
                         <div h-route="#home">
-                            <div h-model h-component="template: 'LoadingTemplate'" h-routing="start" h-event="routing.start: document.title = 'Demo | Home'"></div>
-                            <div h-model h-component="template: 'HomePageTemplate'" h-routing="resolve"></div>
+                            <div h-model h-routing="start" h-event="routing.start: document.title = 'Demo | Home'"></div>
+                            <homepage-template></homepage-template>
                         </div>
-                        <div h-model h-component="url: 'demopages/about.html'" h-route="#about" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | About'"></div>
-                        <div h-model h-component="template: 'ContactPageTemplate'" h-route="#contact">
+                        <aboutpage-template></aboutpage-template>
+                        <contactpage-template>
                             Check
-                        </div>
-                        <div h-model h-component="template: 'PageNotFoundTemplate'" h-route="#404" h-routing="resolve" h-event="routing.resolve: document.title = 'Demo | 404'"></div>
+                        </contactpage-template>
+                        <pageNotFound-template></PageNotFound-template>
                     </div>
                 </div>
 
@@ -106,18 +129,18 @@
                 <div h-model="default" h-property="'innerHTML': text" h-attribute="name: text">
                     Sample text
                 </div>
-                <div h-model h-component="template: 'ExampleTemplate'">
+                <example-template>
                     Placeholder text that will be deleted
                 </div>
-                <ul h-model="default.list" h-component="template: 'ListTemplate'">
+                <list-template h-model="default.list">
                     Placeholder list will be deleted
-                </ul>
+                </list-template>
                 <p h-model="default.person.name" h-property="textContent: `${first} ${last}`">lnkjhk</p>
                 <p h-model="default.person.name" h-property="textContent: first"></p>
 
                 <select h-model="default.selector" h-property="value: value" h-mutation="child: added">
                     <option selected value="" disabled>Select Value</option>
-                    <optgroup h-model="default.selector.options" h-component="template: 'SelectorTemplate'">
+                    <optgroup h-model="default.selector.options" h-component="selector-template">
                         <option>Test 1</option>
                         <option>Test 2</option>
                     </optgroup>
@@ -125,9 +148,11 @@
 
                 <input h-model="default.toggle" h-class="red: shouldRed" h-toggle="disabled: shouldDisable" value="Test" >
                 
-                <div h-model="default.rank" h-component="template: 'StarTemplate'" h-duplicate="5"
+                <star-template h-model="default.rank" h-duplicate="5"
                     style="display: flex;">
-                </div>
+                </star-template>
+
+                <calculator-template></calculator-template>
             </main>
     
             <footer>
@@ -159,11 +184,11 @@
                 // //
                 // document.body.addEventListener("hydrate.route", event => console.log(event.type, event.detail));
                 //
-                document.body.addEventListener("hydrate.input", event => console.log(event.type, event.detail));
+                //document.body.addEventListener("hydrate.input", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.on", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.routing.start", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate.routing.resolve", event => console.log(event.type, event.detail));
-                document.body.addEventListener("hydrate.routing.reject", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate.routing.resolve", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate.routing.reject", event => console.log(event.type, event.detail));
                 
 
                 let options = {
@@ -188,6 +213,9 @@
                     shouldDisable: false
                 }
                 model.rank = 3;
+                model.calculator = {
+                    value: 0
+                }
 
                 //Define our client side routes
                 let routeMap = [];
