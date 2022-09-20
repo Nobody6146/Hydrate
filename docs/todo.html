@@ -206,7 +206,7 @@
                 <div class="form-control form-control-check">
                 <label for="reminder">Set Reminder</label>
                 <input type="checkbox" name="reminder" id="reminder"
-                    h-model="^.task" h-property="value: reminder" h-input="reminder: $element.value"
+                    h-model="^.task" h-property="checked: reminder" h-input="reminder: $element.checked"
                 />
                 </div>
                 <button class="btn btn-block"
@@ -218,6 +218,29 @@
         </template>
 
         <template h-template="app-task-item">
+            <style>
+                
+                .task {
+                    font-family: "Poppins", sans-serif;
+                background: #f4f4f4;
+                margin: 5px;
+                padding: 10px 20px;
+                cursor: pointer;
+            }
+            
+            .task.reminder {
+                border-left: 5px solid green;
+            }
+            
+            .task h3 {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            h3, p {
+                margin: 0px;
+            }
+            </style>
             <div class="task"
                 h-model="^"
                 h-class="reminder: reminder"
@@ -248,7 +271,7 @@
                             return;
                         tasks.splice(index, 1);
                         TaskService.saveTasks(tasks);
-                        this.$hydrate.parent(this.$model).tasks = tasks;
+                        this.$hydrate.parent(this.$model)[this.$hydrate.name(this.$model)] = tasks;
                     }
                 }
             </script>
