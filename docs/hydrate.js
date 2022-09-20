@@ -999,7 +999,15 @@ class HydrateApp {
                     .then(html => {
                     let div = document.createElement("div");
                     div.innerHTML = html;
-                    element.content.append(...div.childNodes);
+                    let template = div.querySelector("template");
+                    if (!template)
+                        return;
+                    //Load up the attributes
+                    for (let attribute of template.attributes)
+                        if (!element.hasAttribute(attribute.name))
+                            element.setAttribute(attribute.name, attribute.value);
+                    //Load up the HTML
+                    element.content.append(...template.content.childNodes);
                     this.#fillComponentTypeAndLinkComponents(element, typeName, type);
                 });
                 return;
@@ -1015,11 +1023,15 @@ class HydrateApp {
         const componentAttribute = this.attribute(this.#options.attribute.names.component);
         const scriptAttribute = this.attribute(this.#options.attribute.names.script);
         const componentBodySelector = `script[${scriptAttribute}]`;
+        const modelAttribute = this.attribute(this.#options.attribute.names.model);
         //Load attributes
         for (let attribute of element.attributes)
             if (attribute.name !== templateAttribute)
                 type.attributes.set(attribute.name, attribute.value);
         type.attributes.set(this.attribute(this.#options.attribute.names.component), typeName);
+        //Set to modeless component by default if no model was specified
+        if (!type.attributes.has(modelAttribute))
+            type.attributes.set(modelAttribute, "");
         //Load template nodes
         for (let node of element.content.childNodes) {
             if (node instanceof HTMLStyleElement) {
@@ -1058,6 +1070,11 @@ class HydrateApp {
             Object.defineProperty(component.data, '$hydrate', {
                 get() {
                     return hydrate;
+                }
+            });
+            Object.defineProperty(component.data, '$root', {
+                get() {
+                    return component.element;
                 }
             });
             Object.defineProperty(component.data, '$modelPath', {
