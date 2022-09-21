@@ -8,7 +8,6 @@ class HydrateAppOptions {
     attribute?:HydrateAttributeOptions;
     router?:HydrateRouterOptions;
     debug?:HydrateDebugOptions;
-    lazyLoadingThreshHold?:number[];
 
     constructor() {
         this.dom = new HydrateDomOptions();
@@ -16,7 +15,6 @@ class HydrateAppOptions {
         this.attribute = new HydrateAttributeOptions();
         this.router = new HydrateRouterOptions();
         this.debug = new HydrateDebugOptions();
-        this.lazyLoadingThreshHold = null;
     }
 }
 
@@ -585,9 +583,7 @@ class HydrateApp {
         this.root.addEventListener("input", this.#inputListener.bind(this));
         window.addEventListener("popstate", this.#popStateListener.bind(this));
 
-        this.#intersectionObserver = new IntersectionObserver(this.#intersectionCallback.bind(this), {
-            threshold: this.#options.lazyLoadingThreshHold
-        });
+        this.#intersectionObserver = new IntersectionObserver(this.#intersectionCallback.bind(this));
         this.#lazyElements = new Set();
         
         this.#loadTemplates();

@@ -4,14 +4,12 @@ class HydrateAppOptions {
     attribute;
     router;
     debug;
-    lazyLoadingThreshHold;
     constructor() {
         this.dom = new HydrateDomOptions();
         this.model = new HydrateModelOptions();
         this.attribute = new HydrateAttributeOptions();
         this.router = new HydrateRouterOptions();
         this.debug = new HydrateDebugOptions();
-        this.lazyLoadingThreshHold = null;
     }
 }
 class HydrateDebugOptions {
@@ -429,9 +427,7 @@ class HydrateApp {
         this.#mutationObserver = this.#observeDom(this.#root);
         this.root.addEventListener("input", this.#inputListener.bind(this));
         window.addEventListener("popstate", this.#popStateListener.bind(this));
-        this.#intersectionObserver = new IntersectionObserver(this.#intersectionCallback.bind(this), {
-            threshold: this.#options.lazyLoadingThreshHold
-        });
+        this.#intersectionObserver = new IntersectionObserver(this.#intersectionCallback.bind(this));
         this.#lazyElements = new Set();
         this.#loadTemplates();
         this.#trackLazyElements();
