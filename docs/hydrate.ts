@@ -8,6 +8,7 @@ class HydrateAppOptions {
     attribute?:HydrateAttributeOptions;
     router?:HydrateRouterOptions;
     debug?:HydrateDebugOptions;
+    lazyLoadingThreshHold?:number[];
 
     constructor() {
         this.dom = new HydrateDomOptions();
@@ -15,6 +16,7 @@ class HydrateAppOptions {
         this.attribute = new HydrateAttributeOptions();
         this.router = new HydrateRouterOptions();
         this.debug = new HydrateDebugOptions();
+        this.lazyLoadingThreshHold = null;
     }
 }
 
@@ -88,7 +90,7 @@ class HydrateAttributeNamesOptions
     //Conditionals
     //static = "static"; //Executes once
     if?:string; //if the element should respond
-    
+    lazy?:string;
 
     //Functions and execution
     event?:string; //Calls a callback any time the framework event type is triggered
@@ -132,6 +134,7 @@ class HydrateAttributeNamesOptions
 
         //Conditionals
         this.if = "if";
+        this.lazy = "lazy";
 
         //Functions and execution
         this.event = "event"; //Calls a callback any time the framework event type is triggered
@@ -551,14 +554,16 @@ class HydrateApp {
     #models:object;
 
     #mutationObserver : MutationObserver;
+    #intersectionObserver: IntersectionObserver;
 
     #componentTypes:Map<string, HydrateComponentType>;
     #components:Map<HTMLElement, HydrateComponent>;
 
     #routingState:HydrateRoutingState;
 
+    #lazyComponents:Set<HTMLElement>;
+
     constructor(options?:HydrateAppOptions) {
-        
         this.#options = {...new HydrateAppOptions(), ...options};
         this.#htmlExcecuters = new Map();
         this.#onDomEventListeners = new Map();
@@ -579,8 +584,14 @@ class HydrateApp {
         this.#mutationObserver = this.#observeDom(this.#root);
         this.root.addEventListener("input", this.#inputListener.bind(this));
         window.addEventListener("popstate", this.#popStateListener.bind(this));
+
+        this.#intersectionObserver = new IntersectionObserver(this.#intersectionCallback.bind(this), {
+            threshold: this.#options.lazyLoadingThreshHold
+        });
+        this.#lazyComponents = new Set();
         
         this.#loadTemplates();
+        this.#trackLazyComponents();
         this.#trackElements();
         //this.#linkComponents();
     }
@@ -918,6 +929,7 @@ class HydrateApp {
         let updatedElements:HTMLElement[] = [];
         this.#trackableElementSelector
         const trackableSelector = this.#trackableElementSelector;
+        const lazyComponentSelector = this.#lazyLoadComponentSelector;
 
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
         const componentTemplateSelector = this.#componentTemplateSelector;
@@ -937,18 +949,23 @@ class HydrateApp {
                         return;
                     if(this.#options.attribute.trackables.indexOf(mutation.attributeName) >= 0)
                     {
+                        let element = mutation.target;
+                        if(element.matches(lazyComponentSelector))
+                            this.#trackLazyComponent(element);
+                        else 
+                            this.#untrackLazyComponent(element);
+                        this.#linkComponent(element, true);
+                        if(mutation.attributeName === templateAttribute && element.matches(componentTemplateSelector))
+                            this.#loadTemplate(element as HTMLTemplateElement, true);
+
                         if(mutation.target.matches(trackableSelector))
                         {
-                            let element = mutation.target;
-                            this.#linkComponent(element);
                             let newTrack = this.#trackElement(element);
                             if(!newTrack) {
                                 //Wasn't a new track, but a core value changed, so rebind the element
                                 let modelName = element.getAttribute(modelAttribute);
                                 this.dispatch(element, "bind", modelName, undefined);
                             }
-                            if(mutation.attributeName === templateAttribute && element.matches(componentTemplateSelector))
-                                this.#loadTemplate(element as HTMLTemplateElement);
                         }
                         else
                         {
@@ -972,17 +989,21 @@ class HydrateApp {
                             return;
                         addedElement = true;
                         
-                        this.#linkComponent(node);
+                        this.#trackLazyComponent(node);
+                        this.#linkComponent(node, true);
                         this.#trackElement(node);
                         let elements = node.querySelectorAll<HTMLElement>(trackableSelector);
                         if(node.matches(componentTemplateSelector))
-                            this.#loadTemplate(node as HTMLTemplateElement);
+                            this.#loadTemplate(node as HTMLTemplateElement, true);
+                        for(let element of node.querySelectorAll<HTMLElement>(lazyComponentSelector))
+                            this.#trackLazyComponent(element);
                         for(let element of elements)
                         {
-                            this.#linkComponent(element);
+                            this.#trackLazyComponent(node);
+                            this.#linkComponent(element, true);
                             this.#trackElement(element);
                             if(element.matches(componentTemplateSelector))
-                                this.#loadTemplate(element as HTMLTemplateElement);
+                                this.#loadTemplate(element as HTMLTemplateElement, true);
                         }
                     });
                     if(addedElement && mutation.target instanceof HTMLElement)
@@ -1000,11 +1021,15 @@ class HydrateApp {
                         if(!(node instanceof HTMLElement))
                             return;
                         removedElement = true;
+                        this.#untrackLazyComponent(node);
                         this.#untrackElement(node);
                         this.#unlinkComponent(node);
                         let elements = node.querySelectorAll<HTMLElement>(trackableSelector);
+                        for(let element of node.querySelectorAll<HTMLElement>(lazyComponentSelector))
+                            this.#untrackLazyComponent(element);
                         for(let element of elements)
                         {
+                            this.#untrackLazyComponent(element);
                             this.#untrackElement(element);
                             this.#unlinkComponent(element);
                         }
@@ -1030,6 +1055,36 @@ class HydrateApp {
             }
         });
     }
+
+    #intersectionCallback(entries:IntersectionObserverEntry[]):void {
+        for(let entry of entries)
+        {
+            if(entry.isIntersecting)
+            {
+                this.#intersectionObserver.unobserve(entry.target);
+                this.#linkComponent(entry.target as HTMLElement, false);
+            }
+        }
+    }
+
+    #trackLazyComponents() {
+        for(let element of this.#root.querySelectorAll(this.#lazyLoadComponentSelector))
+            this.#intersectionObserver.observe(element);
+    }
+
+    #trackLazyComponent(element:Element) {
+        if(element.matches(this.#lazyLoadComponentSelector))
+            this.#intersectionObserver.observe(element);
+    }
+
+    #untrackLazyComponent(element:Element) {
+        this.#intersectionObserver.unobserve(element);
+    }
+
+    get #lazyLoadComponentSelector() {
+        return `:not(template)[${this.attribute(this.#options.attribute.names.lazy)}]`;
+    }
+
     #inputListener(event:InputEvent) {
         let target = event.target as HTMLElement;
         if(!target.matches(this.#trackableElementSelector))
@@ -1256,13 +1311,15 @@ class HydrateApp {
         const templateAttribute = this.attribute(this.#options.attribute.names.template);
         const templateSelector = this.#componentTemplateSelector;
         for(let template of this.root.querySelectorAll<HTMLTemplateElement>(templateSelector))
-            this.#loadTemplate(template);
+            this.#loadTemplate(template, true);
     }
 
-    #loadTemplate(element:HTMLTemplateElement) {
+    #loadTemplate(element:HTMLTemplateElement, lazyLoad:boolean):void {
         try {
             if(!element.matches(this.#componentTemplateSelector))
                 return null;
+            if(lazyLoad && element.hasAttribute(this.attribute(this.#options.attribute.names.lazy)))
+                return;
             const typeName = element.getAttribute(this.attribute(this.#options.attribute.names.template)).toLowerCase();
 
             const type:HydrateComponentType = {
@@ -1319,6 +1376,8 @@ class HydrateApp {
             if(attribute.name !== templateAttribute)
                 type.attributes.set(attribute.name, attribute.value);
         type.attributes.set(this.attribute(this.#options.attribute.names.component), typeName);
+        //Remove the lazy attribute to not copy over to component
+        type.attributes.delete(this.attribute(this.#options.attribute.names.lazy));
         //Set to modeless component by default if no model was specified
         if(!type.attributes.has(modelAttribute))
             type.attributes.set(modelAttribute, "");
@@ -1340,18 +1399,42 @@ class HydrateApp {
             type.template.push(node);
         }
 
+        console.info("Template loaded", typeName);
+
         //Link all components of this type
         for(let element of this.#root.querySelectorAll<HTMLElement>(`${typeName},[${componentAttribute}=${typeName}]`))
-            this.#linkComponent(element);
+            this.#linkComponent(element, true);
     }
 
-    #linkComponent(element:HTMLElement):void {
+    get lazy() {
+        return this.#lazyComponents;
+    }
+
+    #linkComponent(element:HTMLElement, lazyLoad:boolean):void {
+        const elementIsLazy = element.hasAttribute(this.attribute(this.#options.attribute.names.lazy));
+        const lazy = lazyLoad && elementIsLazy;
+        //Don't load if we're lazy && not trying to load
+        if(lazy && !this.#lazyComponents.has(element))
+            return;
         try {
             const componentAttribute = this.attribute(this.#options.attribute.names.component);
             const componentTypeName = element.getAttribute(componentAttribute) ?? element.tagName.toLowerCase();
             let componentType = this.#componentTypes.get(componentTypeName);
             if(componentType == null)
+            {
+                const templateAttribute = this.attribute(this.#options.attribute.names.template);
+                const templateSelector = `template[${templateAttribute}=${componentTypeName}]`;
+                const template = this.root.querySelector<HTMLTemplateElement>(templateSelector);
+                if(template)
+                {
+                    //Queue the lazy component to load next time it gets the chance and the template is loaded
+                    if(elementIsLazy)
+                        this.#lazyComponents.add(element);
+                    this.#loadTemplate(template, false);
+                    return;
+                }
                 return;
+            }
             let component = this.#components.get(element);
             if(component?.type == componentType)
                 return;
@@ -1399,9 +1482,15 @@ class HydrateApp {
             }
 
             this.#components.set(element, component);
+            //remove from lazy load queue
+            this.#lazyComponents.delete(element);
+
+            //Copy component attributes over from template
             for(let attribute of componentType.attributes.keys())
                 if(!element.hasAttribute(attribute))
                     element.setAttribute(attribute, componentType.attributes.get(attribute));
+
+            console.info("Component loaded", element);
         }
         catch(error) {
             console.error(error);
@@ -2202,7 +2291,6 @@ class HydrateApp {
             }
             delayHandlers.set(eventType, dispatch);
             dispatch.timeout = setTimeout(() => {
-                console.log("timeout reached");
                 let dispatch = app.#elementHandlerDelays?.get(element)?.get(eventType);
                 if(dispatch == null)
                     return;
@@ -2270,7 +2358,6 @@ class HydrateApp {
         };
         delayHandlers.set(eventType, dispatch);
         dispatch.timeout = setTimeout(() => {
-            console.log("timeout reached");
             let dispatch = app.#elementHandlerDelays?.get(element)?.get(eventType);
             if(dispatch == null)
                 return;
@@ -2296,7 +2383,6 @@ class HydrateApp {
         const app = this;
         
         setTimeout(() => {
-            console.log("timeout reached");
             let modelExecuters = app.#getExcecuters(eventType, [element], propPath)?.get(element);
             app.#dispatchDomEvents(eventType, element, modelExecuters, propPath, detail, target, data);
         }, delay);

@@ -67,9 +67,12 @@
                 Star</div>
             </template>
 
-            <template h-template="calculator-template" h-model="default.calculator">
+            <template h-template="calculator-template" h-model="default.calculator" h-lazy>
+                <style>
+
+                </style>
                 <p>This calculator calculates the square of numbers less than 20!</p>
-                <input h-model="^" h-property="value: value" h-input="value: $element.value" h-if="input: $element.value < 20">
+                <input id="calculator" h-model="^" h-property="value: value" h-input="value: $element.value" h-if="input: $element.value < 20">
                 <h1 h-model="^" h-property="textContent: $component.calculate(value)"></h1>
                 <script h-script>
                     {
@@ -153,7 +156,7 @@
                     style="display: flex;">
                 </star-template>
 
-                <calculator-template></calculator-template>
+                <calculator-template h-lazy></calculator-template>
 
                 <p h-model="testInitAttribute.nonExistiant.property" h-init h-property="textContent: 'We initialized this model that did not exist!'"></p>
             </main>
