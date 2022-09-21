@@ -72,6 +72,7 @@ class HydrateAttributeNamesOptions
     //Linking
     model?:string
     nested?:string;//Will also respond to nested property changes
+    init?:string;//Will initialize the model if it isn't
 
     //Basic element manipulation
     property?:string;
@@ -86,7 +87,8 @@ class HydrateAttributeNamesOptions
 
     //Conditionals
     //static = "static"; //Executes once
-    //condition = "condition";
+    if?:string; //if the element should respond
+    
 
     //Functions and execution
     event?:string; //Calls a callback any time the framework event type is triggered
@@ -115,6 +117,7 @@ class HydrateAttributeNamesOptions
         //Linking
         this.model = "model";
         this.nested = "nested";//Will also respond to nested property changes
+        this.init = "init";
 
         //Basic element manipulation
         this.property = "property";
@@ -126,6 +129,9 @@ class HydrateAttributeNamesOptions
         //Binding
         this.input = "input";
         this.mutation = "mutation";
+
+        //Conditionals
+        this.if = "if";
 
         //Functions and execution
         this.event = "event"; //Calls a callback any time the framework event type is triggered
@@ -530,6 +536,7 @@ interface HydrateComponent {
     type:HydrateComponentType;
     data:any;
     initialized:boolean;
+    mutationObserver:MutationObserver;
 }
 
 class HydrateApp {
@@ -543,16 +550,7 @@ class HydrateApp {
     #root:HTMLElement;
     #models:object;
 
-    #observer : MutationObserver;
-    #observerOptions = <MutationObserverInit>{
-        subtree: true,
-        childList: true,
-        attributes: true,
-        attributeOldValue: true,
-        characterData: true,
-        characterDataOldValue: true,
-        //attributeFilter: [...this.#options.attribute.trackables],
-    }
+    #mutationObserver : MutationObserver;
 
     #componentTypes:Map<string, HydrateComponentType>;
     #components:Map<HTMLElement, HydrateComponent>;
@@ -578,8 +576,7 @@ class HydrateApp {
             eventType: null
         };
 
-        this.#observer = new MutationObserver(this.#mutationCallback.bind(this));
-        this.#observer.observe(this.root, this.#observerOptions);
+        this.#mutationObserver = this.#observeDom(this.#root);
         this.root.addEventListener("input", this.#inputListener.bind(this));
         window.addEventListener("popstate", this.#popStateListener.bind(this));
         
@@ -593,6 +590,20 @@ class HydrateApp {
     }
     get options():HydrateAppOptions {
         return this.#options;
+    }
+
+    #observeDom(node:Node):MutationObserver {
+        const observer = new MutationObserver(this.#mutationCallback.bind(this));
+        observer.observe(node, <MutationObserverInit>{
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeOldValue: true,
+            characterData: true,
+            characterDataOldValue: true,
+            //attributeFilter: [...this.#options.attribute.trackables],
+        });
+        return observer;
     }
 
     route(url?:string, state?:any):void {
@@ -1035,15 +1046,22 @@ class HydrateApp {
         this.#options.attribute.trackables.push(
             this.attribute(this.#options.attribute.names.property),
             this.attribute(this.#options.attribute.names.model),
+            this.attribute(this.#options.attribute.names.init),
+            this.attribute(this.#options.attribute.names.component),
             this.attribute(this.#options.attribute.names.attribute),
             this.attribute(this.#options.attribute.names.property),
             this.attribute(this.#options.attribute.names.toggle),
             this.attribute(this.#options.attribute.names.class),
             this.attribute(this.#options.attribute.names.remove),
+            this.attribute(this.#options.attribute.names.input),
+            this.attribute(this.#options.attribute.names.mutation),
+            this.attribute(this.#options.attribute.names.if),
             this.attribute(this.#options.attribute.names.event),
             this.attribute(this.#options.attribute.names.on),
             this.attribute(this.#options.attribute.names.component),
+            this.attribute(this.#options.attribute.names.duplicate),
             this.attribute(this.#options.attribute.names.route),
+            this.attribute(this.#options.attribute.names.routing),
             this.attribute(this.#options.attribute.names.mutation),
             this.attribute(this.#options.attribute.names.source),
         );
@@ -1052,6 +1070,21 @@ class HydrateApp {
     }
 
     #addStandardAttributeHandlers () {
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.init), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
+            if(eventDetails.modelName !== "" && eventDetails.model != null)
+                return;
+            let model = eventDetails.base;
+            if(model == null)
+                model = this.bind(eventDetails.baseName, {});
+            const nameParts = eventDetails.modelPath.split(".");
+            for(let i = 1; i < nameParts.length; i++)
+            {
+                const name = nameParts[i];
+                if(model[name] == null)
+                    model[name] = {};
+                model = model[name];
+            }
+        });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.property), (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails) => {
             if(eventDetails.modelName !== "" && eventDetails.model == null)
                 return;
@@ -1328,7 +1361,8 @@ class HydrateApp {
                 initialized: false,
                 element,
                 type: componentType,
-                data: new componentType.classBody()
+                data: new componentType.classBody(),
+                mutationObserver: null
             };
 
             //Add some default behavior to the component class
@@ -1361,7 +1395,7 @@ class HydrateApp {
             if(componentType.shadowDom && !element.shadowRoot)
             {
                 element.attachShadow({mode: 'open'});
-                this.#observer.observe(element.shadowRoot, this.#observerOptions);
+                component.mutationObserver = this.#observeDom(element.shadowRoot);
             }
 
             this.#components.set(element, component);
@@ -1384,6 +1418,8 @@ class HydrateApp {
         if(component.data.onDestroy instanceof Function)
             component.data.onDestroy();
         this.#components.delete(element);
+        if(component.mutationObserver)
+            this.#mutationObserver.disconnect();
     }
 
     #buildComponent(component:HydrateComponent, eventDetails:HydrateEventDetails){// template:NodeListOf<ChildNode>, modelAttribute:string, eventDetails:HydrateEventDetails) {
@@ -1748,6 +1784,7 @@ class HydrateApp {
                 possibleEventTypes.push(key as HydrateEventType);
         }
         
+        this.#addInitHandler(element, modelPath, possibleEventTypes);
         this.#addSetPropertyHandler(element, modelPath, possibleEventTypes);
         this.#addSetAttributeHandler(element, modelPath, possibleEventTypes);
         this.#addToggleClassHandler(element, modelPath, possibleEventTypes);
@@ -1758,6 +1795,35 @@ class HydrateApp {
         this.#addElementEventListenersHandler(element, modelPath, possibleEventTypes);
         this.#addGenerateComponentHandler(element, modelPath, possibleEventTypes);
         return created;
+    }
+
+    #addInitHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
+        let attribute = this.attribute(this.#options.attribute.names.init);
+        let eventTypes:HydrateEventType[] = [
+            'track',
+            'untrack',
+            'bind',
+            'unbind',
+            'set',
+            'input',
+            "on",
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
     }
 
     #addSetPropertyHandler(element:HTMLElement, modelPath:string, possibleEventTypes:HydrateEventType[]):void {
@@ -2243,7 +2309,7 @@ class HydrateApp {
             return;
         for(let modelPath of modelExecuters.keys())
         {
-            let event:any;
+            let event:CustomEvent;
             if(propPath === modelPath) {
                 event = this.#createEvent(element, eventType, this.#determineEventDetailProperties(propPath, "model"), null, data);
             }
@@ -2258,6 +2324,10 @@ class HydrateApp {
                 let nestedEvent = this.#createEvent(target, eventType, this.#determineEventDetailProperties(propPath, "property"), null, data);
                 event = this.#createEvent(element, eventType, this.#determineEventDetailProperties(modelPath, "model"), nestedEvent.detail, data);
             }
+
+            if(!this.#shouldUpdateComponent(event))
+                continue;
+
             for(let executer of modelExecuters.get(modelPath))
             {
                 try{
@@ -2267,6 +2337,29 @@ class HydrateApp {
                     console.error(error);
                 }
             }
+        }
+    }
+
+    #shouldUpdateComponent(event:CustomEvent):boolean {
+        const detail = event.detail as HydrateEventDetails;
+        const ifAttribute = this.attribute(this.#options.attribute.names.if);
+        let args = this.parseAttributeArguments(detail.element, ifAttribute);
+        const condition = detail.element.getAttribute(ifAttribute);
+        if(args == null || args.length === 0)
+            return true;
+        try{
+            for(let arg of args)
+            {
+                if(arg.field !== "*" && arg.field !== detail.type)
+                    continue;
+                if(!this.resolveArgumentValue(detail, arg, null))
+                    return false;
+            }
+            return true;
+        } 
+        catch(error) {
+            console.error(error);
+            return false;
         }
     }
 

@@ -68,12 +68,13 @@
             </template>
 
             <template h-template="calculator-template" h-model="default.calculator">
-                <input h-model="^" h-property="value: value" h-input="value: $element.value">
+                <p>This calculator calculates the square of numbers less than 20!</p>
+                <input h-model="^" h-property="value: value" h-input="value: $element.value" h-if="input: $element.value < 20">
                 <h1 h-model="^" h-property="textContent: $component.calculate(value)"></h1>
                 <script h-script>
                     {
                         calculate: function(value) {
-                            return value * 3;
+                            return value * value;
                         },
                         onInit: function(eventDetail) {
                             console.log("initialize calculator", eventDetail);
@@ -153,6 +154,8 @@
                 </star-template>
 
                 <calculator-template></calculator-template>
+
+                <p h-model="testInitAttribute.nonExistiant.property" h-init h-property="textContent: 'We initialized this model that did not exist!'"></p>
             </main>
     
             <footer>
