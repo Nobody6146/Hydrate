@@ -410,7 +410,7 @@ class HydrateApp {
     #componentTypes;
     #components;
     #routingState;
-    #lazyComponents;
+    #lazyElements;
     constructor(options) {
         this.#options = { ...new HydrateAppOptions(), ...options };
         this.#htmlExcecuters = new Map();
@@ -432,9 +432,9 @@ class HydrateApp {
         this.#intersectionObserver = new IntersectionObserver(this.#intersectionCallback.bind(this), {
             threshold: this.#options.lazyLoadingThreshHold
         });
-        this.#lazyComponents = new Set();
+        this.#lazyElements = new Set();
         this.#loadTemplates();
-        this.#trackLazyComponents();
+        this.#trackLazyElements();
         this.#trackElements();
         //this.#linkComponents();
     }
@@ -727,10 +727,9 @@ class HydrateApp {
         return map;
     }
     #mutationCallback(mutations, observer) {
-        let updatedElements = [];
         this.#trackableElementSelector;
         const trackableSelector = this.#trackableElementSelector;
-        const lazyComponentSelector = this.#lazyLoadComponentSelector;
+        const lazyElementSelector = this.#lazyLoadElementSelector;
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
         const componentTemplateSelector = this.#componentTemplateSelector;
         const templateAttribute = this.attribute(this.#options.attribute.names.template);
@@ -747,16 +746,16 @@ class HydrateApp {
                             return;
                         if (this.#options.attribute.trackables.indexOf(mutation.attributeName) >= 0) {
                             let element = mutation.target;
-                            if (element.matches(lazyComponentSelector))
-                                this.#trackLazyComponent(element);
+                            if (element.matches(lazyElementSelector))
+                                this.#trackLazyElement(element);
                             else
-                                this.#untrackLazyComponent(element);
-                            this.#linkComponent(element, true);
+                                this.#untrackLazyElement(element);
+                            this.#linkComponent(element);
                             if (mutation.attributeName === templateAttribute && element.matches(componentTemplateSelector))
                                 this.#loadTemplate(element, true);
                             if (mutation.target.matches(trackableSelector)) {
                                 let newTrack = this.#trackElement(element);
-                                if (!newTrack) {
+                                if (newTrack === false) {
                                     //Wasn't a new track, but a core value changed, so rebind the element
                                     let modelName = element.getAttribute(modelAttribute);
                                     this.dispatch(element, "bind", modelName, undefined);
@@ -781,17 +780,17 @@ class HydrateApp {
                             if (!(node instanceof HTMLElement) || node.parentNode == null)
                                 return;
                             addedElement = true;
-                            this.#trackLazyComponent(node);
-                            this.#linkComponent(node, true);
+                            this.#trackLazyElement(node);
+                            this.#linkComponent(node);
                             this.#trackElement(node);
                             let elements = node.querySelectorAll(trackableSelector);
                             if (node.matches(componentTemplateSelector))
                                 this.#loadTemplate(node, true);
-                            for (let element of node.querySelectorAll(lazyComponentSelector))
-                                this.#trackLazyComponent(element);
+                            for (let element of node.querySelectorAll(lazyElementSelector))
+                                this.#trackLazyElement(element);
                             for (let element of elements) {
-                                this.#trackLazyComponent(node);
-                                this.#linkComponent(element, true);
+                                this.#trackLazyElement(node);
+                                this.#linkComponent(element);
                                 this.#trackElement(element);
                                 if (element.matches(componentTemplateSelector))
                                     this.#loadTemplate(element, true);
@@ -809,14 +808,14 @@ class HydrateApp {
                             if (!(node instanceof HTMLElement))
                                 return;
                             removedElement = true;
-                            this.#untrackLazyComponent(node);
+                            this.#untrackLazyElement(node);
                             this.#untrackElement(node);
                             this.#unlinkComponent(node);
                             let elements = node.querySelectorAll(trackableSelector);
-                            for (let element of node.querySelectorAll(lazyComponentSelector))
-                                this.#untrackLazyComponent(element);
+                            for (let element of node.querySelectorAll(lazyElementSelector))
+                                this.#untrackLazyElement(element);
                             for (let element of elements) {
-                                this.#untrackLazyComponent(element);
+                                this.#untrackLazyElement(element);
                                 this.#untrackElement(element);
                                 this.#unlinkComponent(element);
                             }
@@ -843,23 +842,24 @@ class HydrateApp {
     #intersectionCallback(entries) {
         for (let entry of entries) {
             if (entry.isIntersecting) {
-                this.#intersectionObserver.unobserve(entry.target);
-                this.#linkComponent(entry.target, false);
+                const element = entry.target;
+                this.#intersectionObserver.unobserve(element);
+                element.removeAttribute(this.attribute(this.#options.attribute.names.lazy));
             }
         }
     }
-    #trackLazyComponents() {
-        for (let element of this.#root.querySelectorAll(this.#lazyLoadComponentSelector))
+    #trackLazyElements() {
+        for (let element of this.#root.querySelectorAll(this.#lazyLoadElementSelector))
             this.#intersectionObserver.observe(element);
     }
-    #trackLazyComponent(element) {
-        if (element.matches(this.#lazyLoadComponentSelector))
+    #trackLazyElement(element) {
+        if (element.matches(this.#lazyLoadElementSelector))
             this.#intersectionObserver.observe(element);
     }
-    #untrackLazyComponent(element) {
+    #untrackLazyElement(element) {
         this.#intersectionObserver.unobserve(element);
     }
-    get #lazyLoadComponentSelector() {
+    get #lazyLoadElementSelector() {
         return `:not(template)[${this.attribute(this.#options.attribute.names.lazy)}]`;
     }
     #inputListener(event) {
@@ -874,7 +874,7 @@ class HydrateApp {
         this.dispatch(target, "input", modelName, event);
     }
     #addTrackableAttributes() {
-        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.init), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.remove), this.attribute(this.#options.attribute.names.input), this.attribute(this.#options.attribute.names.mutation), this.attribute(this.#options.attribute.names.if), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.on), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.duplicate), this.attribute(this.#options.attribute.names.route), this.attribute(this.#options.attribute.names.routing), this.attribute(this.#options.attribute.names.mutation), this.attribute(this.#options.attribute.names.source));
+        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.init), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.remove), this.attribute(this.#options.attribute.names.input), this.attribute(this.#options.attribute.names.mutation), this.attribute(this.#options.attribute.names.if), this.attribute(this.#options.attribute.names.lazy), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.on), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.duplicate), this.attribute(this.#options.attribute.names.route), this.attribute(this.#options.attribute.names.routing), this.attribute(this.#options.attribute.names.mutation), this.attribute(this.#options.attribute.names.source));
         let app = this;
         //this.#options.attribute.trackables.push(...this.#options.attribute.names.customs.map(x => app.attribute(x)));
     }
@@ -1116,19 +1116,16 @@ class HydrateApp {
             }
             type.template.push(node);
         }
-        console.info("Template loaded", typeName);
         //Link all components of this type
         for (let element of this.#root.querySelectorAll(`${typeName},[${componentAttribute}=${typeName}]`))
-            this.#linkComponent(element, true);
+            this.#linkComponent(element);
     }
     get lazy() {
-        return this.#lazyComponents;
+        return this.#lazyElements;
     }
-    #linkComponent(element, lazyLoad) {
-        const elementIsLazy = element.hasAttribute(this.attribute(this.#options.attribute.names.lazy));
-        const lazy = lazyLoad && elementIsLazy;
+    #linkComponent(element) {
         //Don't load if we're lazy && not trying to load
-        if (lazy && !this.#lazyComponents.has(element))
+        if (element.matches(this.#lazyLoadElementSelector))
             return;
         try {
             const componentAttribute = this.attribute(this.#options.attribute.names.component);
@@ -1138,13 +1135,8 @@ class HydrateApp {
                 const templateAttribute = this.attribute(this.#options.attribute.names.template);
                 const templateSelector = `template[${templateAttribute}=${componentTypeName}]`;
                 const template = this.root.querySelector(templateSelector);
-                if (template) {
-                    //Queue the lazy component to load next time it gets the chance and the template is loaded
-                    if (elementIsLazy)
-                        this.#lazyComponents.add(element);
+                if (template)
                     this.#loadTemplate(template, false);
-                    return;
-                }
                 return;
             }
             let component = this.#components.get(element);
@@ -1190,12 +1182,11 @@ class HydrateApp {
             }
             this.#components.set(element, component);
             //remove from lazy load queue
-            this.#lazyComponents.delete(element);
+            this.#lazyElements.delete(element);
             //Copy component attributes over from template
             for (let attribute of componentType.attributes.keys())
                 if (!element.hasAttribute(attribute))
                     element.setAttribute(attribute, componentType.attributes.get(attribute));
-            console.info("Component loaded", element);
         }
         catch (error) {
             console.error(error);
@@ -1424,6 +1415,9 @@ class HydrateApp {
             this.#trackElement(element);
     }
     #trackElement(element) {
+        //Don't load if we're lazy && not trying to load
+        if (element.matches(this.#lazyLoadElementSelector))
+            return;
         let selector = this.#trackableElementSelector;
         if (!element.matches(selector)) {
             this.#untrackElement(element);

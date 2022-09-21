@@ -136,11 +136,14 @@
                 <example-template>
                     Placeholder text that will be deleted
                 </div>
+
                 <list-template h-model="default.list">
                     Placeholder list will be deleted
                 </list-template>
                 <p h-model="default.person.name" h-property="textContent: `${first} ${last}`">lnkjhk</p>
                 <p h-model="default.person.name" h-property="textContent: first"></p>
+
+                <p h-model h-lazy h-event="track: console.log('lazy loaded element')" h-property="textContent: 'Lazy loaded text'"></p>
 
                 <select h-model="default.selector" h-property="value: value" h-mutation="child: added">
                     <option selected value="" disabled>Select Value</option>
