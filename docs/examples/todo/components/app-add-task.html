@@ -1,0 +1,37 @@
+<template h-template="app-add-task" h-model="addTask">
+    <div class="add-form"
+        h-model="ui.addTask"
+        h-toggle="hidden: !show"
+    >
+        <div class="form-control">
+        <label for="text">Task</label>
+        <input type="text" name="text" id="text" placeholder="Add Task"
+          h-model="^.task" h-property="value: text" h-input="text: $element.value"
+        />
+        </div>
+        <div class="form-control">
+        <label for="day">Day & Time</label>
+        <input type="text" name="day" id="day" placeholder="Add Day & Time"
+            h-model="^.task" h-property="value: day" h-input="day: $element.value"
+        />
+        </div>
+        <div class="form-control form-control-check">
+        <label for="reminder">Set Reminder</label>
+        <input type="checkbox" name="reminder" id="reminder"
+            h-model="^.task" h-property="checked: reminder" h-input="reminder: $element.checked"
+        />
+        </div>
+        <button class="btn btn-block"
+            h-model="^" h-on="click: addTask(task)"
+        >
+            Save Task
+        </button>
+    </div>
+    <script>
+        {
+            saveTask(task) {
+                this.$state.addTask(task);
+            }
+        }
+    </script>
+</template>

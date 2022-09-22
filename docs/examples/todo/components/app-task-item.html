@@ -1,0 +1,63 @@
+<template h-template="app-task-item">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        .task {
+                font-family: "Poppins", sans-serif;
+            background: #f4f4f4;
+            margin: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        
+        .task.reminder {
+            border-left: 5px solid green;
+        }
+        
+        .task h3 {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        h3, p {
+            margin: 0px;
+        }
+    </style>
+    <div class="task"
+        h-model="^"
+        h-class="reminder: reminder"
+        h-on="dblclick: $component.toggleReminder($state)">
+        <h3>
+            <span h-model="^" h-property="textContent: text"></span>
+            <i style="font-size: x-large;"
+                h-model="^"
+                h-on="click: $component.deleteTask($state)"
+            >X</i>
+        </h3>
+        <p h-model="^" h-property="textContent: day"></p>
+    </div>
+    <script h-script>
+        {
+            toggleReminder: function(task) {
+                const tasks = this.$state;
+                let index = tasks.indexOf(task);
+                if(index < 0)
+                    return;
+                this.$model[index].reminder = !task.reminder;
+                TaskService.saveTasks(tasks);
+            },
+            deleteTask: function(task) {
+                const tasks = this.$state;
+                let index = tasks.indexOf(task);
+                if(index < 0)
+                    return;
+                tasks.splice(index, 1);
+                TaskService.saveTasks(tasks);
+                this.$hydrate.parent(this.$model)[this.$hydrate.name(this.$model)] = tasks;
+            }
+        }
+    </script>
+</template>

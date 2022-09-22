@@ -929,6 +929,7 @@ class HydrateApp {
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
         const componentTemplateSelector = this.#componentTemplateSelector;
         const templateAttribute = this.attribute(this.#options.attribute.names.template);
+        const sourceAttribute = this.attribute(this.#options.attribute.names.source);
 
         mutations.forEach(mutation => {
             if(!mutation.target.isConnected)
@@ -950,7 +951,8 @@ class HydrateApp {
                         else 
                             this.#untrackLazyElement(element);
                         this.#linkComponent(element);
-                        if(mutation.attributeName === templateAttribute && element.matches(componentTemplateSelector))
+                        if( (mutation.attributeName === templateAttribute || mutation.attributeName === sourceAttribute)
+                            && element.matches(componentTemplateSelector))
                             this.#loadTemplate(element as HTMLTemplateElement, true);
 
                         if(mutation.target.matches(trackableSelector))
@@ -990,6 +992,8 @@ class HydrateApp {
                         let elements = node.querySelectorAll<HTMLElement>(trackableSelector);
                         if(node.matches(componentTemplateSelector))
                             this.#loadTemplate(node as HTMLTemplateElement, true);
+                        for(let element of node.querySelectorAll<HTMLTemplateElement>(componentTemplateSelector))
+                            this.#loadTemplate(element, true);
                         for(let element of node.querySelectorAll<HTMLElement>(lazyElementSelector))
                             this.#trackLazyElement(element);
                         for(let element of elements)
@@ -1209,7 +1213,10 @@ class HydrateApp {
             if(eventDetails.modelName !== "" && eventDetails.model == null)
                 return;
             const component = this.#components.get(eventDetails.element);
-            if(component == null || eventDetails.propName !== undefined)
+
+            //If we are not linked to a component, the event isn't targeting the model (and not targeting a property) unless it's the array.length property
+            if(component == null 
+                || (eventDetails.propName !== undefined && !Array.isArray(eventDetails.state) && eventDetails.propName !== "length"))
                 return;
 
             let hasRoutintAttribute = eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing));
@@ -1317,8 +1324,22 @@ class HydrateApp {
                 return null;
             if(lazyLoad && element.hasAttribute(this.attribute(this.#options.attribute.names.lazy)))
                 return;
-            const typeName = element.getAttribute(this.attribute(this.#options.attribute.names.template)).toLowerCase();
 
+            const sourceAttribute = this.attribute(this.#options.attribute.names.source);
+            const url = element.getAttribute(sourceAttribute);
+            if(url != null)
+            {
+                this.#loadRemoteTemplate(element, url);
+                return;
+            }
+            
+            const typeName = element.getAttribute(this.attribute(this.#options.attribute.names.template)).toLowerCase();
+            if(this.#componentTypes.has(typeName))
+            {
+                console.error(`A template with the name ${typeName} has already been declared`);
+                return;
+            }
+            
             const type:HydrateComponentType = {
                 shadowElement: false,
                 attributes: new Map(),
@@ -1330,30 +1351,43 @@ class HydrateApp {
             }
             this.#componentTypes.set(typeName, type);
 
-            const sourceAttribute = this.attribute(this.#options.attribute.names.source);
-            const url = element.getAttribute(sourceAttribute);
-            if(url != null)
+            const templateAttribute = this.attribute(this.#options.attribute.names.template);
+            const componentAttribute = this.attribute(this.#options.attribute.names.component);
+            const scriptAttribute = this.attribute(this.#options.attribute.names.script);
+            const componentBodySelector = `script[${scriptAttribute}]`;
+            const modelAttribute = this.attribute(this.#options.attribute.names.model);
+
+            //Load attributes
+            for(let attribute of element.attributes)
+                if(attribute.name !== templateAttribute)
+                    type.attributes.set(attribute.name, attribute.value);
+            type.attributes.set(this.attribute(this.#options.attribute.names.component), typeName);
+            //Remove the lazy attribute to not copy over to component
+            type.attributes.delete(this.attribute(this.#options.attribute.names.lazy));
+            //Set to modeless component by default if no model was specified
+            if(!type.attributes.has(modelAttribute))
+                type.attributes.set(modelAttribute, "");
+
+            //Load template nodes
+            for(let node of element.content.childNodes)
             {
-                fetch(url)
-                .then(res => res.text())
-                .then(html => {
-                    let div = document.createElement("div");
-                    div.innerHTML = html;
-                    let template = div.querySelector<HTMLTemplateElement>("template");
-                    if(!template)
-                        return;
-                    //Load up the attributes
-                    for(let attribute of template.attributes)
-                        if(!element.hasAttribute(attribute.name))
-                            element.setAttribute(attribute.name, attribute.value);
-                    //Load up the HTML
-                    element.content.append(...template.content.childNodes);
-                    this.#fillComponentTypeAndLinkComponents(element, typeName, type);
-                });
-                return;
+                if(node instanceof HTMLStyleElement)
+                {
+                    //Need a shadow dom to have inidividual styles
+                    type.shadowDom = true;
+                }
+                if(node instanceof HTMLScriptElement)
+                {
+                    //Load the class body
+                    type.classBody = new Function(`'use strict'; return ${node.textContent.trim()}`) as (new (...args) => any);
+                    continue;
+                }
+                type.template.push(node);
             }
-            
-            this.#fillComponentTypeAndLinkComponents(element, typeName, type);
+
+            //Link all components of this type
+            for(let element of this.#root.querySelectorAll<HTMLElement>(`${typeName},[${componentAttribute}=${typeName}]`))
+                this.#linkComponent(element);
         }
         catch(error)
         {
@@ -1361,44 +1395,25 @@ class HydrateApp {
         }
     }
 
-    #fillComponentTypeAndLinkComponents(element:HTMLTemplateElement, typeName:string, type:HydrateComponentType) {
-        const templateAttribute = this.attribute(this.#options.attribute.names.template);
-        const componentAttribute = this.attribute(this.#options.attribute.names.component);
-        const scriptAttribute = this.attribute(this.#options.attribute.names.script);
-        const componentBodySelector = `script[${scriptAttribute}]`;
-        const modelAttribute = this.attribute(this.#options.attribute.names.model);
-
-        //Load attributes
-        for(let attribute of element.attributes)
-            if(attribute.name !== templateAttribute)
-                type.attributes.set(attribute.name, attribute.value);
-        type.attributes.set(this.attribute(this.#options.attribute.names.component), typeName);
-        //Remove the lazy attribute to not copy over to component
-        type.attributes.delete(this.attribute(this.#options.attribute.names.lazy));
-        //Set to modeless component by default if no model was specified
-        if(!type.attributes.has(modelAttribute))
-            type.attributes.set(modelAttribute, "");
-
-        //Load template nodes
-        for(let node of element.content.childNodes)
-        {
-            if(node instanceof HTMLStyleElement)
-            {
-                //Need a shadow dom to have inidividual styles
-                type.shadowDom = true;
-            }
-            if(node instanceof HTMLScriptElement)
-            {
-                //Load the class body
-                type.classBody = new Function(`'use strict'; return ${node.textContent.trim()}`) as (new (...args) => any);
-                continue;
-            }
-            type.template.push(node);
-        }
-
-        //Link all components of this type
-        for(let element of this.#root.querySelectorAll<HTMLElement>(`${typeName},[${componentAttribute}=${typeName}]`))
-            this.#linkComponent(element);
+    #loadRemoteTemplate(element:HTMLTemplateElement, url:string) {
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+            let div = document.createElement("div");
+            div.innerHTML = html;
+            let template = div.querySelector<HTMLTemplateElement>("template");
+            if(!template)
+                return;
+            //Load up the HTML
+            element.content.append(...template.content.childNodes);
+            //Load up the attributes
+            for(let attribute of template.attributes)
+                if(!element.hasAttribute(attribute.name))
+                    element.setAttribute(attribute.name, attribute.value);
+            //This should guarentee a reload of the component
+            element.removeAttribute(this.attribute(this.#options.attribute.names.source));
+        });
+        return;
     }
 
     get lazy() {
@@ -2134,7 +2149,8 @@ class HydrateApp {
 
     get #componentTemplateSelector() {
         const templateAttribute = this.attribute(this.#options.attribute.names.template);
-        return `template[${templateAttribute}]`;
+        const sourceAttribute = this.attribute(this.#options.attribute.names.source);
+        return `template[${templateAttribute}],template[${sourceAttribute}]`;
     }
 
     #getExcecuters(eventType:HydrateEventType, targets:HTMLElement[]=[], propPath:string=undefined):Map<HTMLElement, Map<string, HydrateModelEventExecuter[]>> {

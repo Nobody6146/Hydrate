@@ -1,0 +1,31 @@
+<template h-template="app-tasks" h-model="tasks" h-init h-route="#home" h-routing="resolve">
+    <span h-model="^.list" h-event="set: $component.saveTasks($state)"></span>
+    <p h-model="^" h-property="textContent: `Total: ${list.length}`"></p>
+    <app-add-task h-model="^.addTask"></app-add-task>
+    <app-task-item h-model="^.list"></app-task-item>
+    <script h-script>
+        {
+            onInit: function() {
+                this.$model.list = TaskService.loadTasks();
+                const component = this;
+                this.$model.addTask = {
+                    task: new Task(),
+                    showAddTask: true,
+                    addTask: component.addTask.bind(this)
+                }
+            },
+            addTask: function(task) {
+                const tasks = this.$state.list;
+                task.id = tasks.reduce((x, y) => y > x ? y : x, 1);
+                tasks.push(task);
+                TaskService.saveTasks(tasks);
+                this.$model.list = tasks;
+                this.$model.addTask.task = new Task();
+            },
+            saveTasks: function(tasks) {
+                console.log("saving");
+                TaskService.saveTasks(tasks);
+            }
+        }
+    </script>
+</template>

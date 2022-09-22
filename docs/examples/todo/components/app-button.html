@@ -1,0 +1,21 @@
+<template h-template="app-button">
+    <button class="btn"
+        h-model="^"
+        h-property="textContent: text"
+        h-attribute="style: `background-color: ${color}`"
+        h-on="click: onClick()"
+    >
+    </button>
+    <script h-script>
+        {
+            onInit: function(details) {
+                if(!this.$state.color)
+                    this.$model.color = "gray";
+                if(!this.$state.text)
+                    this.$model.text = "Button";
+                if(!this.$state.onClick)
+                    this.$model.onClick = () => console.log("click");
+            }
+        }
+    </script>
+</template>
