@@ -66,10 +66,11 @@ class HydrateAttributeNamesOptions {
     //Binding
     input;
     mutation;
+    lazy;
+    mock; //Used for mocking which attributes are linked to which model
     //Conditionals
     //static = "static"; //Executes once
     if; //if the element should respond
-    lazy;
     //Functions and execution
     event; //Calls a callback any time the framework event type is triggered
     on; //Fires a callback when the "on" event of the element is fired
@@ -102,9 +103,10 @@ class HydrateAttributeNamesOptions {
         //Binding
         this.input = "input";
         this.mutation = "mutation";
+        this.lazy = "lazy";
+        this.mock = "mock";
         //Conditionals
         this.if = "if";
-        this.lazy = "lazy";
         //Functions and execution
         this.event = "event"; //Calls a callback any time the framework event type is triggered
         this.on = "on"; //Fires a callback when the "on" event of the element is fired
@@ -874,7 +876,7 @@ class HydrateApp {
         this.dispatch(target, "input", modelName, event);
     }
     #addTrackableAttributes() {
-        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.init), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.remove), this.attribute(this.#options.attribute.names.input), this.attribute(this.#options.attribute.names.mutation), this.attribute(this.#options.attribute.names.if), this.attribute(this.#options.attribute.names.lazy), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.on), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.duplicate), this.attribute(this.#options.attribute.names.route), this.attribute(this.#options.attribute.names.routing), this.attribute(this.#options.attribute.names.mutation), this.attribute(this.#options.attribute.names.source));
+        this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.init), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.remove), this.attribute(this.#options.attribute.names.input), this.attribute(this.#options.attribute.names.mutation), this.attribute(this.#options.attribute.names.lazy), this.attribute(this.#options.attribute.names.mock), this.attribute(this.#options.attribute.names.if), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.on), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.duplicate), this.attribute(this.#options.attribute.names.route), this.attribute(this.#options.attribute.names.routing), this.attribute(this.#options.attribute.names.mutation), this.attribute(this.#options.attribute.names.source));
         let app = this;
         //this.#options.attribute.trackables.push(...this.#options.attribute.names.customs.map(x => app.attribute(x)));
     }
@@ -988,6 +990,38 @@ class HydrateApp {
             }
             this.#buildComponent(component, eventDetails);
         });
+        this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.mock), (arg, eventDetails) => {
+            if (eventDetails.modelName !== "" && eventDetails.model == null)
+                return;
+            const modelPath = eventDetails.modelPath;
+            const element = eventDetails.element;
+            const args = this.parseAttributeArguments(element, this.attribute(this.#options.attribute.names.mock));
+            const mockedAttributes = new Map();
+            for (let attribute of args)
+                mockedAttributes.set(attribute.field, this.resolveArgumentValue(eventDetails, attribute, null));
+            //The mocking attribute means we need to reset all of our handlers
+            //So clear out all the old executers
+            //Manually add back this handler so we can update things the next time changes happen
+            //Manually add all the other handlers
+            this.#clearElementExecuters(element);
+            this.#addElementExecuters(element, modelPath, mockedAttributes);
+            const executers = this.#getExcecuters(eventDetails.type, [element])?.get(element);
+            if (executers) {
+                for (let path of executers.keys())
+                    this.dispatch(eventDetails.element, eventDetails.type, path, null);
+            }
+            this.#addMockAttributeHandler(element, modelPath);
+            return;
+        });
+    }
+    #determineMockedAttributes(element, modelPath) {
+        //Reads the mocked attribute and determines the actual model paths the following attributes should respond to
+        const args = this.parseAttributeArguments(element, this.attribute(this.#options.attribute.names.mock));
+        const mockedAttributes = new Map();
+        let mockEvent = this.#createEvent(element, "bind", this.#determineEventDetailProperties(modelPath, "model"), null, null);
+        for (let arg of args)
+            mockedAttributes.set(arg.field, this.resolveArgumentValue(mockEvent.detail, arg, null));
+        return mockedAttributes;
     }
     #isRoutingEvent(eventType) {
         switch (eventType) {
@@ -1067,7 +1101,7 @@ class HydrateApp {
                 attributes: new Map(),
                 template: [],
                 //@ts-ignore
-                classBody: function () {
+                classDefinition: function () {
                     return {};
                 }
             };
@@ -1095,7 +1129,7 @@ class HydrateApp {
                 }
                 if (node instanceof HTMLScriptElement) {
                     //Load the class body
-                    type.classBody = new Function(`'use strict'; return ${node.textContent.trim()}`);
+                    type.classDefinition = new Function(`'use strict'; return ${node.textContent.trim()}`)();
                     continue;
                 }
                 type.template.push(node);
@@ -1155,7 +1189,7 @@ class HydrateApp {
                 initialized: false,
                 element,
                 type: componentType,
-                data: new componentType.classBody(),
+                data: new componentType.classDefinition(),
                 mutationObserver: null
             };
             //Add some default behavior to the component class
@@ -1433,7 +1467,7 @@ class HydrateApp {
         }
         this.#removeOnAttributeEventListeners(element);
         this.#updateDelayedAttributes(element);
-        let newTrack = this.#updateExecuters(element);
+        let newTrack = this.#updateElementExecuters(element);
         if (newTrack) {
             //Send a track event
             let modelName = element.getAttribute(this.attribute(this.#options.attribute.names.model)) ?? undefined;
@@ -1490,19 +1524,28 @@ class HydrateApp {
         elementListeners.set(eventType, listener);
         element.addEventListener(eventType, listener);
     }
-    #updateExecuters(element) {
-        let created = false;
+    #updateElementExecuters(element) {
+        let created = this.#clearElementExecuters(element);
+        const modelAttribute = this.attribute(this.#options.attribute.names.model);
+        const modelPath = element.getAttribute(modelAttribute);
+        //Only add the normal executers if we aren't mocking, otherwise let the mock attribute handle it
+        if (!this.#addMockAttributeHandler(element, modelPath))
+            this.#addElementExecuters(element, modelPath, new Map());
+        return created;
+    }
+    #clearElementExecuters(element) {
         let elementExecuters = this.#htmlExcecuters.get(element);
         if (elementExecuters === undefined) {
             elementExecuters = new Map();
             this.#htmlExcecuters.set(element, elementExecuters);
-            created = true;
+            return true;
         }
         else {
             elementExecuters.clear();
         }
-        let modelAttribute = this.attribute(this.#options.attribute.names.model);
-        let modelPath = element.getAttribute(modelAttribute);
+        return false;
+    }
+    #addElementExecuters(element, modelPath, mockedAttributes) {
         let mutationEvents = this.#parseElementMutationEvents(element);
         let possibleEventTypes = [
             'track',
@@ -1520,142 +1563,27 @@ class HydrateApp {
             if (mutationEvents.get(key) === true)
                 possibleEventTypes.push(key);
         }
-        this.#addInitHandler(element, modelPath, possibleEventTypes);
-        this.#addSetPropertyHandler(element, modelPath, possibleEventTypes);
-        this.#addSetAttributeHandler(element, modelPath, possibleEventTypes);
-        this.#addToggleClassHandler(element, modelPath, possibleEventTypes);
-        this.#addToggleAttributeHandler(element, modelPath, possibleEventTypes);
-        this.#addRemoveElementHandler(element, modelPath, possibleEventTypes);
-        this.#addInputHandler(element, modelPath, possibleEventTypes);
-        this.#addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes);
-        this.#addElementEventListenersHandler(element, modelPath, possibleEventTypes);
-        this.#addGenerateComponentHandler(element, modelPath, possibleEventTypes);
-        return created;
+        this.#addInitHandler(element, modelPath, possibleEventTypes, mockedAttributes);
+        this.#addSetPropertyHandler(element, modelPath, possibleEventTypes, mockedAttributes);
+        this.#addSetAttributeHandler(element, modelPath, possibleEventTypes, mockedAttributes);
+        this.#addToggleClassHandler(element, modelPath, possibleEventTypes, mockedAttributes);
+        this.#addToggleAttributeHandler(element, modelPath, possibleEventTypes, mockedAttributes);
+        this.#addRemoveElementHandler(element, modelPath, possibleEventTypes, mockedAttributes);
+        this.#addInputHandler(element, modelPath, possibleEventTypes, mockedAttributes);
+        this.#addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes, mockedAttributes);
+        this.#addElementEventListenersHandler(element, modelPath, possibleEventTypes, mockedAttributes);
+        this.#addGenerateComponentHandler(element, modelPath, possibleEventTypes, mockedAttributes);
     }
-    #addInitHandler(element, modelPath, possibleEventTypes) {
-        let attribute = this.attribute(this.#options.attribute.names.init);
-        let eventTypes = [
-            'track',
-            'untrack',
-            'bind',
-            'unbind',
-            'set',
-            'input',
-            "on",
-            "routing.start",
-            "routing.resolve",
-            "routing.reject",
-            "mutation.target.added",
-            "mutation.target.removed",
-            "mutation.target.attribute",
-            "mutation.target.characterdata",
-            "mutation.parent.added",
-            "mutation.parent.removed",
-            "mutation.parent.attribute",
-            "mutation.parent.characterdata",
-            "mutation.child.added",
-            "mutation.child.removed",
-            "mutation.child.attribute",
-            "mutation.child.characterdata"
-        ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
-    }
-    #addSetPropertyHandler(element, modelPath, possibleEventTypes) {
-        let attribute = this.attribute(this.#options.attribute.names.property);
-        let eventTypes = [
-            'track',
-            'bind',
-            'set',
-            "mutation.target.added",
-            "mutation.target.removed",
-            "mutation.target.attribute",
-            "mutation.target.characterdata",
-            "mutation.parent.added",
-            "mutation.parent.removed",
-            "mutation.parent.attribute",
-            "mutation.parent.characterdata",
-            "mutation.child.added",
-            "mutation.child.removed",
-            "mutation.child.attribute",
-            "mutation.child.characterdata"
-        ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
-    }
-    #addToggleClassHandler(element, modelPath, possibleEventTypes) {
-        let attribute = this.attribute(this.#options.attribute.names.class);
-        let eventTypes = [
-            'track',
-            'bind',
-            'set',
-            "mutation.target.added",
-            "mutation.target.removed",
-            "mutation.target.attribute",
-            "mutation.target.characterdata",
-            "mutation.parent.added",
-            "mutation.parent.removed",
-            "mutation.parent.attribute",
-            "mutation.parent.characterdata",
-            "mutation.child.added",
-            "mutation.child.removed",
-            "mutation.child.attribute",
-            "mutation.child.characterdata"
-        ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
-    }
-    #addToggleAttributeHandler(element, modelPath, possibleEventTypes) {
-        let attribute = this.attribute(this.#options.attribute.names.toggle);
-        let eventTypes = [
-            'track',
-            'bind',
-            'set',
-            "mutation.target.added",
-            "mutation.target.removed",
-            "mutation.target.attribute",
-            "mutation.target.characterdata",
-            "mutation.parent.added",
-            "mutation.parent.removed",
-            "mutation.parent.attribute",
-            "mutation.parent.characterdata",
-            "mutation.child.added",
-            "mutation.child.removed",
-            "mutation.child.attribute",
-            "mutation.child.characterdata"
-        ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
-    }
-    #addRemoveElementHandler(element, modelPath, possibleEventTypes) {
-        let attribute = this.attribute(this.#options.attribute.names.remove);
-        let eventTypes = [
-            'unbind'
-        ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false);
-    }
-    #addSetAttributeHandler(element, modelPath, possibleEventTypes) {
-        let attribute = this.attribute(this.#options.attribute.names.attribute);
-        let eventTypes = [
-            'track',
-            'untrack',
-            'bind',
-            'unbind',
-            'set',
-            "mutation.target.added",
-            "mutation.target.removed",
-            "mutation.target.attribute",
-            "mutation.target.characterdata",
-            "mutation.parent.added",
-            "mutation.parent.removed",
-            "mutation.parent.attribute",
-            "mutation.parent.characterdata",
-            "mutation.child.added",
-            "mutation.child.removed",
-            "mutation.child.attribute",
-            "mutation.child.characterdata"
-        ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
-    }
-    #addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, parseArgs) {
+    #addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, parseArgs, mockedAttributes) {
         if (!element.hasAttribute(attribute))
             return;
+        //Mock the model path if necessary
+        if (mockedAttributes.has(attribute)) {
+            modelPath = mockedAttributes.get(attribute);
+        }
+        else if (mockedAttributes.has("*")) {
+            modelPath = mockedAttributes.get("*");
+        }
         let args = parseArgs ? this.parseAttributeArguments(element, attribute)
             : [
                 {
@@ -1687,14 +1615,135 @@ class HydrateApp {
         }
         return args;
     }
-    #addInputHandler(element, modelPath, possibleEventTypes) {
+    #addInitHandler(element, modelPath, possibleEventTypes, mockedAttributes) {
+        let attribute = this.attribute(this.#options.attribute.names.init);
+        let eventTypes = [
+            'track',
+            'untrack',
+            'bind',
+            'unbind',
+            'set',
+            'input',
+            "on",
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true, mockedAttributes);
+    }
+    #addSetPropertyHandler(element, modelPath, possibleEventTypes, mockedAttributes) {
+        let attribute = this.attribute(this.#options.attribute.names.property);
+        let eventTypes = [
+            'track',
+            'bind',
+            'set',
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true, mockedAttributes);
+    }
+    #addToggleClassHandler(element, modelPath, possibleEventTypes, mockedAttributes) {
+        let attribute = this.attribute(this.#options.attribute.names.class);
+        let eventTypes = [
+            'track',
+            'bind',
+            'set',
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true, mockedAttributes);
+    }
+    #addToggleAttributeHandler(element, modelPath, possibleEventTypes, mockedAttributes) {
+        let attribute = this.attribute(this.#options.attribute.names.toggle);
+        let eventTypes = [
+            'track',
+            'bind',
+            'set',
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true, mockedAttributes);
+    }
+    #addRemoveElementHandler(element, modelPath, possibleEventTypes, mockedAttributes) {
+        let attribute = this.attribute(this.#options.attribute.names.remove);
+        let eventTypes = [
+            'unbind'
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false, mockedAttributes);
+    }
+    #addSetAttributeHandler(element, modelPath, possibleEventTypes, mockedAttributes) {
+        let attribute = this.attribute(this.#options.attribute.names.attribute);
+        let eventTypes = [
+            'track',
+            'untrack',
+            'bind',
+            'unbind',
+            'set',
+            "mutation.target.added",
+            "mutation.target.removed",
+            "mutation.target.attribute",
+            "mutation.target.characterdata",
+            "mutation.parent.added",
+            "mutation.parent.removed",
+            "mutation.parent.attribute",
+            "mutation.parent.characterdata",
+            "mutation.child.added",
+            "mutation.child.removed",
+            "mutation.child.attribute",
+            "mutation.child.characterdata"
+        ];
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true, mockedAttributes);
+    }
+    #addInputHandler(element, modelPath, possibleEventTypes, mockedAttributes) {
         let attribute = this.attribute(this.#options.attribute.names.input);
         let eventTypes = [
             "input"
         ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true, mockedAttributes);
     }
-    #addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes) {
+    #addExecuteEventCallbackHandler(element, modelPath, possibleEventTypes, mockedAttributes) {
         let attribute = this.attribute(this.#options.attribute.names.event);
         let eventTypes = [
             'track',
@@ -1720,21 +1769,21 @@ class HydrateApp {
             "mutation.child.attribute",
             "mutation.child.characterdata"
         ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true, mockedAttributes);
     }
-    #addElementEventListenersHandler(element, modelPath, possibleEventTypes) {
+    #addElementEventListenersHandler(element, modelPath, possibleEventTypes, mockedAttributes) {
         let attribute = this.attribute(this.#options.attribute.names.on);
         let eventTypes = [
             "on"
         ];
-        let args = this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true);
+        let args = this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true, mockedAttributes);
         if (args == null)
             return;
         for (let arg of args) {
             this.#addOnAttributeEventListener(element, arg.field);
         }
     }
-    #addGenerateComponentHandler(element, modelPath, possibleEventTypes) {
+    #addGenerateComponentHandler(element, modelPath, possibleEventTypes, mockedAttributes) {
         let attribute = this.attribute(this.#options.attribute.names.component);
         let eventTypes = [
             'track',
@@ -1756,7 +1805,18 @@ class HydrateApp {
             "mutation.child.attribute",
             "mutation.child.characterdata"
         ];
-        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false);
+        this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false, mockedAttributes);
+    }
+    #addMockAttributeHandler(element, modelPath) {
+        let attribute = this.attribute(this.#options.attribute.names.mock);
+        let eventTypes = [
+            'track',
+            'bind',
+            'set',
+            "mutation.target.attribute"
+        ];
+        //override the possible types with the event types because it will always be these
+        return this.#addExecuters(element, attribute, modelPath, eventTypes, eventTypes, false, new Map())?.length > 0;
     }
     #getTrackableElements(target) {
         if (target == null)

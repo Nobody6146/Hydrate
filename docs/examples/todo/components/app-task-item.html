@@ -40,23 +40,21 @@
         <p h-model="^" h-property="textContent: day"></p>
     </div>
     <script h-script>
-        {
-            toggleReminder: function(task) {
+        class Component {
+            toggleReminder(task) {
                 const tasks = this.$state;
                 let index = tasks.indexOf(task);
                 if(index < 0)
                     return;
                 this.$model[index].reminder = !task.reminder;
                 TaskService.saveTasks(tasks);
-            },
-            deleteTask: function(task) {
+            }
+            deleteTask(task) {
                 const tasks = this.$state;
                 let index = tasks.indexOf(task);
                 if(index < 0)
                     return;
-                tasks.splice(index, 1);
-                TaskService.saveTasks(tasks);
-                this.$hydrate.parent(this.$model)[this.$hydrate.name(this.$model)] = tasks;
+                this.$model.splice(index, 1);
             }
         }
     </script>

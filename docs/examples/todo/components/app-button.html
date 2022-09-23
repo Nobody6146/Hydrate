@@ -7,8 +7,8 @@
     >
     </button>
     <script h-script>
-        {
-            onInit: function(details) {
+        class Component {
+            onInit(details) {
                 if(!this.$state.color)
                     this.$model.color = "gray";
                 if(!this.$state.text)

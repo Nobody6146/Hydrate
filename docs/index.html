@@ -75,19 +75,19 @@
                 <input id="calculator" h-model="^" h-property="value: value" h-input="value: $element.value" h-if="input: $element.value < 20">
                 <h1 h-model="^" h-property="textContent: $component.calculate(value)"></h1>
                 <script h-script>
-                    {
-                        calculate: function(value) {
+                    class Component {
+                        calculate(value) {
                             return value * value;
-                        },
-                        onInit: function(eventDetail) {
+                        }
+                        onInit(eventDetail) {
                             console.log("initialize calculator", eventDetail);
                             console.log(this);
                             this.$model.value = 10;
-                        },
-                        onRender: function(eventDetail) {
+                        }
+                        onRender(eventDetail) {
                             console.log("Rendered calculator", eventDetail);
-                        },
-                        onDestroy: function() {
+                        }
+                        onDestroy() {
                             console.log("initialize calculator");
                             this.$hydrate.unbind(this.$model);
                         }
@@ -162,6 +162,18 @@
                 <calculator-template h-lazy></calculator-template>
 
                 <p h-model="testInitAttribute.nonExistiant.property" h-init h-property="textContent: 'We initialized this model that did not exist!'"></p>
+
+                <div>
+                    <p>We are testing model mocking! Input the name a model path to to see its value!</p>
+                    <p>At the same time we can bind the <b>default.mocking.color</b> value the the paragraph too!</p>
+                    <input type="text" placeholder="select a model name" value=""
+                        h-model="default.mocking" h-input="selectedModel: $element.value" h-debounce="*: 250"
+                    >
+                    <p h-model="default.mocking" h-attribute="style: `color: ${color}`"
+                        h-mock="h-property: selectedModel;" h-property="textContent: JSON.stringify($state)">
+                        Demo text
+                    </p>
+
             </main>
     
             <footer>
@@ -224,6 +236,10 @@
                 model.rank = 3;
                 model.calculator = {
                     value: 0
+                }
+                model.mocking = {
+                    selectedModel: "",
+                    color: "red"
                 }
 
                 //Define our client side routes
