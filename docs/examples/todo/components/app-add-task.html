@@ -1,7 +1,7 @@
-<template h-template="app-add-task" h-model="addTask">
+<template h-template="app-add-task">
     <div class="add-form"
-        h-model="ui.addTask"
-        h-toggle="hidden: !show"
+        h-model="^"
+        h-mock="h-toggle: $component.uiModel" h-toggle="hidden: !visible"
     >
         <div class="form-control">
         <label for="text">Task</label>
@@ -27,10 +27,13 @@
             Save Task
         </button>
     </div>
-    <script>
-        class Compoent {
+    <script h-script>
+        class Component {
             saveTask(task) {
                 this.$state.addTask(task);
+            }
+            get uiModel() {
+                return this.$hydrate.path(UiService.addTaskMenu);
             }
         }
     </script>

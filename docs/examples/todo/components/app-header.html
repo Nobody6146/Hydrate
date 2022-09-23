@@ -2,7 +2,7 @@
     <header>
         <h1 h-model="^" h-property="textContent: title"> </h1>
         <app-button
-            h-model="ui.addTask.button"
+            h-model="^.button"
         >
         </app-button>
     </header>
@@ -10,8 +10,21 @@
         class Component {
             onInit(detail) {
                 this.$model.title = "Task Tracker";
-                let button = this.$hydrate.bind("addTaskButton");
-                button.text = "Add";
+                this.$model.button = {
+                    text: "",
+                    color: "",
+                    onClick: this.toggleAddTaskMenu.bind(this)
+                };
+                this.#updateButton(UiService.addTaskMenu.visible);
+            }
+            toggleAddTaskMenu() {
+                this.#updateButton(UiService.toggleAddTaskMenu());
+            }
+            #updateButton(showAddTaskMenu) {
+                // if(!this.$state.button)
+                //     return;
+                this.$model.button.text = showAddTaskMenu ? "Close" : "Add";
+                this.$model.button.color = showAddTaskMenu ? "red" : "green";
             }
         }
     </script>

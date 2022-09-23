@@ -683,14 +683,14 @@ class HydrateApp {
         }
         return state;
     }
-    state(model:string | any) {
+    state<ModelType extends string | any>(model:ModelType) {
         if(typeof model === "string")
-            model = this.model(model);
+            model = this.model<ModelType>(model);
         if(model == undefined || !(model instanceof Object))
             return model;
         return model[this.options.model.stateProperty];
     }
-    model(path:string) {
+    model<ModelType>(path:string):ModelType {
         if(path == null)
             return undefined;
         path = path.trim();
@@ -728,13 +728,13 @@ class HydrateApp {
     }
 
     /** Bind a new model to the framework */
-    bind(name?: string, state?: object): any {
+    bind<ModelType extends object>(name?: string, state?:ModelType):ModelType {
         if(name == null || name === "")
             throw Error("invalid model name");
         if(!name.match(/^[$A-Z_][0-9A-Z_$]*$/i))
             throw Error("invalid model name");
         if(state == null)
-            state = {};
+            state = {} as ModelType;
 
         //TODO: check to make sure the name is a proper identifier
         let app = this;
@@ -1246,6 +1246,8 @@ class HydrateApp {
                         break;
                 }
             }
+            else if (this.#isRoutingEvent(eventDetails.type))
+                return;
             
             this.#buildComponent(component, eventDetails);
         });
@@ -1494,6 +1496,11 @@ class HydrateApp {
             Object.defineProperty(component.data, '$hydrate', {
                 get() {
                     return hydrate;
+                }
+            });
+            Object.defineProperty(component.data, '$parent', {
+                get() {
+                    return hydrate.#findComponentForElement(component.element.parentElement)?.data;
                 }
             });
             Object.defineProperty(component.data, '$root', {
@@ -2214,7 +2221,7 @@ class HydrateApp {
 
     get #trackableElementSelector() {
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
-        return `[${modelAttribute}]`;
+        return `:not(template)[${modelAttribute}]`;
     }
 
     get #componentTemplateSelector() {
@@ -2491,6 +2498,8 @@ class HydrateApp {
             for(let executer of modelExecuters.get(modelPath))
             {
                 try{
+                    if(!element.isConnected)
+                        continue;
                     executer.handler(executer.arg, event.detail);
                 }
                 catch(error) {

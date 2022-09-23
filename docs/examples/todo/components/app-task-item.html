@@ -42,19 +42,11 @@
     <script h-script>
         class Component {
             toggleReminder(task) {
-                const tasks = this.$state;
-                let index = tasks.indexOf(task);
-                if(index < 0)
-                    return;
-                this.$model[index].reminder = !task.reminder;
-                TaskService.saveTasks(tasks);
+                this.$parent.toggleReminder(task);
             }
             deleteTask(task) {
-                const tasks = this.$state;
-                let index = tasks.indexOf(task);
-                if(index < 0)
-                    return;
-                this.$model.splice(index, 1);
+                console.log(this);
+                this.$parent.deleteTask(task);
             }
         }
     </script>

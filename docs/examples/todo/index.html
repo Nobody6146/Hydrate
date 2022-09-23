@@ -4,14 +4,15 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"/>
         <title>Todo List Demo</title>
         <script src="../../hydrate.js"></script>
-        <script src="task.js"></script>
+        <script src="scripts/task.js"></script>
+        <script src="scripts/ui.js"></script>
         <script src="app.js"></script>
         <link href="style.css" rel="stylesheet">
     </head>
     <body>
         <template h-template="app-templates" h-source="components.html"></template>
 
-        <app-templates></app-templates>
+        <app-templates h-event="*: console.log($detail)"></app-templates>
 
         <div class="container">
             <app-header></app-header>

@@ -988,6 +988,8 @@ class HydrateApp {
                         break;
                 }
             }
+            else if (this.#isRoutingEvent(eventDetails.type))
+                return;
             this.#buildComponent(component, eventDetails);
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.mock), (arg, eventDetails) => {
@@ -1196,6 +1198,11 @@ class HydrateApp {
             Object.defineProperty(component.data, '$hydrate', {
                 get() {
                     return hydrate;
+                }
+            });
+            Object.defineProperty(component.data, '$parent', {
+                get() {
+                    return hydrate.#findComponentForElement(component.element.parentElement)?.data;
                 }
             });
             Object.defineProperty(component.data, '$root', {
@@ -1829,7 +1836,7 @@ class HydrateApp {
     }
     get #trackableElementSelector() {
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
-        return `[${modelAttribute}]`;
+        return `:not(template)[${modelAttribute}]`;
     }
     get #componentTemplateSelector() {
         const templateAttribute = this.attribute(this.#options.attribute.names.template);
@@ -2064,6 +2071,8 @@ class HydrateApp {
                 continue;
             for (let executer of modelExecuters.get(modelPath)) {
                 try {
+                    if (!element.isConnected)
+                        continue;
                     executer.handler(executer.arg, event.detail);
                 }
                 catch (error) {
