@@ -1362,25 +1362,40 @@ class HydrateApp {
 
     #loadTemplate(element:HTMLTemplateElement, lazyLoad:boolean):void {
         try {
+            const lazyAttribute = this.attribute(this.#options.attribute.names.lazy);
             if(!element.matches(this.#componentTemplateSelector))
                 return null;
-            if(lazyLoad && element.hasAttribute(this.attribute(this.#options.attribute.names.lazy)))
-                return;
-
-            const sourceAttribute = this.attribute(this.#options.attribute.names.source);
-            const url = element.getAttribute(sourceAttribute);
-            if(url != null)
+            let lazy = lazyLoad && element.hasAttribute(lazyAttribute);
+            if(!lazy)
             {
-                this.#loadRemoteTemplate(element, url);
-                return;
+                const sourceAttribute = this.attribute(this.#options.attribute.names.source);
+                const url = element.getAttribute(sourceAttribute);
+                if(url != null)
+                {
+                    this.#loadRemoteTemplate(element, url);
+                    return;
+                }
             }
             
-            const typeName = element.getAttribute(this.attribute(this.#options.attribute.names.template)).toLowerCase();
+            const typeName = element.getAttribute(this.attribute(this.#options.attribute.names.template))?.toLowerCase();
+            if(!typeName)
+                return;
             if(this.#componentTypes.has(typeName))
             {
                 console.error(`A template with the name ${typeName} has already been declared`);
                 return;
             }
+
+            const templateAttribute = this.attribute(this.#options.attribute.names.template);
+            const componentAttribute = this.attribute(this.#options.attribute.names.component);
+            const scriptAttribute = this.attribute(this.#options.attribute.names.script);
+            const componentBodySelector = `script[${scriptAttribute}]`;
+            const modelAttribute = this.attribute(this.#options.attribute.names.model);
+
+            const components = this.#root.querySelectorAll<HTMLElement>(`${typeName}:not([${lazyAttribute}]),[${componentAttribute}=${typeName}]:not([${lazyAttribute}])`);
+            if(lazy && components.length === 0)
+                //If we are lazy loading and don't have any non-lazy components to load, then don't load this template
+                return;
             
             const type:HydrateComponentType = {
                 shadowElement: false,
@@ -1393,15 +1408,9 @@ class HydrateApp {
             }
             this.#componentTypes.set(typeName, type);
 
-            const templateAttribute = this.attribute(this.#options.attribute.names.template);
-            const componentAttribute = this.attribute(this.#options.attribute.names.component);
-            const scriptAttribute = this.attribute(this.#options.attribute.names.script);
-            const componentBodySelector = `script[${scriptAttribute}]`;
-            const modelAttribute = this.attribute(this.#options.attribute.names.model);
-
             //Load attributes
             for(let attribute of element.attributes)
-                if(attribute.name !== templateAttribute)
+                if(attribute.name !== templateAttribute && attribute.name !== lazyAttribute)
                     type.attributes.set(attribute.name, attribute.value);
             type.attributes.set(this.attribute(this.#options.attribute.names.component), typeName);
             //Remove the lazy attribute to not copy over to component
@@ -1428,7 +1437,7 @@ class HydrateApp {
             }
 
             //Link all components of this type
-            for(let element of this.#root.querySelectorAll<HTMLElement>(`${typeName},[${componentAttribute}=${typeName}]`))
+            for(let element of components)
                 this.#linkComponent(element);
         }
         catch(error)
@@ -1441,6 +1450,7 @@ class HydrateApp {
         fetch(url)
         .then(res => res.text())
         .then(html => {
+            const lazyAttribute = this.attribute(this.#options.attribute.names.lazy);
             let div = document.createElement("div");
             div.innerHTML = html;
             let template = div.querySelector<HTMLTemplateElement>("template");
@@ -1450,9 +1460,10 @@ class HydrateApp {
             element.content.append(...template.content.childNodes);
             //Load up the attributes
             for(let attribute of template.attributes)
-                if(!element.hasAttribute(attribute.name))
+                if(!element.hasAttribute(attribute.name) && attribute.name !== lazyAttribute)
                     element.setAttribute(attribute.name, attribute.value);
             //This should guarentee a reload of the component
+            element.removeAttribute(lazyAttribute);
             element.removeAttribute(this.attribute(this.#options.attribute.names.source));
         });
         return;

@@ -1,4 +1,4 @@
-<template h-template="app-tasks" h-model="tasks" h-init h-route="#home" h-routing="resolve">
+<template h-model="tasks" h-init h-route="#home" h-routing="resolve">
     <p h-model="^" h-property="textContent: `Total: ${list.length}`"></p>
     <app-add-task h-model="^.addTaskForm"></app-add-task>
     <app-task-item h-model="^.list"></app-task-item>
