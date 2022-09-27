@@ -186,7 +186,7 @@ interface HydrateEventDetailProperties {
 class HydrateElementTrackingEvent extends CustomEvent<HydrateElementTrackingEventDetails> {
 
     constructor(detail:HydrateElementTrackingEventDetails) {
-        super(`hydrate.${detail.type}`, {
+        super(detail.hydrate.event(detail.type), {
             detail: detail,
             bubbles: true,
             cancelable: true
@@ -197,7 +197,7 @@ class HydrateElementTrackingEvent extends CustomEvent<HydrateElementTrackingEven
 class HydrateModelEvent extends CustomEvent<HydrateModelEventDetails> {
 
     constructor(detail:HydrateModelEventDetails) {
-        super(`hydrate.${detail.type}`, {
+        super(detail.hydrate.event(detail.type), {
             detail: detail,
             bubbles: true,
             cancelable: true
@@ -208,7 +208,7 @@ class HydrateModelEvent extends CustomEvent<HydrateModelEventDetails> {
 class HydrateRouteEvent extends CustomEvent<HydrateRouteEventDetails> {
 
     constructor(detail:HydrateRouteEventDetails) {
-        super(`hydrate.${detail.type}`, {
+        super(detail.hydrate.event(detail.type), {
             detail: detail,
             bubbles: true,
             cancelable: true
@@ -219,7 +219,7 @@ class HydrateRouteEvent extends CustomEvent<HydrateRouteEventDetails> {
 class HydrateElementMutationEvent extends CustomEvent<HydrateElementMutationEventDetails> {
 
     constructor(detail:HydrateElementMutationEventDetails) {
-        super(`hydrate.${detail.type}`, {
+        super(detail.hydrate.event(detail.type), {
             detail: detail,
             bubbles: true,
             cancelable: true
@@ -230,7 +230,7 @@ class HydrateElementMutationEvent extends CustomEvent<HydrateElementMutationEven
 class HydrateElementEventListenerEvent extends CustomEvent<HydrateElementEventListenerEventDetails> {
 
     constructor(detail:HydrateElementEventListenerEventDetails) {
-        super(`hydrate.${detail.type}`, {
+        super(detail.hydrate.event(detail.type), {
             detail: detail,
             bubbles: true,
             cancelable: true
@@ -241,7 +241,7 @@ class HydrateElementEventListenerEvent extends CustomEvent<HydrateElementEventLi
 class HydrateElementInputEvent extends CustomEvent<HydrateElementInputEventDetails> {
 
     constructor(detail:HydrateElementInputEventDetails) {
-        super(`hydrate.${detail.type}`, {
+        super(detail.hydrate.event(detail.type), {
             detail: detail,
             bubbles: true,
             cancelable: true
@@ -542,6 +542,42 @@ interface HydrateComponent {
     mutationObserver:MutationObserver;
 }
 
+interface HydrateModelChange<T> {
+    eventType:HydrateEventType;
+    value:T
+}
+
+class HydrateModelSubscription {
+    #hydrate:HydrateApp;
+    modelPath:string;
+    callback:Function;
+
+    constructor(hydrate:HydrateApp, modelPath:string, callback:Function) {
+        this.#hydrate = hydrate;
+        this.modelPath = modelPath;
+        this.callback = callback;
+    }
+
+    subscribe() {
+        //@ts-ignore
+        this.#hydrate.root.addEventListener(this.#hydrate.event("bind"), this.callback);
+        //@ts-ignore
+        this.#hydrate.root.addEventListener(this.#hydrate.event("set"), this.callback);
+        //@ts-ignore
+        this.#hydrate.root.addEventListener(this.#hydrate.event("unbind"), this.callback);
+    }
+    unsubscribe() {
+        //@ts-ignore
+        this.#hydrate.root.removeEventListener(this.#hydrate.event("bind"), this.callback);
+        //@ts-ignore
+        this.#hydrate.root.removeEventListener(this.#hydrate.event("set"), this.callback);
+        //@ts-ignore
+        this.#hydrate.root.removeEventListener(this.#hydrate.event("unbind"), this.callback);
+    }
+}
+
+type HydrateSubscriptionCallback = (subscription:HydrateModelChange<any>) => void;
+
 class HydrateApp {
 
     #dispatchId = 0;
@@ -671,6 +707,10 @@ class HydrateApp {
         return `${this.#options.attribute.standardPrefix}-${key}`;
     }
 
+    event(type:HydrateEventType):string {
+        return `hydrate.${type}`;
+    }
+
     resolveObjectValue(startValue:any, propPath:string) {
         let nameParts = propPath.split(".");
         let state = startValue;
@@ -768,6 +808,30 @@ class HydrateApp {
         //return await promise;
     }
 
+    subscribe(modelPath: string | any, callback:HydrateSubscriptionCallback):HydrateModelSubscription {
+        if(typeof modelPath !== "string")
+            modelPath = this.name(modelPath);
+        const subscription = new HydrateModelSubscription(this, modelPath, this.#subscriptionCallback(modelPath, callback));
+        subscription.subscribe();
+        return subscription;
+    };
+    #subscriptionCallback<T>(modelPath:string, callback:HydrateSubscriptionCallback) {
+        return (event:HydrateModelEvent) => {
+            if(event.target !== this.#root)
+                return;
+            const detail = event.detail;
+            const changePath = detail.propPath ?? detail.modelPath;
+            //We know that this change was for this property or at least a parent property
+            if(changePath === modelPath || modelPath.startsWith(changePath))
+            {
+                callback(<HydrateModelChange<T>>{
+                    eventType: event.detail.type,
+                    value: this.state(modelPath)
+                });
+            }
+       }
+    }
+
     #makeProxy(data: any, path: string, parent: string) {
         const nameIndex = path.lastIndexOf(".");
         const name = nameIndex < 0 ? path : path.substring(nameIndex + 1);
@@ -821,6 +885,7 @@ class HydrateApp {
                     return obj[prop];
             },
             set: function(obj, prop, value) {
+                const oldValue = obj[prop];
                 obj[prop] = value;
                 models = {};
 
@@ -833,6 +898,13 @@ class HydrateApp {
                 //     return;
                 let propName = (typeof prop === 'symbol') ? prop.toString() : prop;
                 //app.dispatch("set", proxy, propName, previousValue, app.root, "all");
+                if(oldValue != null && typeof oldValue === "object")
+                {
+                    const newIsObject = value != null && typeof value === "object";
+                    for(let key of Object.keys(oldValue))
+                        if(!newIsObject || !value.hasOwnProperty(key))
+                            app.dispatch(app.#root, "unbind", path + "." + propName + "." + key, undefined);
+                }
                 app.dispatch(app.#root, "set", path + "." + propName, undefined);
                 return true;
             },
@@ -1017,7 +1089,7 @@ class HydrateApp {
                     let removedElement = false;
                     for(let node of mutation.removedNodes)
                     {
-                        if(mutation.target.isConnected)
+                        if(node.isConnected)
                             return;
                         if(!(node instanceof HTMLElement))
                             return;
@@ -1494,6 +1566,7 @@ class HydrateApp {
             if(component?.type == componentType)
                 return;
             
+            
             const hydrate = this;
             component = {
                 initialized: false,
@@ -1920,6 +1993,7 @@ class HydrateApp {
             return true;
         }
         else {
+            this.#removeOnAttributeEventListeners(element);
             elementExecuters.clear();
         }
         return false;

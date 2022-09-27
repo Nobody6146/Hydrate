@@ -65,6 +65,19 @@
                 <div h-model="^" h-property="innerText: $id() <= $state ? '&#9733' : '&#9734'" h-id
                     h-on="click: $detail.parent[$detail.modelName] = $id()">
                 Star</div>
+                <script>
+                    class Component {
+                        #subscription;
+                        onInit() {
+                            this.#subscription = this.$hydrate.subscribe(this.$modelPath, function(change) {
+                                console.log("We change star values", change.value);
+                            }.bind())
+                        }
+                        onDestroy() {
+                            this.#subscription.unsubscribe();
+                        }
+                    }
+                </script>
             </template>
 
             <template h-template="calculator-template" h-model="default.calculator" h-lazy>
