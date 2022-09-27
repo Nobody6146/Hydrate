@@ -635,9 +635,15 @@ class HydrateApp {
             const changePath = detail.propPath ?? detail.modelPath;
             //We know that this change was for this property or at least a parent property
             if (changePath === modelPath || modelPath.startsWith(changePath)) {
+                const state = this.state(modelPath);
+                if (state === undefined && modelPath.startsWith(changePath)
+                    && (detail.type === 'bind' || detail.type === "set"))
+                    //If the parent model changed and didn't bind/set us, then no change occured
+                    //Or if parent model changed and we don't exist, then we'll get a changed event
+                    return;
                 callback({
                     eventType: event.detail.type,
-                    value: this.state(modelPath)
+                    value: state
                 });
             }
         };
