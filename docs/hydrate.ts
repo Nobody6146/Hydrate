@@ -1005,6 +1005,7 @@ class HydrateApp {
         this.#trackableElementSelector
         const trackableSelector = this.#trackableElementSelector;
         const lazyElementSelector = this.#lazyLoadElementSelector;
+        const componentsSelector = this.#availabeComponentSelector;
 
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
         const componentTemplateSelector = this.#componentTemplateSelector;
@@ -1030,7 +1031,8 @@ class HydrateApp {
                             this.#trackLazyElement(element);
                         else 
                             this.#untrackLazyElement(element);
-                        this.#linkComponent(element);
+                        if(element.matches(componentsSelector))
+                            this.#linkComponent(element);
                         if( (mutation.attributeName === templateAttribute || mutation.attributeName === sourceAttribute)
                             && element.matches(componentTemplateSelector))
                             this.#loadTemplate(element as HTMLTemplateElement, true);
@@ -1066,8 +1068,11 @@ class HydrateApp {
                             return;
                         addedElement = true;
                         
-                        this.#trackLazyElement(node);
-                        this.#linkComponent(node);
+                        if(node.matches(componentsSelector))
+                        {
+                            this.#trackLazyElement(node);
+                            this.#linkComponent(node);
+                        }
                         this.#trackElement(node);
                         let elements = node.querySelectorAll<HTMLElement>(trackableSelector);
                         if(node.matches(componentTemplateSelector))
@@ -1076,10 +1081,13 @@ class HydrateApp {
                             this.#loadTemplate(element, true);
                         for(let element of node.querySelectorAll<HTMLElement>(lazyElementSelector))
                             this.#trackLazyElement(element);
+                        for(let element of node.querySelectorAll<HTMLElement>(componentsSelector))
+                        {
+                            this.#trackLazyElement(element);
+                            this.#linkComponent(element);
+                        }
                         for(let element of elements)
                         {
-                            this.#trackLazyElement(node);
-                            this.#linkComponent(element);
                             this.#trackElement(element);
                             if(element.matches(componentTemplateSelector))
                                 this.#loadTemplate(element as HTMLTemplateElement, true);
@@ -1549,6 +1557,33 @@ class HydrateApp {
 
     get lazy() {
         return this.#lazyElements;
+    }
+
+    get #availabeComponentSelector():string {
+        const templateAttribute = this.attribute(this.#options.attribute.names.template);
+        const componentAttribute = this.attribute(this.#options.attribute.names.component);
+        const templates = this.#root.querySelectorAll(`template[${templateAttribute}]`);
+        const templateNames = new Set<string>();
+
+        //Load all the names
+        for(let template of templates)
+        {
+            const name = template.getAttribute(templateAttribute);
+            if(!name)
+                continue;
+            templateNames.add(name);
+        }
+        for(let name of this.#componentTypes.keys())
+            templateNames.add(name);
+
+        if(templateNames.size === 0)
+            return `[${componentAttribute}]`;
+
+        let elementSelecor = "";
+        for(let selector of templateNames)
+            elementSelecor += `,${selector},[${componentAttribute}=${selector}]`;
+
+        return elementSelecor.substring(1);
     }
 
     #linkComponent(element:HTMLElement):void {
