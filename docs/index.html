@@ -70,7 +70,7 @@
                         #subscription;
                         onInit() {
                             this.#subscription = this.$hydrate.subscribe(this.$modelPath, function(change) {
-                                console.log("We change star values", change.value);
+                                console.log("We change star values", change.state);
                             }.bind())
                         }
                         onDestroy() {
@@ -187,6 +187,8 @@
                         Demo text
                     </p>
 
+                    <p h-model="default.nested" h-event="*: $detail.nested  ? console.log('nested event test!', $detail) : null" h-nested="*: value"></p>
+                    <p h-model="default" h-filter="*: rank" h-event="*: console.log('we responded to a rank change!')"></p>
             </main>
     
             <footer>
@@ -254,6 +256,12 @@
                     selectedModel: "",
                     color: "red"
                 }
+
+                let subscription = app.subscribe("default", data => console.log("test subscription", data), {nested: ["*"], filters:["test", "test.x"]});
+                model.test = {
+                    x: 0,
+                    y: 0
+                };
 
                 //Define our client side routes
                 let routeMap = [];

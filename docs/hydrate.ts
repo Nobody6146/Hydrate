@@ -90,6 +90,7 @@ class HydrateAttributeNamesOptions
     //Conditionals
     //static = "static"; //Executes once
     if?:string; //if the element should respond
+    filter:string;//Filter on certain model properties
     
     //Functions and execution
     event?:string; //Calls a callback any time the framework event type is triggered
@@ -135,6 +136,7 @@ class HydrateAttributeNamesOptions
 
         //Conditionals
         this.if = "if";
+        this.filter = "filter";
 
         //Functions and execution
         this.event = "event"; //Calls a callback any time the framework event type is triggered
@@ -543,8 +545,9 @@ interface HydrateComponent {
 }
 
 interface HydrateModelChange<T> {
-    eventType:HydrateEventType;
-    value:T
+    event:CustomEvent<HydrateEventDetails>;//the event that triggered the update
+    model:T;//the model we're tracking (could not match event)
+    state:T;//the state of what we're tracking (could not match event)
 }
 
 class HydrateModelSubscription {
@@ -577,6 +580,12 @@ class HydrateModelSubscription {
 }
 
 type HydrateSubscriptionCallback = (subscription:HydrateModelChange<any>) => void;
+
+interface HydrateSubscriptionOptions {
+    condition?:string;
+    nested?:string[];
+    filters?:string[];
+}
 
 class HydrateApp {
 
@@ -771,7 +780,7 @@ class HydrateApp {
     bind<ModelType extends object>(name?: string, state?:ModelType):ModelType {
         if(name == null || name === "")
             throw Error("invalid model name");
-        if(!name.match(/^[$A-Z_][0-9A-Z_$]*$/i))
+        if(!name.match(`^${this.#validIdentifier}$`))
             throw Error("invalid model name");
         if(state == null)
             state = {} as ModelType;
@@ -791,6 +800,9 @@ class HydrateApp {
         //     resolve(proxy);
         // });
     }
+    get #validIdentifier():string {
+        return '[$a-zA-Z_][0-9a-zA-Z_$]*';
+    }
     
     /** Unbinds the model from the framework related to the search. Search can be a string (name of model) or the state of the model */
     unbind(search: string | object): void {
@@ -808,34 +820,59 @@ class HydrateApp {
         //return await promise;
     }
 
-    subscribe(modelPath: string | any, callback:HydrateSubscriptionCallback):HydrateModelSubscription {
+    subscribe(modelPath: string | any, callback:HydrateSubscriptionCallback, options?:HydrateSubscriptionOptions):HydrateModelSubscription {
         if(typeof modelPath !== "string")
             modelPath = this.name(modelPath);
-        const subscription = new HydrateModelSubscription(this, modelPath, this.#subscriptionCallback(modelPath, callback));
+        const subscription = new HydrateModelSubscription(this, modelPath, this.#subscriptionCallback(modelPath, callback, options));
         subscription.subscribe();
         return subscription;
     };
-    #subscriptionCallback<T>(modelPath:string, callback:HydrateSubscriptionCallback) {
-        return (event:HydrateModelEvent) => {
+    #subscriptionCallback<T>(modelPath:string, callback:HydrateSubscriptionCallback, options?:HydrateSubscriptionOptions) {
+        const conditionArgs:HydrateAttributeArgument[] = options?.condition != null
+            ? [{
+                field: "*",
+                expression: options.condition
+            }]
+            : null;
+        const filterArgs:HydrateAttributeArgument[] = options?.filters != null
+            ? [{
+                field: "*",
+                expression: options.filters.join(", ")
+            }]
+            : null;
+        const nestedArgs:HydrateAttributeArgument[] = options?.nested != null
+            ? [{
+                field: "*",
+                expression: options.nested.join(", ")
+            }]
+            : null;
+
+        return (event:CustomEvent<HydrateEventDetails>) => {
             if(event.target !== this.#root)
                 return;
             const detail = event.detail;
             const changePath = detail.propPath ?? detail.modelPath;
             //We know that this change was for this property or at least a parent property
-            if(changePath === modelPath || modelPath.startsWith(changePath))
-            {
-                const state = this.state(modelPath);
-                if(state === undefined && modelPath.startsWith(changePath)
-                    && (detail.type === 'bind' || detail.type === "set"))
-                    //If the parent model changed and didn't bind/set us, then no change occured
-                    //Or if parent model changed and we don't exist, then we'll get a changed event
-                    return;
-                callback(<HydrateModelChange<T>>{
-                    eventType: event.detail.type,
-                    value: state
-                });
-            }
-       }
+            if(!this.#checkIfModelChangeApplies(modelPath, changePath, detail, nestedArgs))
+                return;
+            
+            const model = this.model(modelPath);
+            const state = this.state(modelPath);
+            if(state === undefined && modelPath.startsWith(changePath)
+                && (detail.type === 'bind' || detail.type === "set"))
+                //If the parent model changed and didn't bind/set us, then no change occured
+                //Or if parent model changed and we don't exist, then we'll get a changed event
+                return;
+            if(!this.#passedFilterCheck(detail, modelPath, filterArgs))
+                return;
+            if(!this.#passedIfCheck(detail, conditionArgs))
+                return;
+            callback(<HydrateModelChange<T>>{
+                event: event,
+                model: model,
+                state: state
+            });
+        }
     }
 
     #makeProxy(data: any, path: string, parent: string) {
@@ -2357,14 +2394,16 @@ class HydrateApp {
     }
 
     #getExcecuters(eventType:HydrateEventType, targets:HTMLElement[]=[], propPath:string=undefined):Map<HTMLElement, Map<string, HydrateModelEventExecuter[]>> {
-        let details = this.#determineEventDetailProperties(propPath, "property");
-        let results:Map<HTMLElement, Map<string, HydrateModelEventExecuter[]>> = new Map();
+        const details = this.#determineEventDetailProperties(propPath, "property");
+        const mockEvent = this.#createEvent(this.#root, eventType, details, null, null);
+        const results:Map<HTMLElement, Map<string, HydrateModelEventExecuter[]>> = new Map();
         if(targets == null)
             return results;
         let filterModels = propPath != undefined && propPath.trim() != "";
         for(let element of this.#htmlExcecuters.keys())
         {
-            let nested = element.hasAttribute(this.attribute(this.#options.attribute.names.nested));
+            const nestedArgs = this.parseAttributeArguments(element, this.attribute(this.#options.attribute.names.nested));
+            const nested = (nestedArgs?.length ?? 0) > 0;
             if(targets != null && targets.length > 0 && !targets.includes(element))
                 continue;
             let eventExecuters = this.#htmlExcecuters.get(element).get(eventType);
@@ -2376,10 +2415,7 @@ class HydrateApp {
                 for(let modelPath of eventExecuters.keys())
                 {
                     //if(nested)
-                    if(modelPath !== propPath
-                        && modelPath !== details.modelPath //Not a change to a property on our model
-                        && !modelPath.startsWith(propPath) //Not a change in our parent
-                        && (!nested || !propPath.startsWith(modelPath))) //not a nested change we're looking for
+                    if(!this.#checkIfModelChangeApplies(modelPath, propPath, mockEvent.detail, nestedArgs))
                         continue;
                     let modelExecuters = eventExecuters.get(modelPath);
                     if(modelExecuters == undefined || modelExecuters.length === 0)
@@ -2397,6 +2433,16 @@ class HydrateApp {
         //TODO: filter out any conditionals, static, etc.
 
         return results;
+    }
+
+    #checkIfModelChangeApplies(modelPath:string, propPath:string, detail:HydrateEventDetails, nestedArgs:HydrateAttributeArgument[])
+    {
+        if(modelPath !== propPath
+            && modelPath !== detail.modelPath //Not a change to a property on our model
+            && !modelPath.startsWith(propPath) //Not a change in our parent
+            && (( (nestedArgs?.length ?? 0) === 0) || !this.#passedNestedCheck(detail, modelPath, nestedArgs))) //not a nested change we're looking for
+            return false;
+        return true;
     }
 
     dispatch(target:HTMLElement, eventType:HydrateEventType, propPath:string, data:any):boolean {
@@ -2637,9 +2683,15 @@ class HydrateApp {
 
     #shouldUpdateComponent(event:CustomEvent):boolean {
         const detail = event.detail as HydrateEventDetails;
-        const ifAttribute = this.attribute(this.#options.attribute.names.if);
-        let args = this.parseAttributeArguments(detail.element, ifAttribute);
-        const condition = detail.element.getAttribute(ifAttribute);
+        const modelName = detail.element.getAttribute(this.attribute(this.#options.attribute.names.model));
+        if(!this.#passedIfCheck(detail, this.parseAttributeArguments(detail.element, this.attribute(this.#options.attribute.names.if))))
+            return false;
+        if(!this.#passedFilterCheck(detail, modelName, this.parseAttributeArguments(detail.element, this.attribute(this.#options.attribute.names.filter))))
+            return false;
+        return true;
+    }
+
+    #passedIfCheck(detail:HydrateEventDetails, args:HydrateAttributeArgument[]):boolean { 
         if(args == null || args.length === 0)
             return true;
         try{
@@ -2656,6 +2708,60 @@ class HydrateApp {
             console.error(error);
             return false;
         }
+    }
+
+    #passedFilterCheck(detail:HydrateEventDetails, baseModelPath:string, args:HydrateAttributeArgument[]):boolean {
+        //If there is no property, then let it go through because we must respond to all model changes
+        if(args == null || args.length === 0)
+            return true;
+        //This means we had an tempty h-filter attribute which means respond to no child properties
+        if(args.length === 1 && args[0].field.match(/^[ \*]$/) && args[0].expression.match(/^[ \*]$/))
+            return detail.propName == null;
+        for(let arg of args)
+        {
+            if(arg.field !== "*" && arg.field !== detail.type)
+                continue;
+
+            for(let propName of arg.expression.split(/[,;\s]+/))
+            {
+                if(detail.modelPath === baseModelPath) {
+                    if(detail.propName == null || arg.expression.match(/^[ \*]$/) || detail.propName === propName)
+                        return true;
+                } else if(detail.propName == null) {
+                    if(detail.modelPath === `${baseModelPath}.${propName}`)
+                        return true;
+                }
+                else if(detail.propPath === `${baseModelPath}.${propName}`)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    #passedNestedCheck(detail:HydrateEventDetails, baseModelPath:string, args:HydrateAttributeArgument[]):boolean {
+        //If there is no property, then let it go through because we must respond to all model changes
+        const modelPath = detail.propPath ?? detail.modelPath;
+        if(args == null || args.length === 0)
+            return modelPath === baseModelPath;
+
+        //This means we had an tempty h-nested attribute which means respond to all parent changes
+        if(args.length === 1 && args[0].field === "" && (args[0].expression.trim() === "" || args[0].expression === "*"))
+            return modelPath.match(`^${baseModelPath}\\..*|^${baseModelPath}$`) != null;
+    
+        for(let arg of args)
+        {
+            if(arg.field !== "*" && arg.field !== detail.type)
+                continue;
+            for(let nestedPath of arg.expression.split(/[,;\s]+/))
+            {   
+                const path = `${baseModelPath}.${nestedPath}`;
+                if(nestedPath === "*" && detail.modelPath.match(`^${baseModelPath}\\..*|^${baseModelPath}$`))
+                    return true;
+                if(modelPath.match((`^${path}\\..*|^${path}$`)))
+                    return true;
+            }
+        }
+        return false;
     }
 
     #createEvent(target:HTMLElement, eventType:HydrateEventType, properties:HydrateEventDetailProperties, nested:any, data:any) {
