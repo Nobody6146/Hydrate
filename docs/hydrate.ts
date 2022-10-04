@@ -100,6 +100,7 @@ class HydrateAttributeNamesOptions
     script?:string;
     template?:string; //template changes queries user of the templates then regenerate
     component?:string; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
+    shadow?:string; //whether the shadow dom should be used or not
     source?:string; //tells component the source url for a resource
     duplicate?:string; //Duplicates the component x times 
     id?:string; //Places an id
@@ -146,6 +147,7 @@ class HydrateAttributeNamesOptions
         this.script = "script";
         this.template = "template"; //template changes queries user of the templates then regenerate
         this.component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
+        this.shadow = "shadow";
         this.source = "source";
         this.duplicate = "duplicate"; //Duplicates the component x times 
         this.id = "id"; //Places an id
@@ -530,10 +532,10 @@ interface HydrateElementDelayDispatch {
 }
 
 interface HydrateComponentType {
-    shadowDom:boolean;
     attributes:Map<string, string>;
     template:Node[];
     classDefinition:new (...args) => any;
+    style:HTMLStyleElement;
 }
 
 interface HydrateComponent {
@@ -1241,6 +1243,7 @@ class HydrateApp {
             this.attribute(this.#options.attribute.names.event),
             this.attribute(this.#options.attribute.names.on),
             this.attribute(this.#options.attribute.names.component),
+            this.attribute(this.#options.attribute.names.shadow),
             this.attribute(this.#options.attribute.names.duplicate),
             this.attribute(this.#options.attribute.names.route),
             this.attribute(this.#options.attribute.names.routing),
@@ -1514,20 +1517,19 @@ class HydrateApp {
             const scriptAttribute = this.attribute(this.#options.attribute.names.script);
             const componentBodySelector = `script[${scriptAttribute}]`;
             const modelAttribute = this.attribute(this.#options.attribute.names.model);
+            const shadowAttribute = this.attribute(this.#options.attribute.names.shadow);
 
-            const components = this.#root.querySelectorAll<HTMLElement>(`${typeName}:not([${lazyAttribute}]),[${componentAttribute}=${typeName}]:not([${lazyAttribute}])`);
+            const componentSelector = `${typeName}:not([${lazyAttribute}]),[${componentAttribute}='${typeName}' i]:not([${lazyAttribute}])`;
+            const components = this.#root.querySelectorAll<HTMLElement>(componentSelector);
             if(lazy && components.length === 0)
                 //If we are lazy loading and don't have any non-lazy components to load, then don't load this template
                 return;
             
             const type:HydrateComponentType = {
-                shadowElement: false,
                 attributes: new Map(),
                 template: [],
-                //@ts-ignore
-                classDefinition: function(){
-                    return {};
-                }
+                classDefinition: class {},
+                style: null
             }
             this.#componentTypes.set(typeName, type);
 
@@ -1542,22 +1544,34 @@ class HydrateApp {
             if(!type.attributes.has(modelAttribute))
                 type.attributes.set(modelAttribute, "");
 
-            //Load template nodes
-            for(let node of element.content.childNodes)
+            const template = element.cloneNode(true) as HTMLTemplateElement;
+            const scripts = template.content.querySelectorAll<HTMLScriptElement>("script");
+            for(let script of scripts)
             {
-                if(node instanceof HTMLStyleElement)
-                {
-                    //Need a shadow dom to have inidividual styles
-                    type.shadowDom = true;
-                }
-                if(node instanceof HTMLScriptElement)
-                {
-                    //Load the class body
-                    type.classDefinition = new Function(`'use strict'; return ${node.textContent.trim()}`)() as (new (...args) => any);
-                    continue;
-                }
-                type.template.push(node);
+                //Assume the script tag we find is the component body
+                type.classDefinition = new Function(`'use strict'; return ${script.textContent.trim()}`)() as (new (...args) => any);
+                //Remove any script elements from the component
+                script.remove();
             }
+            
+            const styles = template.content.querySelectorAll<HTMLStyleElement>("style");
+            for(let style of styles)
+            {
+                //Assume the style tag we find is the only one and remove it
+                const styleSheet = new CSSStyleSheet();
+                styleSheet.replaceSync(style.textContent);
+                const rules:string[] = []
+                for(let rule of styleSheet.cssRules)
+                    if(rule instanceof CSSStyleRule)
+                        rules.push(this.#buildCSSRule(rule, typeName));
+                style.remove();
+                type.style = document.createElement("style");
+                type.style.textContent = rules.join("\n");
+            }
+
+            //Don't load the template if it's just white space so we know whether to clear the dom or not
+            if(!template.innerHTML.match(/^\s*$/))
+                type.template.push(...template.content.childNodes);
 
             //Link all components of this type
             for(let element of components)
@@ -1567,6 +1581,15 @@ class HydrateApp {
         {
             console.error(error);
         }
+    }
+
+    #buildCSSRule(cssRule:CSSStyleRule, componentTypeName:string):string
+    {
+        const modelAttribute = this.attribute(this.#options.attribute.names.component);
+        const componentAttribute = this.attribute(this.#options.attribute.names.component);
+        const componentSelector = `[${modelAttribute}][${componentAttribute}='${componentTypeName}' i]`;
+        const selectorText = cssRule.selectorText.replace(/:root/g, componentSelector);
+        return selectorText + cssRule.cssText.substring(cssRule.selectorText.length);
     }
 
     #loadRemoteTemplate(element:HTMLTemplateElement, url:string) {
@@ -1629,7 +1652,7 @@ class HydrateApp {
             return;
         try {
             const componentAttribute = this.attribute(this.#options.attribute.names.component);
-            const componentTypeName = element.getAttribute(componentAttribute) ?? element.tagName.toLowerCase();
+            const componentTypeName = element.getAttribute(componentAttribute)?.toLowerCase() ?? element.tagName.toLowerCase();
             let componentType = this.#componentTypes.get(componentTypeName);
             if(componentType == null)
             {
@@ -1643,8 +1666,7 @@ class HydrateApp {
             let component = this.#components.get(element);
             if(component?.type == componentType)
                 return;
-            
-            
+                  
             const hydrate = this;
             component = {
                 initialized: false,
@@ -1685,12 +1707,6 @@ class HydrateApp {
                     return this.$hydrate.state(this.$modelPath);
                 }
             });
-
-            if(componentType.shadowDom && !element.shadowRoot)
-            {
-                element.attachShadow({mode: 'open'});
-                component.mutationObserver = this.#observeDom(element.shadowRoot);
-            }
 
             this.#components.set(element, component);
             //remove from lazy load queue
@@ -1762,6 +1778,8 @@ class HydrateApp {
                 modelPaths.push(eventDetails.modelPath)
         }
 
+        if(component.type.style)
+            children.push(component.type.style.cloneNode(true));
         for(let modelPath of modelPaths)
         {
             for(var child of component.type.template)
@@ -1785,18 +1803,42 @@ class HydrateApp {
             }
         }
         
-        const content = component.type.shadowDom ? element.shadowRoot : element;
-        //delete the current content and shadow dom
-        while (element.firstChild)
-            element.removeChild(element.firstChild);
-        if(element.shadowRoot)
-        {
-            let shadow = element.shadowRoot;
-            while(shadow.firstChild)
-                shadow.removeChild(shadow.firstChild);
+        const shadowAttribute = this.attribute(this.#options.attribute.names.shadow);
+        const shadowDom = element.hasAttribute(shadowAttribute);
+        if(shadowDom) {
+            if(!element.shadowRoot)
+                element.attachShadow({mode: 'open'});
+            if(!component.mutationObserver)
+                component.mutationObserver = this.#observeDom(element.shadowRoot);
+        } else if(component.mutationObserver) {
+            component.mutationObserver.disconnect();
+            component.mutationObserver = null;
         }
-        for (let node of children)
-            content.appendChild(node);
+        
+        const content = shadowDom ? element.shadowRoot : element;
+        if(component.type.template.length > 0)
+        {
+            //Only clear/rerender the component if the template has a body
+            //otherwise, keep the inner HTML of the component unaltered
+            //delete the current content and shadow dom
+            while (element.firstChild)
+                element.removeChild(element.firstChild);
+            if(element.shadowRoot)
+            {
+                let shadow = element.shadowRoot;
+                while(shadow.firstChild)
+                    shadow.removeChild(shadow.firstChild);
+            }
+            for (let node of children)
+                content.appendChild(node);
+        }
+        else if (component.type.style) {
+            const style = content.querySelector("style");
+            if(style)
+                style.textContent = component.type.style.textContent;
+            else
+                content.appendChild(component.type.style.cloneNode(true));
+        }
 
         //Call component change callback if available
         if(component.data.onRender instanceof Function)

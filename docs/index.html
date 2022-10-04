@@ -62,6 +62,11 @@
 
 
             <template h-template="Star-template">
+                <style>
+                    Star-Template {
+                        color: red;
+                    }
+                </style>
                 <div h-model="^" h-property="innerText: $id() <= $state ? '&#9733' : '&#9734'" h-id
                     h-on="click: $detail.parent[$detail.modelName] = $id()">
                 Star</div>
@@ -80,11 +85,9 @@
                 </script>
             </template>
 
-            <template h-template="calculator-template" h-model="default.calculator" h-lazy>
-                <style>
-
-                </style>
+            <template h-template="calculator-template" h-shadow h-model="default.calculator" h-lazy>
                 <p>This calculator calculates the square of numbers less than 20!</p>
+                <p>This component uses the shadow dom!</p>
                 <input id="calculator" h-model="^" h-property="value: value" h-input="value: $element.value" h-if="input: $element.value < 20">
                 <h1 h-model="^" h-property="textContent: $component.calculate(value)"></h1>
                 <script h-script>
@@ -189,6 +192,19 @@
 
                     <p h-model="default.nested" h-event="*: $detail.nested  ? console.log('nested event test!', $detail) : null" h-nested="*: value"></p>
                     <p h-model="default" h-filter="*: rank" h-event="*: console.log('we responded to a rank change!')"></p>
+
+                    <template h-template="ButtonTemplate">
+                        <style>
+                            :root {
+                                background-color: black;
+                                color: white;
+                            }
+                        </style>
+                    </template>
+
+                    <button h-component="ButtonTemplate">
+                        Click me!
+                    </button>
             </main>
     
             <footer>
