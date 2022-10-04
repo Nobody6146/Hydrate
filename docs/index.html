@@ -86,6 +86,11 @@
             </template>
 
             <template h-template="calculator-template" h-shadow h-model="default.calculator" h-lazy>
+                <style>
+                    :host {
+                        color: aqua;
+                    }
+                </style>
                 <p>This calculator calculates the square of numbers less than 20!</p>
                 <p>This component uses the shadow dom!</p>
                 <input id="calculator" h-model="^" h-property="value: value" h-input="value: $element.value" h-if="input: $element.value < 20">
