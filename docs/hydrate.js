@@ -217,6 +217,13 @@ class HydrateEventDetails {
     get model() {
         return this.hydrate.model(this.modelPath);
     }
+    set model(value) {
+        const parent = this.parent;
+        if (parent)
+            parent[this.modelName] = value;
+        else
+            this.hydrate.bind(this.modelName, value);
+    }
     get state() {
         return this.hydrate.state(this.modelPath);
     }
@@ -970,12 +977,12 @@ class HydrateApp {
         let target = event.target;
         if (!target.matches(this.#trackableElementSelector))
             return;
-        let modelName = target.getAttribute(this.attribute(this.#options.attribute.names.model));
-        let model = this.model(modelName);
-        let state = this.state(modelName);
-        if (!(state instanceof Object))
-            return;
-        this.dispatch(target, "input", modelName, event);
+        // let modelName = target.getAttribute(this.attribute(this.#options.attribute.names.model));
+        // let model = this.model(modelName);
+        // let state = this.state(modelName);
+        // if(!(state instanceof Object))
+        //     return;
+        this.dispatch(target, "input", null, event);
     }
     #addTrackableAttributes() {
         this.#options.attribute.trackables.push(this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.model), this.attribute(this.#options.attribute.names.init), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.attribute), this.attribute(this.#options.attribute.names.property), this.attribute(this.#options.attribute.names.toggle), this.attribute(this.#options.attribute.names.class), this.attribute(this.#options.attribute.names.remove), this.attribute(this.#options.attribute.names.input), this.attribute(this.#options.attribute.names.mutation), this.attribute(this.#options.attribute.names.lazy), this.attribute(this.#options.attribute.names.mock), this.attribute(this.#options.attribute.names.if), this.attribute(this.#options.attribute.names.event), this.attribute(this.#options.attribute.names.on), this.attribute(this.#options.attribute.names.component), this.attribute(this.#options.attribute.names.shadow), this.attribute(this.#options.attribute.names.duplicate), this.attribute(this.#options.attribute.names.route), this.attribute(this.#options.attribute.names.routing), this.attribute(this.#options.attribute.names.mutation), this.attribute(this.#options.attribute.names.source));
@@ -998,7 +1005,7 @@ class HydrateApp {
             }
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.property), (arg, eventDetails) => {
-            if (eventDetails.modelName !== "" && eventDetails.model == null)
+            if (eventDetails.modelName !== "" && eventDetails.model === undefined)
                 return;
             let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             if (value === undefined)
@@ -1009,7 +1016,7 @@ class HydrateApp {
             return;
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.attribute), (arg, eventDetails) => {
-            if (eventDetails.modelName !== "" && eventDetails.model == null)
+            if (eventDetails.modelName !== "" && eventDetails.model === undefined)
                 return;
             let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             if (value === undefined)
@@ -1020,19 +1027,19 @@ class HydrateApp {
             return;
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.class), (arg, eventDetails) => {
-            if (eventDetails.modelName !== "" && eventDetails.model == null)
+            if (eventDetails.modelName !== "" && eventDetails.model === undefined)
                 return;
             let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             eventDetails.element.classList.toggle(arg.field, value);
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.toggle), (arg, eventDetails) => {
-            if (eventDetails.modelName !== "" && eventDetails.model == null)
+            if (eventDetails.modelName !== "" && eventDetails.model === undefined)
                 return;
             let value = eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
             eventDetails.element.toggleAttribute(arg.field, value);
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.remove), (arg, eventDetails) => {
-            if (eventDetails.modelName !== "" && eventDetails.model == null
+            if (eventDetails.modelName !== "" && eventDetails.model === undefined
                 && eventDetails.propPath !== null && eventDetails.type !== 'unbind')
                 return;
             eventDetails.element.remove();
@@ -1048,13 +1055,20 @@ class HydrateApp {
             eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, null);
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.input), (arg, eventDetails) => {
-            if (eventDetails.modelName !== "" && eventDetails.model == null
-                && eventDetails.propPath !== null && eventDetails.type !== 'unbind')
+            if (eventDetails.modelName !== "" && eventDetails.model === undefined
+                && eventDetails.propPath !== undefined && eventDetails.type !== 'unbind')
                 return;
             let value = this.resolveArgumentValue(eventDetails, arg, eventDetails.event);
-            if (eventDetails.state[arg.field] === value)
-                return;
-            eventDetails.model[arg.field] = value;
+            if (eventDetails.propName) {
+                if (eventDetails.state[arg.field] === value)
+                    return;
+                eventDetails.model[arg.field] = value;
+            }
+            else {
+                if (eventDetails.state === value)
+                    return;
+                eventDetails.model = value;
+            }
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.on), (arg, eventDetails) => {
             if (arg.field !== eventDetails.event.type)
@@ -1062,12 +1076,15 @@ class HydrateApp {
             eventDetails.hydrate.resolveArgumentValue(eventDetails, arg, eventDetails.event);
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.component), (arg, eventDetails) => {
-            if (eventDetails.modelName !== "" && eventDetails.model == null)
+            if (eventDetails.modelName !== "" && eventDetails.model === undefined)
                 return;
             const component = this.#components.get(eventDetails.element);
             //If we are not linked to a component, the event isn't targeting the model (and not targeting a property) unless it's the array.length property
             if (component == null
                 || (eventDetails.propName !== undefined && !Array.isArray(eventDetails.state) && eventDetails.propName !== "length"))
+                return;
+            //If the model bound to this element is not an object, don't regenerate because the value is constant
+            if (eventDetails.type === "set" && !(eventDetails.model instanceof Object))
                 return;
             let hasRoutintAttribute = eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing));
             if (hasRoutintAttribute) {
@@ -1095,7 +1112,7 @@ class HydrateApp {
             this.#buildComponent(component, eventDetails);
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.mock), (arg, eventDetails) => {
-            if (eventDetails.modelName !== "" && eventDetails.model == null)
+            if (eventDetails.modelName !== "" && eventDetails.model === undefined)
                 return;
             const modelPath = eventDetails.modelPath;
             const element = eventDetails.element;
@@ -1245,6 +1262,7 @@ class HydrateApp {
             for (let style of styles) {
                 //Assume the style tag we find is the only one and remove it
                 const styleSheet = new CSSStyleSheet();
+                //@ts-ignore even though type appears correctly in editor, there is a TS compile error
                 styleSheet.replaceSync(style.textContent);
                 const rules = [];
                 for (let rule of styleSheet.cssRules)
@@ -1490,8 +1508,9 @@ class HydrateApp {
             component.data.onRender(eventDetails);
     }
     resolveArgumentValue(detail, arg, event) {
-        let app = this;
-        let functionArgs = {
+        const app = this;
+        const component = app.#findComponentForElement(detail.element)?.data;
+        const functionArgs = {
             $hydrate: this,
             $element: detail.element,
             $detail: detail,
@@ -1518,7 +1537,7 @@ class HydrateApp {
                 const idAttribute = app.attribute(app.#options.attribute.names.id);
                 return element.getAttribute(idAttribute);
             },
-            $component: app.#findComponentForElement(detail.element)?.data
+            $component: component
         };
         const validIndentifier = /^[$A-Z_][0-9A-Z_$]*$/i;
         var stateKeys = Object.keys(detail.state ?? {}).filter(x => x.match(validIndentifier));
@@ -1527,9 +1546,9 @@ class HydrateApp {
         if (typeof detail.state === "object")
             for (let key of stateKeys)
                 values.push(detail.state[key]);
-        let func = new Function(...keys, `'use strict'; return ${arg.expression}`).bind(detail.state);
-        if (typeof detail.state === "object")
-            func = func.bind(detail.state);
+        let func = new Function(...keys, `'use strict'; return ${arg.expression}`);
+        if (component != null)
+            func = func.bind(component);
         return func(...values);
     }
     #findComponentForElement(element) {
@@ -1686,7 +1705,7 @@ class HydrateApp {
         }
         this.#onDomEventListeners.delete(element);
     }
-    #addOnAttributeEventListener(element, eventType) {
+    #addOnAttributeEventListener(element, eventType, mockedAttributes) {
         let elementListeners = this.#onDomEventListeners.get(element);
         if (elementListeners == null) {
             elementListeners = new Map();
@@ -1696,6 +1715,7 @@ class HydrateApp {
             return;
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
         let modelPath = element.getAttribute(modelAttribute);
+        modelPath = this.#mockModelPath(modelPath, this.attribute(this.#options.attribute.names.on), mockedAttributes);
         const app = this;
         let listener = event => {
             app.dispatch(element, "on", modelPath, event);
@@ -1758,12 +1778,7 @@ class HydrateApp {
         if (!element.hasAttribute(attribute))
             return;
         //Mock the model path if necessary
-        if (mockedAttributes.has(attribute)) {
-            modelPath = mockedAttributes.get(attribute);
-        }
-        else if (mockedAttributes.has("*")) {
-            modelPath = mockedAttributes.get("*");
-        }
+        modelPath = this.#mockModelPath(modelPath, attribute, mockedAttributes);
         let args = parseArgs ? this.parseAttributeArguments(element, attribute)
             : [
                 {
@@ -1794,6 +1809,15 @@ class HydrateApp {
             }
         }
         return args;
+    }
+    #mockModelPath(path, attribute, mockedAttributes) {
+        if (mockedAttributes.has(attribute)) {
+            return mockedAttributes.get(attribute);
+        }
+        else if (mockedAttributes.has("*")) {
+            return mockedAttributes.get("*");
+        }
+        return path;
     }
     #addInitHandler(element, modelPath, possibleEventTypes, mockedAttributes) {
         let attribute = this.attribute(this.#options.attribute.names.init);
@@ -1960,7 +1984,7 @@ class HydrateApp {
         if (args == null)
             return;
         for (let arg of args) {
-            this.#addOnAttributeEventListener(element, arg.field);
+            this.#addOnAttributeEventListener(element, arg.field, mockedAttributes);
         }
     }
     #addGenerateComponentHandler(element, modelPath, possibleEventTypes, mockedAttributes) {

@@ -1,0 +1,51 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"/>
+        <title>Generic Components Demo</title>
+        <script src="../../hydrate.js"></script>
+    </head>
+    <body>
+        <template h-template="app-templates" h-source="components.html"></template>
+        <app-templates></app-templates>
+
+        <template h-template="app-root" h-model="app" h-init>
+            <generic-input h-model="^.nameField"></generic-input>
+            <generic-input h-model="^.ageField"></generic-input>
+            <!-- <generic-input h-model="^.form.name"></generic-input>
+            <generic-input h-model="^.form.age"></generic-input> -->
+            <button h-model="^.button" h-component="generic-button">Click</button>
+            <script>
+                class Component {
+                    onInit() {
+                        this.$model.form = {
+                            // name: "Brandon",
+                            // age: 27
+                        };
+                        this.$model.button = {
+                            onClick: function() {
+                                alert(`${this.$state.form.name} is ${this.$state.form.age}`)
+                            }.bind(this)
+                        };
+                        this.$model.nameField = {
+                            type: "text",
+                            label: "Name",
+                            inputPath: `${this.$modelPath}.form.name`
+                        };
+                        this.$model.ageField = {
+                            type: "number",
+                            label: "Age",
+                            inputPath: `${this.$modelPath}.form.age`
+                        };
+                    }
+                }
+            </script>
+        </template>
+        
+        <app-root></app-root>
+
+        <script>
+            let hydrate = new HydrateApp();
+        </script>
+    </body>
+</html>

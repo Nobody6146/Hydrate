@@ -1,0 +1,63 @@
+<template>
+    <div>
+        <input placeholder=" " h-model="^"
+            h-attribute="type: type"
+            h-mock="h-property: inputPath; h-input: inputPath"
+            h-property="value: $state"
+            h-input=": this.getValue($element)">
+        <label h-model="^" h-property="textContent: label">Input</label>
+    </div>
+    <!-- <div>
+        <input placeholder=" " h-model="^" h-property="value: $state" h-on="input: $detail.model = $element.value">
+        <label h-model="^" h-property="textContent: label">Input</label>
+    </div> -->
+    <style>
+        :root div {
+            box-sizing: border-box;
+            border-collapse: collapse;
+            position: relative;
+            height: 40px;
+        }
+        :root input {
+            height: 100%;
+            width: 200px;
+            border: none;
+            border-bottom: solid 1px;
+        }
+        :root input:focus {
+            outline: none;
+        }
+        :root input::placeholder {
+            display: hidden;
+            color: transparent;
+        }
+        :root label {
+            position: absolute;
+            bottom: .5em;
+            left: 0;
+            pointer-events: none;
+            transition: 300ms transform;
+        }
+        :root input:focus ~ label, :root input:not(:placeholder-shown) ~ label {
+            transform: translateY(-1em) scale(.75);
+        }
+    </style>
+    <script>
+        class Component {
+            updateValue(element) {
+                this.$hydrate.parent(this.$modelPath);
+            }
+            getValue(element) {
+                switch(this.$state.type)
+                {
+                    case 'number':
+                        return element.value === "" ? null : element.valueAsNumber
+                    case 'checkbox':
+                        return element.checked;
+                    default:
+                        return element.value;
+                }
+            }
+        }
+    </script>
+</template>
