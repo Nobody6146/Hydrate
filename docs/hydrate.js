@@ -1059,7 +1059,7 @@ class HydrateApp {
                 && eventDetails.propPath !== undefined && eventDetails.type !== 'unbind')
                 return;
             let value = this.resolveArgumentValue(eventDetails, arg, eventDetails.event);
-            if (eventDetails.propName) {
+            if (arg.field.trim() !== "" && arg.field !== "*") {
                 if (eventDetails.state[arg.field] === value)
                     return;
                 eventDetails.model[arg.field] = value;

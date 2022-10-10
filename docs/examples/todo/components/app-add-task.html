@@ -21,14 +21,41 @@
             h-model="^.task" h-property="checked: reminder" h-input="reminder: $element.checked"
         />
         </div>
+
+        <!-- <div>
+            <generic-input h-model="^.taskField"></generic-input>
+            <generic-input h-model="^.dateField"></generic-input>
+            <generic-input h-model="^.reminderField"></generic-input>
+        </div> -->
+
         <button class="btn btn-block"
             h-model="^" h-on="click: addTask(task)"
         >
             Save Task
         </button>
+
+        
     </div>
+
     <script h-script>
         class Component {
+            onInit() {
+                this.$model.taskField = {
+                    type: "text",
+                    label: "Task",
+                    inputPath: `${this.$modelPath}.task.text`
+                };
+                this.$model.dateField = {
+                    type: "text",
+                    label: "Day & Time",
+                    inputPath: `${this.$modelPath}.task.day`
+                };
+                this.$model.reminderField = {
+                    type: "checkbox",
+                    label: "Set Reminder",
+                    inputPath: `${this.$modelPath}.task.reminder`
+                };
+            }
             saveTask(task) {
                 this.$state.addTask(task);
             }
