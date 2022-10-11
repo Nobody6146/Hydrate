@@ -2516,6 +2516,16 @@ class HydrateApp {
     }
 
     dispatch(target:HTMLElement, eventType:HydrateEventType, propPath:string, data:any):boolean {
+        try {
+            return this.#handleDispatch(target, eventType, propPath, data);
+        }
+        catch(error) {
+            alert(error);
+            return false;
+        }
+    }
+
+    #handleDispatch(target:HTMLElement, eventType:HydrateEventType, propPath:string, data:any):boolean {
         let dispatchId:number;
         let dispatchTimer:string;
         if(this.#options.debug.dispatchTimer)
@@ -2569,7 +2579,7 @@ class HydrateApp {
             console.timeEnd(dispatchTimer);
         }
         
-        return listenerEvent.defaultPrevented;
+        return listenerEvent.defaultPrevented; 
     }
 
     #appendShadowDomElements(elements:HTMLElement[]):HTMLElement[] {
@@ -2746,6 +2756,7 @@ class HydrateApp {
                 }
                 catch(error) {
                     console.error(error);
+                    alert(error.message);
                 }
             }
         }

@@ -2085,6 +2085,15 @@ class HydrateApp {
         return true;
     }
     dispatch(target, eventType, propPath, data) {
+        try {
+            return this.#handleDispatch(target, eventType, propPath, data);
+        }
+        catch (error) {
+            alert(error);
+            return false;
+        }
+    }
+    #handleDispatch(target, eventType, propPath, data) {
         let dispatchId;
         let dispatchTimer;
         if (this.#options.debug.dispatchTimer) {
@@ -2281,6 +2290,7 @@ class HydrateApp {
                 }
                 catch (error) {
                     console.error(error);
+                    alert(error.message);
                 }
             }
         }
