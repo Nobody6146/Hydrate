@@ -1,5 +1,5 @@
 <template h-model="tasks" h-init h-route="#home" h-routing="resolve">
-    <p h-model="^" h-property="textContent: `Total: ${list.length}`"></p>
+    <p h-model="^.list.length" h-property="textContent: `Total: ${$state}`"></p>
     <app-add-task h-model="^.addTaskForm"></app-add-task>
     <app-task-item h-model="^.list"></app-task-item>
     <script h-script>

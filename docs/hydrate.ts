@@ -1577,17 +1577,8 @@ class HydrateApp {
             const styles = template.content.querySelectorAll<HTMLStyleElement>("style");
             for(let style of styles)
             {
-                //Assume the style tag we find is the only one and remove it
-                const styleSheet = new CSSStyleSheet();
-                //@ts-ignore even though type appears correctly in editor, there is a TS compile error
-                styleSheet.replaceSync(style.textContent);
-                const rules:string[] = []
-                for(let rule of styleSheet.cssRules)
-                    if(rule instanceof CSSStyleRule)
-                        rules.push(this.#buildCSSRule(rule, typeName));
+                type.style = this.#buildCssStyle(style, typeName);
                 style.remove();
-                type.style = document.createElement("style");
-                type.style.textContent = rules.join("\n");
             }
 
             //Don't load the template if it's just white space so we know whether to clear the dom or not
@@ -1604,13 +1595,29 @@ class HydrateApp {
         }
     }
 
-    #buildCSSRule(cssRule:CSSStyleRule, componentTypeName:string):string
+    #buildCssStyle(baseStyle:HTMLStyleElement, componentTypeName:string):HTMLStyleElement
     {
         const modelAttribute = this.attribute(this.#options.attribute.names.component);
         const componentAttribute = this.attribute(this.#options.attribute.names.component);
         const componentSelector = `[${modelAttribute}][${componentAttribute}='${componentTypeName}' i]`;
-        const selectorText = cssRule.selectorText.replace(/:root/g, componentSelector);
-        return selectorText + cssRule.cssText.substring(cssRule.selectorText.length);
+        const style = document.createElement("style");
+        let styleText = baseStyle.textContent;
+        let leadingWhitespace:string = undefined;// = styleText.match(/^[\r\n]*(\s*)[^\s]/);
+        let regex:RegExp;
+        const lines = styleText.split(/[\r\n]/);
+        for(let i = 0; i < lines.length;i++)
+        {
+            if(leadingWhitespace === undefined && lines[i].trim() !== "")
+            {
+                leadingWhitespace = lines[i].match(/^\s+/)?.[0] ?? null;
+                if(leadingWhitespace)
+                    regex = new RegExp(`^${leadingWhitespace}`);
+            }
+            if(leadingWhitespace)
+                lines[i] = lines[i].replace(regex, "");
+        }
+        style.textContent = lines.join("\n").replace(/:root/g, componentSelector);
+        return style;
     }
 
     #loadRemoteTemplate(element:HTMLTemplateElement, url:string) {
@@ -2520,7 +2527,7 @@ class HydrateApp {
             return this.#handleDispatch(target, eventType, propPath, data);
         }
         catch(error) {
-            alert(error);
+            console.error(error);
             return false;
         }
     }
@@ -2756,7 +2763,6 @@ class HydrateApp {
                 }
                 catch(error) {
                     console.error(error);
-                    alert(error.message);
                 }
             }
         }
