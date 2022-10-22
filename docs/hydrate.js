@@ -218,6 +218,7 @@ class HydrateEventDetails {
         return this.hydrate.model(this.modelPath);
     }
     set model(value) {
+        //The assumptions in this method aren't always correct...
         const parent = this.parent;
         if (parent)
             parent[this.modelName] = value;
@@ -433,6 +434,12 @@ class HydrateModelSubscription {
         //@ts-ignore
         this.#hydrate.root.removeEventListener(this.#hydrate.event("unbind"), this.callback);
     }
+    get model() {
+        return this.#hydrate.model(this.modelPath);
+    }
+    get state() {
+        return this.#hydrate.state(this.modelPath);
+    }
 }
 class HydrateApp {
     #dispatchId = 0;
@@ -642,6 +649,8 @@ class HydrateApp {
     }
     ;
     #subscriptionCallback(modelPath, callback, options) {
+        if (callback == null)
+            return;
         const conditionArgs = options?.condition != null
             ? [{
                     field: "*",
@@ -1374,7 +1383,7 @@ class HydrateApp {
                     return hydrate;
                 }
             });
-            Object.defineProperty(component.data, '$parent', {
+            Object.defineProperty(component.data, '$parentComponent', {
                 get() {
                     return hydrate.#findComponentForElement(component.element.parentElement)?.data;
                 }

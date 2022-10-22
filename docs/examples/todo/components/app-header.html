@@ -3,28 +3,39 @@
         <h1 h-model="^" h-property="textContent: title"> </h1>
         <app-button
             h-model="^.button"
+            h-route="#home" h-routing="resolve"
         >
         </app-button>
     </header>
     <script h-script>
         class Component {
+            #showAddSubscription;
+
             onInit(detail) {
                 this.$model.title = "Task Tracker";
+                this.$model.showAdd = false;
                 this.$model.button = {
                     text: "",
                     color: "",
-                    onClick: this.toggleAddTaskMenu.bind(this)
+                    onClick: this.#toggleShowAdd.bind(this)
                 };
-                this.#updateButton(UiService.addTaskMenu.visible);
+                
+                this.#showAddSubscription = APP.uiService.subscribeToShowAddTaskMenu( function({state}) {
+                    this.$model.showAdd = state;
+                    this.#updateButton(state);
+                }.bind(this));
+                this.$model.showAdd = this.#showAddSubscription.state;
+                this.#updateButton(this.$state.showAdd);
             }
-            toggleAddTaskMenu() {
-                this.#updateButton(UiService.toggleAddTaskMenu());
+            onDestroy() {
+                this.#showAddSubscription.unsubscribe();
             }
             #updateButton(showAddTaskMenu) {
-                // if(!this.$state.button)
-                //     return;
                 this.$model.button.text = showAddTaskMenu ? "Close" : "Add";
                 this.$model.button.color = showAddTaskMenu ? "red" : "green";
+            }
+            #toggleShowAdd() {
+                APP.uiService.toggleAddTaskMenu();
             }
         }
     </script>

@@ -4,27 +4,32 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"/>
         <title>Todo List Demo</title>
         <script src="../../hydrate.js"></script>
+        <script src="scripts/api.js"></script>
         <script src="scripts/task.js"></script>
         <script src="scripts/ui.js"></script>
+        <script src="scripts/router.js"></script>
         <script src="app.js"></script>
         <link href="style.css" rel="stylesheet">
     </head>
     <body>
+        <!-- Load our templates -->
         <template h-template="app-templates" h-source="components.html"></template>
-        
         <app-templates></app-templates>
 
-        
-
-        <div class="container">
-            <app-header h-lazy></app-header>
-            <app-tasks h-lazy></app-tasks>
-            <app-about h-lazy></app-about>
-            <app-footer h-lazy></app-footer>
-        </div>
+        <!-- Load and display the app when ready -->
+        <template h-template="app-root" h-model="loaded">
+            <div class="container">
+                <app-header h-lazy></app-header>
+                <app-tasks h-lazy></app-tasks>
+                <app-about h-lazy></app-about>
+                <app-footer h-lazy></app-footer>
+            </div>
+        </template>
+        <app-root></app-root>
 
         <script>
-            const app = new App();
+            //Create our app
+            const APP = new App();
         </script>
     </body>
 </html>

@@ -4,37 +4,32 @@
     <app-task-item h-model="^.list"></app-task-item>
     <script h-script>
         class Component {
+            #tasksSubscription;
+
             onInit() {
-                this.$model.list = TaskService.loadTasks();
-                const component = this;
+                this.#tasksSubscription = APP.taskService.subscribeToTasks(function({state}) {
+                    this.$model.list = state;
+                }.bind(this));
+                this.$model.list = this.#tasksSubscription.state;
+                
                 this.$model.addTaskForm = {
-                    task: TaskService.createTask(),
+                    task: APP.taskService.emptyTask(),
                     showAddTask: true,
-                    addTask: component.addTask.bind(this)
+                    addTask: this.addTask.bind(this)
                 }
             }
+            onDestroy() {
+                this.#tasksSubscription.unsubscribe();
+            }
             addTask(task) {
-                const tasks = this.$state.list;
-                task.id = tasks.reduce((x, y) => y > x ? y : x, 1);
-                this.$model.list.push(task);
-                this.$model.addTaskForm.task = TaskService.createTask();
-                TaskService.saveTasks(tasks);
+                APP.taskService.addTask(task);
+                this.$model.addTaskForm.task = APP.taskService.emptyTask();
             }
             toggleReminder(task) {
-                const tasks = this.$state.list;
-                let index = tasks.indexOf(task);
-                if(index < 0)
-                    return;
-                this.$model.list[index].reminder = !task.reminder;
-                TaskService.saveTasks(tasks);
+                APP.taskService.toggleReminder(task.id);
             }
             deleteTask(task) {
-                const tasks = this.$state.list;
-                let index = tasks.indexOf(task);
-                if(index < 0)
-                    return;
-                this.$model.list.splice(index, 1);
-                TaskService.saveTasks(tasks);
+                APP.taskService.deleteTask(task.id);
             }
         }
     </script>

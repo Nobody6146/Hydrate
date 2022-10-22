@@ -1,7 +1,7 @@
 <template>
     <div class="add-form"
         h-model="^"
-        h-mock="h-toggle: $component.uiModel" h-toggle="hidden: !visible"
+        h-toggle="hidden: !visible"
     >
         <div class="form-control">
         <label for="text">Task</label>
@@ -33,34 +33,37 @@
         >
             Save Task
         </button>
-
-        
     </div>
 
     <script h-script>
         class Component {
+            #showAddSubscription;
+
             onInit() {
-                this.$model.taskField = {
-                    type: "text",
-                    label: "Task",
-                    inputPath: `${this.$modelPath}.task.text`
-                };
-                this.$model.dateField = {
-                    type: "text",
-                    label: "Day & Time",
-                    inputPath: `${this.$modelPath}.task.day`
-                };
-                this.$model.reminderField = {
-                    type: "checkbox",
-                    label: "Set Reminder",
-                    inputPath: `${this.$modelPath}.task.reminder`
-                };
+                this.$model.visible = false;
+                this.#showAddSubscription = APP.uiService.subscribeToShowAddTaskMenu(function({state}) {
+                    this.$model.visible = state;
+                }.bind(this));
+                this.$model.visible = this.#showAddSubscription.state;
+
+                // this.$model.taskField = {
+                //     type: "text",
+                //     label: "Task",
+                //     inputPath: `${this.$modelPath}.task.text`
+                // };
+                // this.$model.dateField = {
+                //     type: "text",
+                //     label: "Day & Time",
+                //     inputPath: `${this.$modelPath}.task.day`
+                // };
+                // this.$model.reminderField = {
+                //     type: "checkbox",
+                //     label: "Set Reminder",
+                //     inputPath: `${this.$modelPath}.task.reminder`
+                // };
             }
-            saveTask(task) {
-                this.$state.addTask(task);
-            }
-            get uiModel() {
-                return this.$hydrate.path(UiService.addTaskMenu);
+            onDestroy() {
+                this.#showAddSubscription.unsubscribe();
             }
         }
     </script>

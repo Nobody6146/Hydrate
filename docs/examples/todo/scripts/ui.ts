@@ -1,31 +1,30 @@
 interface UiServiceModel {
-    addTaskMenu:AddTaskUiModel;
-}
-interface AddTaskUiModel  {
-    visible:boolean;
+    addTaskMenu:{
+        visible:boolean;
+    };
 }
 
 class UiService {
+    
+    #hydrate:HydrateApp;
+    #model:UiServiceModel;
 
-    static #hydrate:HydrateApp;
-    static #model:UiServiceModel;
-
-    static initialize(hydrate:HydrateApp) {
-        UiService.#hydrate = hydrate;
-        UiService.#model = hydrate.bind("ui", {
+    constructor(hydrate:HydrateApp) {
+        this.#hydrate = hydrate;
+        this.#model = hydrate.bind("ui", {
             addTaskMenu: {
                 visible: false
             }
         });
     }
 
-    static get addTaskMenu():AddTaskUiModel {
-        return UiService.#model.addTaskMenu;
+    subscribeToShowAddTaskMenu(callback:HydrateSubscriptionCallback) {
+        return this.#hydrate.subscribe(`${this.#hydrate.path(this.#model.addTaskMenu)}.visible`, callback);
     }
 
-    static toggleAddTaskMenu():boolean {
-        const toggle = !(UiService.#hydrate.state(UiService.#model).addTaskMenu.visible);
-        UiService.#model.addTaskMenu.visible = toggle;
+    toggleAddTaskMenu():boolean {
+        const toggle = !(this.#hydrate.state(this.#model).addTaskMenu.visible);
+        this.#model.addTaskMenu.visible = toggle;
         return toggle;
     }
 }

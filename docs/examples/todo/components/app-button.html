@@ -1,9 +1,9 @@
 <template>
     <button class="btn" style="background-color: grey;"
         h-model="^"
-        h-property="textContent: $state.text"
-        h-attribute="style: `background-color: ${$state.color}`"
-        h-on="click: $state.onClick()"
+        h-property="textContent: $state.text ?? 'button'"
+        h-attribute="style: `background-color: ${$state.color ?? 'grey'}`"
+        h-on="click: $state.onClick?.()"
     >
         Button
     </button>

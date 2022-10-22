@@ -29,12 +29,12 @@
     <div class="task"
         h-model="^"
         h-class="reminder: reminder"
-        h-on="dblclick: $component.toggleReminder($state)">
+        h-on="dblclick: this.toggleReminder($state)">
         <h3>
             <span h-model="^" h-property="textContent: text"></span>
             <i style="font-size: x-large;"
                 h-model="^"
-                h-on="click: $component.deleteTask($state)"
+                h-on="click: this.deleteTask($state)"
             >X</i>
         </h3>
         <p h-model="^" h-property="textContent: day"></p>
@@ -42,11 +42,10 @@
     <script h-script>
         class Component {
             toggleReminder(task) {
-                this.$parent.toggleReminder(task);
+                this.$parentComponent.toggleReminder(task);
             }
             deleteTask(task) {
-                console.log(this);
-                this.$parent.deleteTask(task);
+                this.$parentComponent.deleteTask(task);
             }
         }
     </script>

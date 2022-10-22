@@ -297,6 +297,7 @@ abstract class HydrateEventDetails
         return this.hydrate.model(this.modelPath);
     }
     set model(value:object) {
+        //The assumptions in this method aren't always correct...
         const parent = this.parent;
         if(parent)
             parent[this.modelName] = value;
@@ -449,9 +450,9 @@ class HydrateRouteRequest {
     /**
      * Attempts to resolve the route. If it fails, you'll return null
      */
-     match(uri:string, ...routes:HydrateRoute[]|string[]):HydrateMatchedRoute[] {
+     match(uri:string, ...routes:HydrateRoute[]|string[]):HydrateRouteMatch[] {
         let url = new URL(uri);
-        let results:HydrateMatchedRoute[] = [];
+        let results:HydrateRouteMatch[] = [];
         let path = this.#determineRoutePath(url);
         for(let route of routes) {
             if(typeof route === "string")
@@ -521,7 +522,7 @@ interface HydrateRoute {
     action?:Function;
 }
 
-interface HydrateMatchedRoute {
+interface HydrateRouteMatch {
     url:string;
     route:HydrateRoute;
     params:object;
@@ -585,6 +586,13 @@ class HydrateModelSubscription {
         this.#hydrate.root.removeEventListener(this.#hydrate.event("set"), this.callback);
         //@ts-ignore
         this.#hydrate.root.removeEventListener(this.#hydrate.event("unbind"), this.callback);
+    }
+
+    get model() {
+        return this.#hydrate.model(this.modelPath);
+    }
+    get state() {
+        return this.#hydrate.state(this.modelPath);
     }
 }
 
@@ -837,6 +845,8 @@ class HydrateApp {
         return subscription;
     };
     #subscriptionCallback<T>(modelPath:string, callback:HydrateSubscriptionCallback, options?:HydrateSubscriptionOptions) {
+        if(callback == null)
+            return;
         const conditionArgs:HydrateAttributeArgument[] = options?.condition != null
             ? [{
                 field: "*",
@@ -1710,7 +1720,7 @@ class HydrateApp {
                     return hydrate;
                 }
             });
-            Object.defineProperty(component.data, '$parent', {
+            Object.defineProperty(component.data, '$parentComponent', {
                 get() {
                     return hydrate.#findComponentForElement(component.element.parentElement)?.data;
                 }
