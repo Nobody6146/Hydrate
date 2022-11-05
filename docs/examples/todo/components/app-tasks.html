@@ -10,7 +10,8 @@
                 this.#tasksSubscription = APP.taskService.subscribeToTasks(function({state}) {
                     this.$model.list = state;
                 }.bind(this));
-                this.$model.list = this.#tasksSubscription.state;
+                //Will tell the subscription to automatically fire the callback with the current data
+                this.#tasksSubscription.trigger();
                 
                 this.$model.addTaskForm = {
                     task: APP.taskService.emptyTask(),

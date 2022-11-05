@@ -564,11 +564,13 @@ class HydrateModelSubscription {
     #hydrate:HydrateApp;
     modelPath:string;
     callback:Function;
+    #mockEvnet:CustomEvent<HydrateEventDetails>
 
-    constructor(hydrate:HydrateApp, modelPath:string, callback:Function) {
+    constructor(hydrate:HydrateApp, modelPath:string, callback:Function, mockEvent:CustomEvent<HydrateEventDetails>) {
         this.#hydrate = hydrate;
         this.modelPath = modelPath;
         this.callback = callback;
+        this.#mockEvnet = mockEvent;
     }
 
     subscribe() {
@@ -586,6 +588,9 @@ class HydrateModelSubscription {
         this.#hydrate.root.removeEventListener(this.#hydrate.event("set"), this.callback);
         //@ts-ignore
         this.#hydrate.root.removeEventListener(this.#hydrate.event("unbind"), this.callback);
+    }
+    trigger() {
+        this.callback(this.#mockEvnet);
     }
 
     get model() {
@@ -840,8 +845,10 @@ class HydrateApp {
     subscribe(modelPath: string | any, callback:HydrateSubscriptionCallback, options?:HydrateSubscriptionOptions):HydrateModelSubscription {
         if(typeof modelPath !== "string")
             modelPath = this.name(modelPath);
-        const subscription = new HydrateModelSubscription(this, modelPath, this.#subscriptionCallback(modelPath, callback, options));
+        const mockEvent = this.#createEvent(this.#root, "bind", this.#determineEventDetailProperties(modelPath, "property"), null, null);
+        const subscription = new HydrateModelSubscription(this, modelPath, this.#subscriptionCallback(modelPath, callback, options), mockEvent);
         subscription.subscribe();
+        
         return subscription;
     };
     #subscriptionCallback<T>(modelPath:string, callback:HydrateSubscriptionCallback, options?:HydrateSubscriptionOptions) {
@@ -867,9 +874,9 @@ class HydrateApp {
             : null;
 
         return (event:CustomEvent<HydrateEventDetails>) => {
-            if(event.target !== this.#root)
-                return;
             const detail = event.detail;
+            if(detail.element !== this.#root)
+                return;
             const changePath = detail.propPath ?? detail.modelPath;
             //We know that this change was for this property or at least a parent property
             if(!this.#checkIfModelChangeApplies(modelPath, changePath, detail, nestedArgs))

@@ -44,7 +44,8 @@
                 this.#showAddSubscription = APP.uiService.subscribeToShowAddTaskMenu(function({state}) {
                     this.$model.visible = state;
                 }.bind(this));
-                this.$model.visible = this.#showAddSubscription.state;
+                //Will tell the subscription to automatically fire the callback with the current data
+                this.#showAddSubscription.trigger();
 
                 // this.$model.taskField = {
                 //     type: "text",

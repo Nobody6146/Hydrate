@@ -24,8 +24,8 @@
                     this.$model.showAdd = state;
                     this.#updateButton(state);
                 }.bind(this));
-                this.$model.showAdd = this.#showAddSubscription.state;
-                this.#updateButton(this.$state.showAdd);
+                //Will tell the subscription to automatically fire the callback with the current data
+                this.#showAddSubscription.trigger();
             }
             onDestroy() {
                 this.#showAddSubscription.unsubscribe();

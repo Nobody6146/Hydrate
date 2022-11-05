@@ -413,10 +413,12 @@ class HydrateModelSubscription {
     #hydrate;
     modelPath;
     callback;
-    constructor(hydrate, modelPath, callback) {
+    #mockEvnet;
+    constructor(hydrate, modelPath, callback, mockEvent) {
         this.#hydrate = hydrate;
         this.modelPath = modelPath;
         this.callback = callback;
+        this.#mockEvnet = mockEvent;
     }
     subscribe() {
         //@ts-ignore
@@ -433,6 +435,9 @@ class HydrateModelSubscription {
         this.#hydrate.root.removeEventListener(this.#hydrate.event("set"), this.callback);
         //@ts-ignore
         this.#hydrate.root.removeEventListener(this.#hydrate.event("unbind"), this.callback);
+    }
+    trigger() {
+        this.callback(this.#mockEvnet);
     }
     get model() {
         return this.#hydrate.model(this.modelPath);
@@ -643,7 +648,8 @@ class HydrateApp {
     subscribe(modelPath, callback, options) {
         if (typeof modelPath !== "string")
             modelPath = this.name(modelPath);
-        const subscription = new HydrateModelSubscription(this, modelPath, this.#subscriptionCallback(modelPath, callback, options));
+        const mockEvent = this.#createEvent(this.#root, "bind", this.#determineEventDetailProperties(modelPath, "property"), null, null);
+        const subscription = new HydrateModelSubscription(this, modelPath, this.#subscriptionCallback(modelPath, callback, options), mockEvent);
         subscription.subscribe();
         return subscription;
     }
@@ -670,9 +676,9 @@ class HydrateApp {
                 }]
             : null;
         return (event) => {
-            if (event.target !== this.#root)
-                return;
             const detail = event.detail;
+            if (detail.element !== this.#root)
+                return;
             const changePath = detail.propPath ?? detail.modelPath;
             //We know that this change was for this property or at least a parent property
             if (!this.#checkIfModelChangeApplies(modelPath, changePath, detail, nestedArgs))
