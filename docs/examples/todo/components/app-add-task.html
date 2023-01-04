@@ -40,7 +40,9 @@
             #showAddSubscription;
 
             onInit() {
-                this.$model.visible = false;
+                this.$model = {
+                    visible: false
+                }
                 this.#showAddSubscription = APP.uiService.subscribeToShowAddTaskMenu(function({state}) {
                     this.$model.visible = state;
                 }.bind(this));

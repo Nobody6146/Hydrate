@@ -552,6 +552,7 @@ interface HydrateComponent {
     data:any;
     initialized:boolean;
     mutationObserver:MutationObserver;
+    prevSize:number;
 }
 
 interface HydrateModelChange<T> {
@@ -799,24 +800,37 @@ class HydrateApp {
     }
 
     /** Bind a new model to the framework */
-    bind<ModelType extends object>(name?: string, state?:ModelType):ModelType {
-        if(name == null || name === "")
-            throw Error("invalid model name");
-        if(!name.match(`^${this.#validIdentifier}$`))
-            throw Error("invalid model name");
+    bind<ModelType extends object>(modelPath?: string, state?:ModelType):ModelType {
         if(state == null)
             state = {} as ModelType;
+
+        const lastPropertyIndex = modelPath?.lastIndexOf(".");
+        if(lastPropertyIndex > -1)
+        {
+            //If we're doing a nested bind, just do a set where possible
+            const parent = this.model(modelPath.substring(0, lastPropertyIndex));
+            if(parent == null)
+                throw Error("invalid model path. Parent doesn't exist");
+            parent[modelPath.substring(lastPropertyIndex + 1)] = state;
+            return;
+        }
+
+        if(modelPath == null || modelPath === "")
+            throw Error("invalid model name");
+        if(!modelPath.match(`^${this.#validIdentifier}$`))
+            throw Error("invalid model name");
 
         //TODO: check to make sure the name is a proper identifier
         let app = this;
         //return new Promise(async (resolve, reject) => {
             //If this model already exist, unbind it first
-            if(this.#models[name] != undefined)
-                this.unbind(name);
+        const existed = this.#models[modelPath] != undefined;
+            if(existed)
+                this.unbind(modelPath);
 
-            let proxy = this.#makeProxy(state, name, undefined);
-            this.#models[name] = proxy;
-            let promise = this.dispatch(this.#root, "bind", name, undefined);
+            let proxy = this.#makeProxy(state, modelPath, undefined);
+            this.#models[modelPath] = proxy;
+            let promise = this.dispatch(this.#root, existed ? "set" : "bind", modelPath, undefined);
             //await promise;
             return proxy;
         //     resolve(proxy);
@@ -1266,7 +1280,6 @@ class HydrateApp {
             this.attribute(this.#options.attribute.names.if),
             this.attribute(this.#options.attribute.names.event),
             this.attribute(this.#options.attribute.names.on),
-            this.attribute(this.#options.attribute.names.component),
             this.attribute(this.#options.attribute.names.shadow),
             this.attribute(this.#options.attribute.names.duplicate),
             this.attribute(this.#options.attribute.names.route),
@@ -1380,10 +1393,18 @@ class HydrateApp {
             if(component == null 
                 || (eventDetails.propName !== undefined && !Array.isArray(eventDetails.state) && eventDetails.propName !== "length"))
                 return;
+
+            //Caching the number of components we generated as we should need to regen unless that number has changed
+            var dataLength = eventDetails.state?.length ?? -1; //Non arrays will have a size of -1 since an array can have length 0
+            const matchedState = component.prevSize === dataLength;
+            component.prevSize = dataLength;
             
             //If the model bound to this element is not an object, don't regenerate because the value is constant
-            if(eventDetails.type === "set" && !(eventDetails.model instanceof Object))
-                return;
+            if(eventDetails.type === "set")
+            {
+               if(!(eventDetails.model instanceof Object) || matchedState)
+                    return; 
+            }
 
             let hasRoutintAttribute = eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing));
             if(hasRoutintAttribute)
@@ -1718,7 +1739,8 @@ class HydrateApp {
                 element,
                 type: componentType,
                 data: new componentType.classDefinition(),
-                mutationObserver: null
+                mutationObserver: null,
+                prevSize: undefined
             };
 
             //Add some default behavior to the component class
@@ -1745,6 +1767,15 @@ class HydrateApp {
             Object.defineProperty(component.data, '$model', {
                 get() {
                     return this.$hydrate.model(this.$modelPath);
+                },
+                set(value) {
+                    // const parent = this.$hydrate.parent(this.$model);
+                    // if(parent != null)
+                    // {
+                    //     parent[this.$hydrate.name(parent)] = value;
+                    //     return;
+                    // }
+                    this.$hydrate.bind(this.$modelPath, value);
                 }
             });
             Object.defineProperty(component.data, '$state', {

@@ -12,14 +12,16 @@
             #showAddSubscription;
 
             onInit(detail) {
-                this.$model.title = "Task Tracker";
-                this.$model.showAdd = false;
-                this.$model.button = {
-                    text: "",
-                    color: "",
-                    onClick: this.#toggleShowAdd.bind(this)
+                this.$model = {
+                    title: "Task Tracker",
+                    showAdd: false,
+                    button: {
+                        text: "",
+                        color: "",
+                        onClick: this.#toggleShowAdd.bind(this)
+                    }
                 };
-                
+
                 this.#showAddSubscription = APP.uiService.subscribeToShowAddTaskMenu( function({state}) {
                     this.$model.showAdd = state;
                     this.#updateButton(state);
