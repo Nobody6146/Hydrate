@@ -37,33 +37,16 @@
 
     <script h-script>
         class Component {
+            #uiService;
             #showAddSubscription;
 
             onInit() {
-                this.$model = {
-                    visible: false
-                }
-                this.#showAddSubscription = APP.uiService.subscribeToShowAddTaskMenu(function({state}) {
+                this.#uiService = this.$dependency(UiService);
+                this.#showAddSubscription = this.#uiService.subscribeToShowAddTaskMenu(function({state}) {
                     this.$model.visible = state;
                 }.bind(this));
                 //Will tell the subscription to automatically fire the callback with the current data
                 this.#showAddSubscription.trigger();
-
-                // this.$model.taskField = {
-                //     type: "text",
-                //     label: "Task",
-                //     inputPath: `${this.$modelPath}.task.text`
-                // };
-                // this.$model.dateField = {
-                //     type: "text",
-                //     label: "Day & Time",
-                //     inputPath: `${this.$modelPath}.task.day`
-                // };
-                // this.$model.reminderField = {
-                //     type: "checkbox",
-                //     label: "Set Reminder",
-                //     inputPath: `${this.$modelPath}.task.reminder`
-                // };
             }
             onDestroy() {
                 this.#showAddSubscription.unsubscribe();

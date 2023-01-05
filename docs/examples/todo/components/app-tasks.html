@@ -4,17 +4,19 @@
     <app-task-item h-model="^.list"></app-task-item>
     <script h-script>
         class Component {
+            #taskService;
             #tasksSubscription;
 
             onInit() {
-                this.#tasksSubscription = APP.taskService.subscribeToTasks(function({state}) {
+                this.#taskService = this.$dependency(TaskService);
+                this.#tasksSubscription = this.#taskService.subscribeToTasks(function({state}) {
                     this.$model.list = state;
                 }.bind(this));
                 //Will tell the subscription to automatically fire the callback with the current data
                 this.#tasksSubscription.trigger();
                 
                 this.$model.addTaskForm = {
-                    task: APP.taskService.emptyTask(),
+                    task: this.#taskService.emptyTask(),
                     showAddTask: true,
                     addTask: this.addTask.bind(this)
                 }
@@ -23,14 +25,14 @@
                 this.#tasksSubscription.unsubscribe();
             }
             addTask(task) {
-                APP.taskService.addTask(task);
-                this.$model.addTaskForm.task = APP.taskService.emptyTask();
+                this.#taskService.addTask(task);
+                this.$model.addTaskForm.task = this.#taskService.emptyTask();
             }
             toggleReminder(task) {
-                APP.taskService.toggleReminder(task.id);
+                this.#taskService.toggleReminder(task.id);
             }
             deleteTask(task) {
-                APP.taskService.deleteTask(task.id);
+                this.#taskService.deleteTask(task.id);
             }
         }
     </script>

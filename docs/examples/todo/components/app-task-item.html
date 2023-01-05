@@ -41,11 +41,16 @@
     </div>
     <script h-script>
         class Component {
+            #taskService;
+
+            onInit() {
+                this.#taskService = this.$dependency(TaskService);
+            }
             toggleReminder(task) {
-                this.$parentComponent.toggleReminder(task);
+                this.#taskService.toggleReminder(task.id);
             }
             deleteTask(task) {
-                this.$parentComponent.deleteTask(task);
+                this.#taskService.deleteTask(task.id);
             }
         }
     </script>

@@ -454,6 +454,7 @@ class HydrateApp {
     #elementHandlerDelays;
     #root;
     #models;
+    #dependencies; //Any source object (typically HydrateComponent) as the key, "null" will be a singleton
     #mutationObserver;
     #intersectionObserver;
     #componentTypes;
@@ -469,17 +470,20 @@ class HydrateApp {
         this.#models = {};
         this.#componentTypes = new Map();
         this.#components = new Map();
+        this.#dependencies = new Map();
+        this.#lazyElements = new Set();
         this.#addTrackableAttributes();
         this.#addStandardAttributeHandlers();
         this.#routingState = {
             url: null,
             eventType: null
         };
+    }
+    start() {
         this.#mutationObserver = this.#observeDom(this.#root);
         this.root.addEventListener("input", this.#inputListener.bind(this));
         window.addEventListener("popstate", this.#popStateListener.bind(this));
         this.#intersectionObserver = new IntersectionObserver(this.#intersectionCallback.bind(this));
-        this.#lazyElements = new Set();
         this.#loadTemplates();
         this.#trackLazyElements();
         this.#trackElements();
@@ -490,6 +494,50 @@ class HydrateApp {
     }
     get options() {
         return this.#options;
+    }
+    singleton(definition, instance) {
+        return this.#addDependency(definition, "singleton", instance);
+    }
+    scoped(definition) {
+        return this.#addDependency(definition, "scoped", null);
+    }
+    transient(definition) {
+        return this.#addDependency(definition, "transient", null);
+    }
+    #addDependency(definition, type = "singleton", instance) {
+        const dependency = {
+            type: type,
+            instances: new Map()
+        };
+        this.#dependencies.set(definition, dependency);
+        if (type === "singleton" && instance != null)
+            return this.#getDependency(definition, null, instance).instance;
+        return null;
+    }
+    #getDependency(definition, source, instance) {
+        //Gets or instiates dependency
+        const configuration = this.#dependencies.get(definition);
+        if (configuration == null)
+            throw new Error("dependency not configured");
+        //If we we are a singleton, we have an undefined source
+        if (configuration.type === "singleton")
+            source = undefined;
+        const dispose = function () {
+            configuration.instances.delete(source);
+        };
+        let dependency = configuration.instances.get(source);
+        if (dependency == null || configuration.type === "transient") {
+            const hydrate = this;
+            if (dependency != null)
+                dependency.dispose();
+            //We'll pass an instance of hydrate so the caller can store it and get other dependencies
+            dependency = { instance: instance ?? new definition(hydrate), dispose };
+            configuration.instances.set(source, dependency);
+        }
+        return dependency;
+    }
+    dependency(definition, source) {
+        return this.#getDependency(definition, source);
     }
     #observeDom(node) {
         const observer = new MutationObserver(this.#mutationCallback.bind(this));
@@ -1406,6 +1454,9 @@ class HydrateApp {
                     return hydrate;
                 }
             });
+            component.data.$dependency = function (definition) {
+                return hydrate.dependency(definition, element).instance;
+            };
             Object.defineProperty(component.data, '$parentComponent', {
                 get() {
                     return hydrate.#findComponentForElement(component.element.parentElement)?.data;
@@ -1426,12 +1477,6 @@ class HydrateApp {
                     return this.$hydrate.model(this.$modelPath);
                 },
                 set(value) {
-                    // const parent = this.$hydrate.parent(this.$model);
-                    // if(parent != null)
-                    // {
-                    //     parent[this.$hydrate.name(parent)] = value;
-                    //     return;
-                    // }
                     this.$hydrate.bind(this.$modelPath, value);
                 }
             });
@@ -1459,6 +1504,11 @@ class HydrateApp {
         //Call component unitializer callback if available
         if (component.data.onDestroy instanceof Function)
             component.data.onDestroy();
+        for (let configuration of this.#dependencies.values()) {
+            const dependency = configuration.instances.get(element);
+            if (dependency != null)
+                dependency.dispose();
+        }
         this.#components.delete(element);
         if (component.mutationObserver)
             this.#mutationObserver.disconnect();

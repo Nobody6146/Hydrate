@@ -259,6 +259,7 @@
                     }
                 };
                 let app = new HydrateApp(options);
+                app.start();
                 let div = document.querySelector("div");
                 //let model = app.bind("default", {text: "hello", list: [{first: "Brandon", last: "Biera"}, {first:"Megan",last:"Wong"}]});
                 let model = app.bind("default", {text: "hello", list: [1,2,3,4], person: {name: {first: "Brandon", last: "Biera"}}});

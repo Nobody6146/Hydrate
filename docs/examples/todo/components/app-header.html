@@ -9,9 +9,11 @@
     </header>
     <script h-script>
         class Component {
+            #uiService;
             #showAddSubscription;
 
             onInit(detail) {
+                this.#uiService = this.$dependency(UiService);
                 this.$model = {
                     title: "Task Tracker",
                     showAdd: false,
@@ -22,7 +24,7 @@
                     }
                 };
 
-                this.#showAddSubscription = APP.uiService.subscribeToShowAddTaskMenu( function({state}) {
+                this.#showAddSubscription = this.#uiService.subscribeToShowAddTaskMenu( function({state}) {
                     this.$model.showAdd = state;
                     this.#updateButton(state);
                 }.bind(this));
@@ -37,7 +39,7 @@
                 this.$model.button.color = showAddTaskMenu ? "red" : "green";
             }
             #toggleShowAdd() {
-                APP.uiService.toggleAddTaskMenu();
+                this.#uiService.toggleAddTaskMenu();
             }
         }
     </script>

@@ -10,8 +10,6 @@ class Router {
         ];
         //Turn on client side routing
         document.addEventListener("hydrate.routing.start", this.#clientSideRouting.bind(this));
-        //Route the active page
-        hydrate.route();
     }
 
     #clientSideRouting(event:HydrateRouteEvent) {

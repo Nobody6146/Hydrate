@@ -8,9 +8,9 @@ class TaskService {
     #hydrate;
     #api;
     #model;
-    constructor(hydrate, api) {
+    constructor(hydrate) {
         this.#hydrate = hydrate;
-        this.#api = api;
+        this.#api = new Api();
         this.#model = this.#hydrate.bind("tasksList", {
             tasks: this.#api.getTasks()
         });
