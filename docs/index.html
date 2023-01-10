@@ -28,7 +28,7 @@
             </main> -->
     
             <template h-template="Example-template" h-model="default.person">
-                <style>
+                <style h-style>
                     :root {
                         color: purple
                     }
@@ -67,7 +67,7 @@
 
 
             <template h-template="Star-template">
-                <style>
+                <style h-style>
                     Star-Template {
                         color: red;
                     }
@@ -75,7 +75,7 @@
                 <div h-model="^" h-property="innerText: $id() <= $state ? '&#9733' : '&#9734'" h-id
                     h-on="click: $detail.parent[$detail.modelName] = $id()">
                 Star</div>
-                <script>
+                <script h-script>
                     class Component {
                         #subscription;
                         onInit() {
@@ -91,7 +91,7 @@
             </template>
 
             <template h-template="calculator-template" h-shadow h-model="default.calculator" h-lazy>
-                <style>
+                <style h-style>
                     :host {
                         color: aqua;
                     }
@@ -110,7 +110,10 @@
                             console.log(this);
                             this.$model.value = 10;
                         }
-                        onRender(eventDetail) {
+                        onPreRender(eventDetail) {
+                            console.log("Rendering calculator", eventDetail);
+                        }
+                        onPostRender(eventDetail) {
                             console.log("Rendered calculator", eventDetail);
                         }
                         onDestroy() {
@@ -204,7 +207,7 @@
                     <p h-model="default" h-filter="*: rank" h-event="*: console.log('we responded to a rank change!')"></p>
 
                     <template h-template="ButtonTemplate">
-                        <style>
+                        <style h-style>
                             :root {
                                 background-color: black;
                                 color: white;

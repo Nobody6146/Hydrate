@@ -45,6 +45,7 @@
                             <li><a href="#model-attribute">h-model</a></li>
                             <li><a href="#nested-attribute">h-nested</a></li>
                             <li><a href="#mutation-attribute">h-mutation</a></li>
+                            <li><a href="#lazy-attribute">h-lazy</a></li>
                         </ul>
                         <b>Element manipulation</b>
                         <ul>
@@ -68,8 +69,9 @@
                         </ul>
                         <b>Templating and Resuable HTML/JS</b>
                         <ul>
-                            <li><a href="#script-attribute">h-script</a></li>
                             <li><a href="#template-attribute">h-template</a></li>
+                            <li><a href="#script-attribute">h-script</a></li>
+                            <li><a href="#style-attribute">h-style</a></li>
                             <li><a href="#component-attribute">h-component</a></li>
                             <li><a href="#duplicate-attribute">h-duplicate</a></li>
                             <li><a href="#id-attribute">h-id</a></li>
@@ -793,6 +795,34 @@
                         </ul>
                     </p>
                 </fieldset>
+
+                <fieldset id="lazy-attribute">
+                    <legend><h3>h-lazy</h3></legend>
+                    <p>
+                        <b>Usage:</b> Denotes to Hydrate that this element is behaving in a lazy manner and should not be used immediately
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-lazy</code>
+                        <ul>
+                            <li>
+                                <u>Examples:</u>
+                                <ul>
+                                    <li><code>&lt;template h-template="app-root" h-laz&gt;y&lt;/template&gt;</code></li>
+                                    <li><code>&lt;app-root h-lazy&gt;&lt;app-root&gt;</code></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>Once a lazy loaded element has been loaded, the lazy attribute will be removed from the element</li>
+                            <li>When used on a template, the template will not be loaded until a component using that template name needs to be generated</li>
+                            <li>When used on a component, the component will not be generated and rendered until it is in view</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
                 <h3>Element Manipulation Attributes</h3>
                 <fieldset id="property-attribute">
                     <legend><h3>h-property</h3></legend>
@@ -1427,73 +1457,8 @@
                         </ul>
                     </p>
                 </fieldset>
-                <h3>Templating and Reusable HTML/JS Attributes</h3>
-                <fieldset id="script-attribute">
-                    <legend><h3>h-script</h3></legend>
-                    <p>
-                        <b>Usage:</b> References the inner text of the element as a function decleration which can be referenced with the provided name and called later
-                    </p>
-                    <p>
-                        <b>Syntax:</b> 
-                        <code>
-                            &lt;script h-script="SCRIPT_NAME"&gt;
-                                FUNCTION_DECLERATION
-                            &lt;/script&gt;
-                        </code>
-                        <ul>
-                            <li>
-                                <i>SCRIPT_NAME -</i> The name to reference the script by
-                                <ul>
-                                    <li><u>Examples:</u>
-                                        <ul>
-                                            <li><code>h-script="Script1"</code></li>
-                                            <li><code>h-script="ExampleScript"</code></li>
-                                        </ul>
-                                    </li>
-                                </ul>
-                            </li>
-                            <li>
-                                <i>FUNCTION_DECLERATION -</i> The decleration of the function
-                                <ul>
-                                    <li><u>Examples:</u>
-                                        <ul>
-                                            <li><code>
-                                                &lt;script h-script="SCRIPT_NAME"&gt;
-                                                    function(firstname, lastname) {
-                                                        console.log(`hello ${firstname} ${lastname}`);
-                                                    }
-                                                &lt;/script&gt;
-                                            </code></li>
-                                            <li><code>
-                                                &lt;script h-script="SCRIPT_NAME"&gt;
-                                                    (firstname, lastname) => {
-                                                        console.log(`hello ${firstname} ${lastname}`);
-                                                    }
-                                                &lt;/script&gt;
-                                            </code></li>
-                                        </ul>
-                                    </li>
-                                </ul>
-                            </li>
-                        </ul>
-                    </p>
-                    <p>
-                        <b>Notes:</b> Only one timing change function will be applied to each event type response. They resolve in the following order
-                        <ul>
-                            <li>
-                                The script can be accessed via the <b>$script</b> function of the field-expression syntax of a framework attribute. E.g.
-                                <ul>
-                                    <li><code>&lt;div h-script="TestScript" h-event="track: $script('TestScript')"&gt;</code></li>
-                                </ul>
-                            </li>
-                            <li>The element with the script attribute does not have to be an HTML script element, but it is probably prefered</li>
-                            <li>The script decleration should be the only text inside this element's inner text</li>
-                            <li>There should only ever be one function per script element</li>
-                            <li>The inner contents of the script can be any valid explicit or anonymous function decleration</li>
-                        </ul>
-                    </p>
-                </fieldset>
 
+                <h3>Templating and Reusable HTML/JS Attributes</h3>
                 <fieldset id="template-attribute">
                     <legend><h3>h-template</h3></legend>
                     <p>
@@ -1511,14 +1476,24 @@
                                 <ul>
                                     <li><u>Examples:</u>
                                         <ul>
-                                            <li><code>&lt;template h-template="BasicTemplate"&gt;
+                                            <li><code>&lt;template h-template="app-root"&gt;
                                                     Hello World
                                                 &lt;/template&gt;
                                             </code></li>
-                                            <li><code>&lt;div h-template="BasicTemplate"&gt;
-                                                    Hello World
-                                                &lt;/div&gt;
-                                            </code></li>
+                                            <li><code>&lt;template h-template="app-root" h-model="app" h-init&gt;
+                                                Hello World
+                                            &lt;/template&gt;
+                                        </code></li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        To implicitly generate an instance of a component using the tempalte, you can use the TEMPLATE_NAME as the custom tag name
+                                        <ul>
+                                            <li>Ex: <code>&lt;app-root&gt;&lt;/app-root&gt;</code></li>
+                                            <li>
+                                                When this form of component decleration is used, the appropriate <a href="#component-attribute">component attribute</a> will be added and filled out
+                                                on the element to track and handle its component generation
+                                            </li>
                                         </ul>
                                     </li>
                                 </ul>
@@ -1528,11 +1503,11 @@
                                 <ul>
                                     <li><u>Examples:</u>
                                         <ul>
-                                            <li><code>&lt;template h-template="BasicTemplate"&gt;
+                                            <li><code>&lt;template h-template="app-root"&gt;
                                                 Hello World
                                             &lt;/template&gt;
                                             </code></li>
-                                            <li><code>&lt;template h-template="BasicTemplate"&gt;
+                                            <li><code>&lt;template h-template="app-root"&gt;
                                                     &lt;div&gt;
                                                         Hello World
                                                     &lt;/div&gt;
@@ -1554,13 +1529,175 @@
                         <b>Notes:</b>
                         <ul>
                             <li>
-                                Templates are used for defining HTML bodies for components. See <a href="#component-attribute">component attribute</a> for further instruction on how to utilize templates
+                                Templates are used for defining HTML, CSS, and script bodies for components. See <a href="#component-attribute">component attribute</a> for further instruction on how to utilize templates
                             </li>
-                            <li>Although you can use any container HMTL element to hold your template body, the dedicated HTML template tag is the prefered method</li>
+                            <li>In some cases, using the template name as a custom HTML tag is not viable, as the custom tag will always extend the base HTMLElement class.
+                                 Because of this, the standard HTML element nesting limitations apply and you will not be able to place this custom tag inside certain elements such as select elements</li>
+                                <ul>
+                                    <li>To use avoid this issue, you manually put a <a href="#component-attribute">component attribute</a> on an element to turn it into a component (the custom tag usually does this implicitly for you).
+                                    <li>There may be other semantic reason for wanting to specifically use a native HTMLElement tag and decorate it instead</li>
+                                </ul>  
                             <li>
                                 When inside a template, you can use the <b>model name insertion operator</b> to inject the name of the model name coming from the component.
                                 You can read more about it under the <a href="#model-attribute">model attribute</a> section.
                             </li>
+                            <li>Any time "this" is used when evaluating an expression for a Hydrate attribute, "this" will refere to this component object</li>
+                            <li>Costume components can also have custom styling and component bodies defined on them. See the following attribtues for more information 
+                                <a href="#script-attribute">component attribute</a> or <a href="#style-attribute">component attribute</a>
+                            </li>
+                            <li>
+                                Attributes included on a template are also copied over to the components being generated (except for the template attribute of course),
+                                which is useful for not having to set attributes manually for each instance of a component. Copied attributes however will not override
+                                any existing attributes already on the component element.
+                            </li>
+                            <li>
+                                Templates can be lazy loaded with the <a href="#lazy-attribute">lazy attribute</a>
+                            </li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="script-attribute">
+                    <legend><h3>h-script</h3></legend>
+                    <p>
+                        <b>Usage:</b> Denotes a script tag as the class definition for the component
+                    </p>
+                    <p>
+                        <b>Syntax:</b> 
+                        <code>
+                            &lt;script h-script&gt;
+                                CLASS_DEFINITION
+                            &lt;/script&gt;
+                        </code>
+                        <ul>
+                            <li>
+                                <i>CLASS_DEFINITION -</i> The class definition of the underlying component
+                                <ul>
+                                    <li>This class body's name is not important</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>class Component() {}</code></li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        The component object created for each instance will contain the following properties:
+                                        <ul>
+                                            <li>
+                                                <b>this.$hydrate</b> - { get; }
+                                                <ul>
+                                                    <li>contains a reference to the HydrateApp instance the component is bound to</li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <b>this.$root</b> - { get; }
+                                                <ul>
+                                                    <li>contains a reference to the root element this component is attached to</li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <b>this.$state</b> - { get; }
+                                                <ul>
+                                                    <li>contains a reference to the state value of the model data bound to the component when it was created</li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <b>this.$model</b> - { get; set; }
+                                                <ul>
+                                                    <li>contains a reference to the state value of the model data bound to the component when it was created</li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <b>this.$modelPath</b> - { get; }
+                                                <ul>
+                                                    <li>contains a reference to the model path of the model data bound to the component when it was created</li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <b>this.$dependency</b> - function<&lt;T&gt;(definition:new (...args) => T): T}
+                                                <ul>
+                                                    <li>Will grab the dependency of the requested type for that component</li>
+                                                    <li>Dependencies requested this way will automatically be disposed of when the component is destoryed</li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <b>this.onInit</b> - function(eventDetails:HydrateEventDetails): void
+                                                <ul>
+                                                    <li>This method is called when the component is initialized (built/rendered) for the first time</li>
+                                                    <li>Rerenders of the component don't require it to be reinitialized, and therefore this method is only called once for the element</li>
+                                                    <li>If not implemented in the component body, this call will never be made</li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <b>this.onPreRender</b> - function(eventDetails:HydrateEventDetails): void
+                                                <ul>
+                                                    <li>This method is called when the component is about to rerender (including for the first time)</li>
+                                                    <li>If not implemented in the component body, this call will never be made</li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <b>this.onPostRender</b> - function(eventDetails:HydrateEventDetails): void
+                                                <ul>
+                                                    <li>This method is called when the component has finished rendering (including for the first time)</li>
+                                                    <li>If not implemented in the component body, this call will never be made</li>
+                                                </ul>
+                                            </li>
+                                            <li>
+                                                <b>this.onDestroy</b> - function(): void
+                                                <ul>
+                                                    <li>This method is called when the component is about to be destroyed, but before it becomese untracked and it's references disposed</li>
+                                                    <li>If not implemented in the component body, this call will never be made</li>
+                                                </ul>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>The class definition should be they only code inside the script or you will get an error.</li>
+                            <li>The class definition can also be an old school function instead</li>
+                            <li>Any time "this" is used when evaluating an expression for a Hydrate attribute, "this" will refere to this component object</li>
+                            <li>Any depedenies created via <code>component.$dependency</code> will automatically be cleaned up for you when the component is destoryed (untracked)</li>
+                            <li>If there are multiple script tags with a "h-script" tag, then the last script will win as the component body</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="style-attribute">
+                    <legend><h3>h-style</h3></legend>
+                    <p>
+                        <b>Usage:</b> References the style element that will be used to locally scope the style of the component
+                    </p>
+                    <p>
+                        <b>Syntax:</b> 
+                        <code>
+                            &lt;style h-style&gt;
+                                CSS_RULES
+                            &lt;/script&gt;
+                        </code>
+                        <ul>
+                            <li>
+                                <i>CSS_RULES -</i> Any CSS rules you want to use to style the document
+                                <ul>
+                                    <li>The local styling is added to the DOM via a style element, so it will apply to the whole document</li>
+                                    <li>To restrict the styling to the component's contents, use the CSS selector ":root" which will automatically 
+                                        be replaced with a selector for the custom element's tag instead of the document root before it is inserted into the DOM
+                                        <ul>
+                                            <li>Example: <code>:root > div {color: white}</code> will become -> <code>:app-root > div {color: white}</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>If multiple style elements have the "h-style" attribute, the last style will be the locally scoped style (will have it's ":root" selector replaced)</li>
+                            <li>Remember, this style is applied globally as a style element to your DOM tree and can interfere with other style sheets</li>
                         </ul>
                     </p>
                 </fieldset>
@@ -1640,6 +1777,10 @@
                     <p>
                         <b>Notes:</b>
                         <ul>
+                            <li>A component can be linked to a template without a model. However, the component will not generate and render unless it has a model bound to it.</li>
+                            <li>If both the component element and the template definition don't specify a <a href="#model-attribute">model attribute</a>
+                                the component is assumbed to be a modeless component and the appropriate model attribute is added.
+                            </li>
                             <li>When this attribute responds to a change, the contents of the component are cleared and regenerated</li>
                             <li>
                                 When the model bound to the component is an object, the entire object is passed into component genration and the template is inserted just once
@@ -1647,10 +1788,15 @@
                             <li>
                                 When the model bound to the component is an array, the HTML template is inserted for each item in the array being passed in one at a time.
                             </li>
-                            <li>Although you can use any container HMTL element to hold your template body, the dedicated HTML template tag is the prefered method</li>
+                            <li>
+                                A component will not be rerendered if new data is bond to it that does not change it's dimension (from a object to an array or from an array of different size)
+                            </li>
                             <li>
                                 When inside a template, you can use the <b>model name insertion operator</b> to inject the name of the model name coming from the component.
                                 You can read more about it under the <a href="#model-attribute">model attribute</a> and <a href="#template-attribute">template attribute</a> section.
+                            </li>
+                            <li>
+                                Components can be lazy loaded with the <a href="#lazy-attribute">lazy attribute</a>
                             </li>
                         </ul>
                     </p>

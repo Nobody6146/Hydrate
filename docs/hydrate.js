@@ -76,7 +76,8 @@ class HydrateAttributeNamesOptions {
     event; //Calls a callback any time the framework event type is triggered
     on; //Fires a callback when the "on" event of the element is fired
     //Templating and Components
-    script;
+    script; //denotes a script tag that is the class definiton of the component
+    style; //denotes a style tag that is the styling for the component
     template; //template changes queries user of the templates then regenerate
     component; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
     shadow; //whether the shadow dom should be used or not
@@ -115,6 +116,7 @@ class HydrateAttributeNamesOptions {
         this.on = "on"; //Fires a callback when the "on" event of the element is fired
         //Templating and Components
         this.script = "script";
+        this.style = "style";
         this.template = "template"; //template changes queries user of the templates then regenerate
         this.component = "component"; //="[PROP] [TEMPLATE] [property | model | array | dictionary | map]?
         this.shadow = "shadow";
@@ -1303,7 +1305,7 @@ class HydrateApp {
             const templateAttribute = this.attribute(this.#options.attribute.names.template);
             const componentAttribute = this.attribute(this.#options.attribute.names.component);
             const scriptAttribute = this.attribute(this.#options.attribute.names.script);
-            const componentBodySelector = `script[${scriptAttribute}]`;
+            const scriptSelector = `script[${scriptAttribute}]`;
             const modelAttribute = this.attribute(this.#options.attribute.names.model);
             const shadowAttribute = this.attribute(this.#options.attribute.names.shadow);
             const componentSelector = `${typeName}:not([${lazyAttribute}]),[${componentAttribute}='${typeName}' i]:not([${lazyAttribute}])`;
@@ -1332,12 +1334,15 @@ class HydrateApp {
             const template = element.cloneNode(true);
             const scripts = template.content.querySelectorAll("script");
             for (let script of scripts) {
-                //Assume the script tag we find is the component body
-                type.classDefinition = new Function(`'use strict'; return ${script.textContent.trim()}`)();
-                //Remove any script elements from the component
+                //Look for a class definition script and load it if we find it
+                if (script.matches(scriptSelector))
+                    type.classDefinition = new Function(`'use strict'; return ${script.textContent.trim()}`)();
+                //Remove any script elements from the component to prevent malicious scripts
                 script.remove();
             }
-            const styles = template.content.querySelectorAll("style");
+            const styleAttribute = this.attribute(this.#options.attribute.names.style);
+            const styleSelector = `style[${styleAttribute}]`;
+            const styles = template.content.querySelectorAll(styleSelector);
             for (let style of styles) {
                 type.style = this.#buildCssStyle(style, typeName);
                 style.remove();
@@ -1457,11 +1462,11 @@ class HydrateApp {
             component.data.$dependency = function (definition) {
                 return hydrate.dependency(definition, element).instance;
             };
-            Object.defineProperty(component.data, '$parentComponent', {
-                get() {
-                    return hydrate.#findComponentForElement(component.element.parentElement)?.data;
-                }
-            });
+            // Object.defineProperty(component.data, '$parentComponent', {
+            //     get() {
+            //         return hydrate.#findComponentForElement(component.element.parentElement)?.data;
+            //     }
+            // });
             Object.defineProperty(component.data, '$root', {
                 get() {
                     return component.element;
