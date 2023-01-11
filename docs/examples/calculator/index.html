@@ -10,13 +10,17 @@
     </head>
     <body>
 
-        <main style="box-sizing: border-box; width: 80%; height: 80%; margin: 10%; padding: 20px; background-color: grey;">
+        <!-- <main style="box-sizing: border-box; width: 80%; height: 80%; margin: 10%; padding: 20px; background-color: grey;">
             <app-display h-model="app.display"></app-display>
             <app-keypad h-model="app.keypad"></app-keypad>
-        </main>
+        </main> -->
+        
+        <app-root></app-root>
+
+        <template h-template="app-root" h-source="components/app-root/index"></template>
 
         <template h-template="app-display">
-            <style>
+            <style h-style>
                 :root > div {
                     width: 100%;
                     height: 20%;
@@ -29,7 +33,7 @@
         </template>
 
         <template h-template="app-display-entry">
-            <style>
+            <style h-style>
                 :root {
                     width: 100%;
                     height: 100%;
@@ -47,7 +51,7 @@
         </template>
 
         <template h-template="app-keypad">
-            <style>
+            <style h-style>
                 :root > div {
                     height: 80%;
                     width: 100%;
@@ -61,7 +65,7 @@
         </template>
 
         <template h-template="app-key">
-            <style>
+            <style h-style>
                 :root {
                     width: 100%;
                     height: 100%;

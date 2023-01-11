@@ -1380,15 +1380,66 @@ class HydrateApp {
         return style;
     }
     #loadRemoteTemplate(element, url) {
-        fetch(url)
-            .then(res => res.text())
-            .then(html => {
+        const promises = [];
+        const period = url.lastIndexOf(".");
+        const ext = period > -1 ? url.substring(period) : null;
+        const baseUrl = ext === null ? url : url.substring(0, period);
+        if (ext === null || ext === ".html")
+            promises.push(fetch(`${baseUrl}.html`));
+        else
+            promises.push(Promise.resolve(null));
+        if (ext === null || ext === ".css")
+            promises.push(fetch(`${baseUrl}.css`));
+        else
+            promises.push(Promise.resolve(null));
+        if (ext === null || ext === ".js")
+            promises.push(fetch(`${baseUrl}.js`));
+        else
+            promises.push(Promise.resolve(null));
+        //[fetch(`${url}.html`), fetch(`${url}.css`), fetch(`${url}.js`)]
+        Promise.allSettled(promises)
+            .then(([html, css, js]) => {
+            if (html.status === "rejected")
+                throw new Error(`Unknown error fetching html for template ${url}`);
+            if (html.value?.ok === false && html.value?.status !== 404)
+                throw new Error(`${html.value?.status}: Error fetching html for template ${url}`);
+            if (css.status === "rejected")
+                throw new Error(`Unknown error fetching css for template ${url}`);
+            //It's ok if we don't find this
+            if (css.value?.ok === false && css.value?.status !== 404)
+                throw new Error(`${css.value?.status}: Error fetching css for template ${url}`);
+            if (js.status === "rejected")
+                throw new Error(`Unknown error fetching js for template ${url}`);
+            //It's ok if we dont find this
+            if (js.value?.ok === false && js.value?.status !== 404)
+                throw new Error(`${js.value?.status}: Error fetching js for template ${url}`);
+            return Promise.all([
+                html.value?.ok === true ? html.value.text() : Promise.resolve(null),
+                css.value?.ok === true ? css.value.text() : Promise.resolve(null),
+                js.value?.ok === true ? js.value.text() : Promise.resolve(null)
+            ]);
+        })
+            .then(([html, css, js]) => {
             const lazyAttribute = this.attribute(this.#options.attribute.names.lazy);
             let div = document.createElement("div");
             div.innerHTML = html;
             let template = div.querySelector("template");
-            if (!template)
-                return;
+            if (!template) {
+                template = document.createElement("template");
+                //div.append(template);
+            }
+            if (css !== null) {
+                const style = document.createElement("style");
+                style.toggleAttribute(this.attribute(this.#options.attribute.names.style), true);
+                style.innerHTML = css;
+                template.content.append(style);
+            }
+            if (js !== null && js.trim() !== "") {
+                const script = document.createElement("script");
+                script.toggleAttribute(this.attribute(this.#options.attribute.names.script), true);
+                script.innerHTML = js;
+                template.content.append(script);
+            }
             //Load up the HTML
             element.content.append(...template.content.childNodes);
             //Load up the attributes
@@ -1524,6 +1575,9 @@ class HydrateApp {
             component.data.onInit(eventDetails);
             component.initialized = true;
         }
+        //Call component change callback if available
+        if (component.data.onPreRender instanceof Function)
+            component.data.onPreRender(eventDetails);
         let element = eventDetails.element;
         const modelAttribute = this.attribute(this.#options.attribute.names.model);
         let modelSelector = `[${modelAttribute}^=\\^]`;
@@ -1605,8 +1659,8 @@ class HydrateApp {
                 content.appendChild(component.type.style.cloneNode(true));
         }
         //Call component change callback if available
-        if (component.data.onRender instanceof Function)
-            component.data.onRender(eventDetails);
+        if (component.data.onPostRender instanceof Function)
+            component.data.onPostRender(eventDetails);
     }
     resolveArgumentValue(detail, arg, event) {
         const app = this;
