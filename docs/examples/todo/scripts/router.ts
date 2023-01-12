@@ -1,4 +1,6 @@
-class Router {
+import { HydrateApp, HydrateRoute, HydrateRouteEvent } from "../../../hydrate.js";
+
+export class Router {
     #routes:HydrateRoute[];
 
     constructor(hydrate:HydrateApp) {

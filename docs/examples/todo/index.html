@@ -3,12 +3,6 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"/>
         <title>Todo List Demo</title>
-        <script src="../../hydrate.js"></script>
-        <script src="scripts/api.js"></script>
-        <script src="scripts/task.js"></script>
-        <script src="scripts/ui.js"></script>
-        <script src="scripts/router.js"></script>
-        <script src="app.js"></script>
         <link href="style.css" rel="stylesheet">
     </head>
     <body>
@@ -27,8 +21,8 @@
         </template>
         <app-root></app-root>
 
-        <script>
-            //Create our app
+        <script type="module">
+            import { App } from "./app.js"
             const APP = new App();
         </script>
     </body>

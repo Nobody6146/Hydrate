@@ -1,10 +1,11 @@
-class Task {
+import { Api } from "./api.js";
+export class Task {
     id = null;
     text = null;
     day = null;
     reminder = false;
 }
-class TaskService {
+export class TaskService {
     #hydrate;
     #api;
     #model;

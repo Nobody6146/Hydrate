@@ -1,4 +1,4 @@
-class Router {
+export class Router {
     #routes;
     constructor(hydrate) {
         //Define our application routes

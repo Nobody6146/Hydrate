@@ -1,4 +1,4 @@
-class UiService {
+export class UiService {
     #hydrate;
     #model;
     constructor(hydrate) {

@@ -3,19 +3,22 @@
     <app-add-task h-model="^.addTaskForm"></app-add-task>
     <app-task-item h-model="^.list"></app-task-item>
     <script h-script>
-        class Component {
+        import {HydrateComponent} from "/hydrate.js";
+        import { TaskService } from "/examples/todo/scripts/task.js";
+                
+        export default class extends HydrateComponent {
             #taskService;
             #tasksSubscription;
 
             onInit() {
-                this.#taskService = this.$dependency(TaskService);
+                this.#taskService = this.dependency(TaskService);
                 this.#tasksSubscription = this.#taskService.subscribeToTasks(function({state}) {
-                    this.$model.list = state;
+                    this.model.list = state;
                 }.bind(this));
                 //Will tell the subscription to automatically fire the callback with the current data
                 this.#tasksSubscription.trigger();
                 
-                this.$model.addTaskForm = {
+                this.model.addTaskForm = {
                     task: this.#taskService.emptyTask(),
                     showAddTask: true,
                     addTask: this.addTask.bind(this)
@@ -26,7 +29,7 @@
             }
             addTask(task) {
                 this.#taskService.addTask(task);
-                this.$model.addTaskForm.task = this.#taskService.emptyTask();
+                this.model.addTaskForm.task = this.#taskService.emptyTask();
             }
             toggleReminder(task) {
                 this.#taskService.toggleReminder(task.id);

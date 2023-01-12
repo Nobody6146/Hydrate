@@ -1,4 +1,4 @@
-//import { HydrateApp } from "../../hydrate.js";
+import { HydrateApp } from "../../hydrate.js";
 class CalculatorApp {
     #hydrate;
     #state;
@@ -113,3 +113,5 @@ class CalculatorApp {
         ];
     }
 }
+var app = new CalculatorApp();
+app.start();

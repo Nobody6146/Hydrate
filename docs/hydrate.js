@@ -1,4 +1,4 @@
-class HydrateAppOptions {
+export class HydrateAppOptions {
     dom;
     model;
     attribute;
@@ -12,19 +12,19 @@ class HydrateAppOptions {
         this.debug = new HydrateDebugOptions();
     }
 }
-class HydrateDebugOptions {
+export class HydrateDebugOptions {
     dispatchTimer;
     constructor() {
         this.dispatchTimer = false;
     }
 }
-class HydrateRouterOptions {
+export class HydrateRouterOptions {
     hashRouting = true;
 }
-class HydrateDomOptions {
+export class HydrateDomOptions {
     rootSelector = "body";
 }
-class HydrateModelOptions {
+export class HydrateModelOptions {
     baseProperty;
     parentProperty;
     nameProperty;
@@ -38,7 +38,7 @@ class HydrateModelOptions {
         this.stateProperty = "__state";
     }
 }
-class HydrateAttributeOptions {
+export class HydrateAttributeOptions {
     names;
     handlers;
     standardPrefix;
@@ -52,7 +52,7 @@ class HydrateAttributeOptions {
         this.trackables = [];
     }
 }
-class HydrateAttributeNamesOptions {
+export class HydrateAttributeNamesOptions {
     //Linking
     model;
     nested; //Will also respond to nested property changes
@@ -133,7 +133,7 @@ class HydrateAttributeNamesOptions {
         // customs:string[] = []; 
     }
 }
-class HydrateElementTrackingEvent extends CustomEvent {
+export class HydrateElementTrackingEvent extends CustomEvent {
     constructor(detail) {
         super(detail.hydrate.event(detail.type), {
             detail: detail,
@@ -142,7 +142,7 @@ class HydrateElementTrackingEvent extends CustomEvent {
         });
     }
 }
-class HydrateModelEvent extends CustomEvent {
+export class HydrateModelEvent extends CustomEvent {
     constructor(detail) {
         super(detail.hydrate.event(detail.type), {
             detail: detail,
@@ -151,7 +151,7 @@ class HydrateModelEvent extends CustomEvent {
         });
     }
 }
-class HydrateRouteEvent extends CustomEvent {
+export class HydrateRouteEvent extends CustomEvent {
     constructor(detail) {
         super(detail.hydrate.event(detail.type), {
             detail: detail,
@@ -160,7 +160,7 @@ class HydrateRouteEvent extends CustomEvent {
         });
     }
 }
-class HydrateElementMutationEvent extends CustomEvent {
+export class HydrateElementMutationEvent extends CustomEvent {
     constructor(detail) {
         super(detail.hydrate.event(detail.type), {
             detail: detail,
@@ -169,7 +169,7 @@ class HydrateElementMutationEvent extends CustomEvent {
         });
     }
 }
-class HydrateElementEventListenerEvent extends CustomEvent {
+export class HydrateElementEventListenerEvent extends CustomEvent {
     constructor(detail) {
         super(detail.hydrate.event(detail.type), {
             detail: detail,
@@ -178,7 +178,7 @@ class HydrateElementEventListenerEvent extends CustomEvent {
         });
     }
 }
-class HydrateElementInputEvent extends CustomEvent {
+export class HydrateElementInputEvent extends CustomEvent {
     constructor(detail) {
         super(detail.hydrate.event(detail.type), {
             detail: detail,
@@ -187,7 +187,7 @@ class HydrateElementInputEvent extends CustomEvent {
         });
     }
 }
-class HydrateEventDetails {
+export class HydrateEventDetails {
     hydrate;
     element;
     type;
@@ -234,47 +234,47 @@ class HydrateEventDetails {
         return this.hydrate.state(this.propPath);
     }
 }
-class HydrateElementTrackingEventDetails extends HydrateEventDetails {
+export class HydrateElementTrackingEventDetails extends HydrateEventDetails {
     constructor(hydrate, element, eventType, properties) {
         super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
     }
 }
-class HydrateModelEventDetails extends HydrateEventDetails {
+export class HydrateModelEventDetails extends HydrateEventDetails {
     nested;
     constructor(hydrate, element, eventType, properties, nested) {
         super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
         this.nested = nested;
     }
 }
-class HydrateElementMutationEventDetails extends HydrateEventDetails {
+export class HydrateElementMutationEventDetails extends HydrateEventDetails {
     mutation;
     constructor(hydrate, element, eventType, properties, mutation) {
         super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
         this.mutation = mutation;
     }
 }
-class HydrateElementInputEventDetails extends HydrateEventDetails {
+export class HydrateElementInputEventDetails extends HydrateEventDetails {
     event;
     constructor(hydrate, element, eventType, properties, event) {
         super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
         this.event = event;
     }
 }
-class HydrateElementEventListenerEventDetails extends HydrateEventDetails {
+export class HydrateElementEventListenerEventDetails extends HydrateEventDetails {
     event;
     constructor(hydrate, element, eventType, properties, event) {
         super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
         this.event = event;
     }
 }
-class HydrateRouteEventDetails extends HydrateEventDetails {
+export class HydrateRouteEventDetails extends HydrateEventDetails {
     request;
     constructor(hydrate, element, eventType, properties, request) {
         super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
         this.request = request;
     }
 }
-class HydrateRouteRequest {
+export class HydrateRouteRequest {
     hydrate;
     path;
     url;
@@ -411,7 +411,7 @@ class HydrateRouteRequest {
         }
     }
 }
-class HydrateComponent {
+export class HydrateComponent {
     #hydrate;
     #element;
     constructor(data) {
@@ -437,14 +437,14 @@ class HydrateComponent {
         return this.#hydrate.state(this.modelPath);
     }
     dependency(definition) {
-        return this.#hydrate.dependency(definition, this.#element);
+        return this.#hydrate.dependency(definition, this.#element).instance;
     }
     onInit(eventDetails) { }
     onPreRender(eventDetails) { }
     onPostRender(eventDetails) { }
     onDestroy() { }
 }
-class HydrateModelSubscription {
+export class HydrateModelSubscription {
     #hydrate;
     modelPath;
     callback;
@@ -481,7 +481,7 @@ class HydrateModelSubscription {
         return this.#hydrate.state(this.modelPath);
     }
 }
-class HydrateApp {
+export class HydrateApp {
     #dispatchId = 0;
     #options;
     #htmlExcecuters; //element name -> event type -> model.prop -> callbacks
@@ -1395,7 +1395,7 @@ class HydrateApp {
         for (let script of scripts) {
             //Look for a class definition script and load it if we find it
             if (componentBody == null && script.matches(scriptSelector))
-                type.classDefinition = await this.#loadStringModule(script.textContent.trim());
+                type.classDefinition = await this.#loadStringModule(script.textContent);
             //Remove any script elements from the component to prevent malicious scripts
             script.remove();
         }
@@ -1419,7 +1419,20 @@ class HydrateApp {
         for (let element of components)
             this.#linkComponent(element);
     }
-    async #loadStringModule(script) {
+    async #loadStringModule(text) {
+        const lines = text.split(/\r?\n/);
+        for (let i = 0; i < lines.length; i++) {
+            const match = lines[i].match(/\s*import.*([\"\'\`].*[\"\'\`])/);
+            if (!match)
+                continue;
+            const module = match[1];
+            //If we passed in a root path, find the absolute path
+            const abosluteModulePath = `"${module.substring(1, module.length - 1).replace(/^\//, window.location.origin + "/")}"`;
+            lines[i] = lines[i].replace(module, abosluteModulePath);
+        }
+        const script = lines.join("\n");
+        // const module =  (await import(`data:text/javascript,${script}`))
+        // return module.default ??  Object.values(module)[0] as HydrateComponentConstructor;
         const blob = new Blob([script], { type: 'text/javascript' });
         const url = URL.createObjectURL(blob);
         const module = await import(url);
@@ -1568,6 +1581,9 @@ class HydrateApp {
                     this.#loadTemplate(template, false);
                 return;
             }
+            //Wait until the template has finished loading
+            if (componentType.loaded === false)
+                return;
             let component = this.#components.get(element);
             if (component?.type == componentType)
                 return;
@@ -1629,7 +1645,8 @@ class HydrateApp {
         if (component == null)
             return;
         //Call component unitializer callback if available
-        component.data.onDestroy();
+        if (component.initialized)
+            component.data.onDestroy();
         for (let configuration of this.#dependencies.values()) {
             const dependency = configuration.instances.get(element);
             if (dependency != null)

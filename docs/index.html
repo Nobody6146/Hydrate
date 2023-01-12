@@ -3,7 +3,7 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"/>
         <title>Hydrate Demo</title>
-        <script src="hydrate.js"></script>
+        <!-- <script src="hydrate.js"></script> -->
         <style>
             .red {
                 color: red;
@@ -76,10 +76,11 @@
                     h-on="click: $detail.parent[$detail.modelName] = $id()">
                 Star</div>
                 <script h-script>
-                    class Component {
+                    import {HydrateComponent} from "/hydrate.js";
+                    export class StarTemplate extends HydrateComponent {
                         #subscription;
                         onInit() {
-                            this.#subscription = this.$hydrate.subscribe(this.$modelPath, function(change) {
+                            this.#subscription = this.hydrate.subscribe(this.modelPath, function(change) {
                                 console.log("We change star values", change.state);
                             }.bind())
                         }
@@ -101,14 +102,15 @@
                 <input id="calculator" h-model="^" h-property="value: value" h-input="value: $element.value" h-if="input: $element.value < 20">
                 <h1 h-model="^" h-property="textContent: $component.calculate(value)"></h1>
                 <script h-script>
-                    class Component {
+                    import {HydrateComponent} from "/hydrate.js";
+                    export class CalculatorTemplate extends HydrateComponent {
                         calculate(value) {
                             return value * value;
                         }
                         onInit(eventDetail) {
                             console.log("initialize calculator", eventDetail);
                             console.log(this);
-                            this.$model.value = 10;
+                            this.model.value = 10;
                         }
                         onPreRender(eventDetail) {
                             console.log("Rendering calculator", eventDetail);
@@ -118,7 +120,7 @@
                         }
                         onDestroy() {
                             console.log("initialize calculator");
-                            this.$hydrate.unbind(this.$model);
+                            this.hydrate.unbind(this.model);
                         }
                     }
                 </script>
@@ -225,7 +227,8 @@
                     Hydrate Demo 2022.
                 </p>
             </footer>
-            <script>
+            <script type="module">
+                import { HydrateApp } from "./hydrate.js";
                 // document.body.addEventListener("hydrate.track", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.untrack", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.bind", event => console.log(event.type, event.detail));
@@ -261,7 +264,7 @@
                         dispatchTimer: false
                     }
                 };
-                let app = new HydrateApp(options);
+                window.app = new HydrateApp(options);
                 app.start();
                 let div = document.querySelector("div");
                 //let model = app.bind("default", {text: "hello", list: [{first: "Brandon", last: "Biera"}, {first:"Megan",last:"Wong"}]});

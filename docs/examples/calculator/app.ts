@@ -1,4 +1,4 @@
-//import { HydrateApp } from "../../hydrate.js";
+import { HydrateApp } from "../../hydrate.js";
 
 class CalculatorApp {
     #hydrate:HydrateApp;
@@ -168,3 +168,6 @@ interface CalculatorKey {
     display:string;
     press:()=>void;
 }
+
+var app = new CalculatorApp();
+app.start();

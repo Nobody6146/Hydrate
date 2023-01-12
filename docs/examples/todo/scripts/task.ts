@@ -1,4 +1,7 @@
-class Task {
+import { HydrateApp, HydrateSubscriptionCallback, HydrateModelSubscription } from "../../../hydrate.js";
+import { Api } from "./api.js";
+
+export class Task {
     id = null;
     text = null;
     day = null;
@@ -9,7 +12,7 @@ interface TaskList {
     tasks:Task[];
 }
 
-class TaskService
+export class TaskService
 {
     #hydrate:HydrateApp;
     #api:Api;

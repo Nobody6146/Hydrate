@@ -36,14 +36,17 @@
     </div>
 
     <script h-script>
-        export default class extends HydrateComponent {
+        import {HydrateComponent} from "/hydrate.js";
+        import { UiService } from "/examples/todo/scripts/ui.js";
+                
+        export class AppAddClass extends HydrateComponent {
             #uiService;
             #showAddSubscription;
 
-            onInit() {
-                this.#uiService = this.$dependency(UiService);
+            onInit(eventDetails) {
+                this.#uiService = this.dependency(UiService);
                 this.#showAddSubscription = this.#uiService.subscribeToShowAddTaskMenu(function({state}) {
-                    this.$model.visible = state;
+                    this.model.visible = state;
                 }.bind(this));
                 //Will tell the subscription to automatically fire the callback with the current data
                 this.#showAddSubscription.trigger();

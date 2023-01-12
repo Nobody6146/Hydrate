@@ -1,4 +1,6 @@
-class Api {
+import { Task } from "./task.js";
+
+export class Api {
     #tasks:Task[];
 
     constructor() {

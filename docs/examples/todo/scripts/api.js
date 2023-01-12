@@ -1,4 +1,4 @@
-class Api {
+export class Api {
     #tasks;
     constructor() {
         const tasks = window.localStorage.getItem("todos") ?? "[]";

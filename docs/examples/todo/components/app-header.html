@@ -8,13 +8,16 @@
         </app-button>
     </header>
     <script h-script>
-        export default class extends HydrateComponent {}
+        import {HydrateComponent} from "/hydrate.js";
+        import { UiService } from "/examples/todo/scripts/ui.js";
+                
+        export default class extends HydrateComponent {
             #uiService;
             #showAddSubscription;
 
             onInit(detail) {
-                this.#uiService = this.$dependency(UiService);
-                this.$model = {
+                this.#uiService = this.dependency(UiService);
+                this.model = {
                     title: "Task Tracker",
                     showAdd: false,
                     button: {
@@ -24,8 +27,8 @@
                     }
                 };
 
-                this.#showAddSubscription = this.#uiService.subscribeToShowAddTaskMenu( function({state}) {
-                    this.$model.showAdd = state;
+                this.#showAddSubscription = this.#uiService.subscribeToShowAddTaskMenu(function({state}) {
+                    this.model.showAdd = state;
                     this.#updateButton(state);
                 }.bind(this));
                 //Will tell the subscription to automatically fire the callback with the current data
@@ -35,8 +38,8 @@
                 this.#showAddSubscription.unsubscribe();
             }
             #updateButton(showAddTaskMenu) {
-                this.$model.button.text = showAddTaskMenu ? "Close" : "Add";
-                this.$model.button.color = showAddTaskMenu ? "red" : "green";
+                this.model.button.text = showAddTaskMenu ? "Close" : "Add";
+                this.model.button.color = showAddTaskMenu ? "red" : "green";
             }
             #toggleShowAdd() {
                 this.#uiService.toggleAddTaskMenu();

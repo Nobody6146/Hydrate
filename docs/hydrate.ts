@@ -1,7 +1,7 @@
-type HydrateModelEventHandler = (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails|HydrateElementMutationEventDetails|HydrateElementTrackingEventDetails|HydrateElementEventListenerEventDetails) => void;
-type HydrateModelEventExecuter = {arg:HydrateAttributeArgument, handler:HydrateModelEventHandler};
+export type HydrateModelEventHandler = (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails|HydrateElementMutationEventDetails|HydrateElementTrackingEventDetails|HydrateElementEventListenerEventDetails) => void;
+export type HydrateModelEventExecuter = {arg:HydrateAttributeArgument, handler:HydrateModelEventHandler};
 
-class HydrateAppOptions {
+export class HydrateAppOptions {
 
     dom?:HydrateDomOptions;
     model?:HydrateModelOptions;
@@ -18,7 +18,7 @@ class HydrateAppOptions {
     }
 }
 
-class HydrateDebugOptions {
+export class HydrateDebugOptions {
     dispatchTimer?:boolean;
 
     constructor() {
@@ -26,15 +26,15 @@ class HydrateDebugOptions {
     }
 }
 
-class HydrateRouterOptions {
+export class HydrateRouterOptions {
     hashRouting?:boolean = true;
 }
 
-class HydrateDomOptions {
+export class HydrateDomOptions {
     rootSelector?:string = "body";
 }
 
-class HydrateModelOptions {
+export class HydrateModelOptions {
     baseProperty?:string;
     parentProperty?:string;
     nameProperty?:string;
@@ -50,7 +50,7 @@ class HydrateModelOptions {
     }
 }
 
-class HydrateAttributeOptions
+export class HydrateAttributeOptions
 {
     names?:HydrateAttributeNamesOptions;
     handlers?:Map<string, HydrateModelEventHandler>;
@@ -67,7 +67,7 @@ class HydrateAttributeOptions
     }
 }
 
-class HydrateAttributeNamesOptions
+export class HydrateAttributeNamesOptions
 {
     //Linking
     model?:string
@@ -167,19 +167,19 @@ class HydrateAttributeNamesOptions
     }
 }
 
-interface HydrateAttributeArgument {
+export interface HydrateAttributeArgument {
     field: string;
     expression: string;
 }
 
-type HydrateEventType = 'track' | 'untrack' | 'bind' | "unbind" | 'set' | "input" | "on"
+export type HydrateEventType = 'track' | 'untrack' | 'bind' | "unbind" | 'set' | "input" | "on"
     | "mutation.target.added" | "mutation.target.removed" | "mutation.target.attribute" | "mutation.target.characterdata"
     | "mutation.parent.added" | "mutation.parent.removed" | "mutation.parent.attribute" | "mutation.parent.characterdata"
     | "mutation.child.added" | "mutation.child.removed" | "mutation.child.attribute" | "mutation.child.characterdata"
     | 'routing.start' | "routing.resolve" | "routing.reject";
-type HydrateComponentTemplateType = "template" | "url";
+export type HydrateComponentTemplateType = "template" | "url";
 
-interface HydrateEventDetailProperties {
+export interface HydrateEventDetailProperties {
     propPath:string;
     propName:string;
     modelPath:string;
@@ -189,7 +189,7 @@ interface HydrateEventDetailProperties {
     parentPath:string;
 }
 
-class HydrateElementTrackingEvent extends CustomEvent<HydrateElementTrackingEventDetails> {
+export class HydrateElementTrackingEvent extends CustomEvent<HydrateElementTrackingEventDetails> {
 
     constructor(detail:HydrateElementTrackingEventDetails) {
         super(detail.hydrate.event(detail.type), {
@@ -200,7 +200,7 @@ class HydrateElementTrackingEvent extends CustomEvent<HydrateElementTrackingEven
     }
 }
 
-class HydrateModelEvent extends CustomEvent<HydrateModelEventDetails> {
+export class HydrateModelEvent extends CustomEvent<HydrateModelEventDetails> {
 
     constructor(detail:HydrateModelEventDetails) {
         super(detail.hydrate.event(detail.type), {
@@ -211,7 +211,7 @@ class HydrateModelEvent extends CustomEvent<HydrateModelEventDetails> {
     }
 }
 
-class HydrateRouteEvent extends CustomEvent<HydrateRouteEventDetails> {
+export class HydrateRouteEvent extends CustomEvent<HydrateRouteEventDetails> {
 
     constructor(detail:HydrateRouteEventDetails) {
         super(detail.hydrate.event(detail.type), {
@@ -222,7 +222,7 @@ class HydrateRouteEvent extends CustomEvent<HydrateRouteEventDetails> {
     }
 }
 
-class HydrateElementMutationEvent extends CustomEvent<HydrateElementMutationEventDetails> {
+export class HydrateElementMutationEvent extends CustomEvent<HydrateElementMutationEventDetails> {
 
     constructor(detail:HydrateElementMutationEventDetails) {
         super(detail.hydrate.event(detail.type), {
@@ -233,7 +233,7 @@ class HydrateElementMutationEvent extends CustomEvent<HydrateElementMutationEven
     }
 }
 
-class HydrateElementEventListenerEvent extends CustomEvent<HydrateElementEventListenerEventDetails> {
+export class HydrateElementEventListenerEvent extends CustomEvent<HydrateElementEventListenerEventDetails> {
 
     constructor(detail:HydrateElementEventListenerEventDetails) {
         super(detail.hydrate.event(detail.type), {
@@ -244,7 +244,7 @@ class HydrateElementEventListenerEvent extends CustomEvent<HydrateElementEventLi
     }
 }
 
-class HydrateElementInputEvent extends CustomEvent<HydrateElementInputEventDetails> {
+export class HydrateElementInputEvent extends CustomEvent<HydrateElementInputEventDetails> {
 
     constructor(detail:HydrateElementInputEventDetails) {
         super(detail.hydrate.event(detail.type), {
@@ -255,7 +255,7 @@ class HydrateElementInputEvent extends CustomEvent<HydrateElementInputEventDetai
     }
 }
 
-abstract class HydrateEventDetails
+export abstract class HydrateEventDetails
 {
     hydrate: HydrateApp;
     element: HTMLElement;
@@ -314,14 +314,14 @@ abstract class HydrateEventDetails
     }
 }
 
-class HydrateElementTrackingEventDetails extends HydrateEventDetails
+export class HydrateElementTrackingEventDetails extends HydrateEventDetails
 {
     constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, properties:HydrateEventDetailProperties) {
         super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
     }
 }
 
-class HydrateModelEventDetails extends HydrateEventDetails {
+export class HydrateModelEventDetails extends HydrateEventDetails {
     
     nested:HydrateModelEventDetails;
 
@@ -331,7 +331,7 @@ class HydrateModelEventDetails extends HydrateEventDetails {
     }
 }
 
-class HydrateElementMutationEventDetails extends HydrateEventDetails {
+export class HydrateElementMutationEventDetails extends HydrateEventDetails {
     mutation:MutationRecord;
 
     constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, properties:HydrateEventDetailProperties, mutation:MutationRecord) {
@@ -340,7 +340,7 @@ class HydrateElementMutationEventDetails extends HydrateEventDetails {
     }
 }
 
-class HydrateElementInputEventDetails extends HydrateEventDetails {
+export class HydrateElementInputEventDetails extends HydrateEventDetails {
     
     event:Event;
 
@@ -350,7 +350,7 @@ class HydrateElementInputEventDetails extends HydrateEventDetails {
     }
 }
 
-class HydrateElementEventListenerEventDetails extends HydrateEventDetails {
+export class HydrateElementEventListenerEventDetails extends HydrateEventDetails {
     event:Event;
 
     constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, properties:HydrateEventDetailProperties, event:Event) {
@@ -359,7 +359,7 @@ class HydrateElementEventListenerEventDetails extends HydrateEventDetails {
     }
 }
 
-class HydrateRouteEventDetails extends HydrateEventDetails {
+export class HydrateRouteEventDetails extends HydrateEventDetails {
     request:HydrateRouteRequest;
 
     constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, properties:HydrateEventDetailProperties, request:HydrateRouteRequest) {
@@ -368,7 +368,7 @@ class HydrateRouteEventDetails extends HydrateEventDetails {
     }
 }
 
-class HydrateRouteRequest {
+export class HydrateRouteRequest {
     hydrate:HydrateApp;
     path: string;
     url: string;
@@ -514,24 +514,24 @@ class HydrateRouteRequest {
     }
 }
 
-interface HydrateRoutingState {
+export interface HydrateRoutingState {
     url:string;
     eventType:HydrateEventType;
 }
 
-interface HydrateRoute {
+export interface HydrateRoute {
     path:string;
     action?:Function;
 }
 
-interface HydrateRouteMatch {
+export interface HydrateRouteMatch {
     url:string;
     route:HydrateRoute;
     params:object;
     query:object;
 }
 
-interface HydrateElementDelayDispatch {
+export interface HydrateElementDelayDispatch {
     timeout:number;
     eventType:HydrateEventType;
     element:HTMLElement;
@@ -541,9 +541,9 @@ interface HydrateElementDelayDispatch {
     data:any;
 }
 
-type HydrateComponentConstructor = new (data:HydrateComponentData) => HydrateComponent; 
+export type HydrateComponentConstructor = new (data:HydrateComponentData) => HydrateComponent; 
 
-interface HydrateComponentType {
+export interface HydrateComponentType {
     loaded:boolean;
     attributes:Map<string, string>;
     template:Node[];
@@ -551,7 +551,7 @@ interface HydrateComponentType {
     style:HTMLStyleElement;
 }
 
-interface HydrateComponentElement {
+export interface HydrateComponentElement {
     element:HTMLElement;
     type:HydrateComponentType;
     data:HydrateComponent;
@@ -560,12 +560,12 @@ interface HydrateComponentElement {
     prevSize:number;
 }
 
-interface HydrateComponentData {
+export interface HydrateComponentData {
     hydrate:HydrateApp;
     element:HTMLElement;
 }
 
-class HydrateComponent {
+export class HydrateComponent {
     
     #hydrate:HydrateApp;
     #element:HTMLElement;
@@ -595,7 +595,7 @@ class HydrateComponent {
     }
 
     dependency<T>(definition:new (...args) => T) : HydrateAppDependency {
-        return this.#hydrate.dependency(definition, this.#element);
+        return this.#hydrate.dependency(definition, this.#element).instance;
     }
 
     onInit(eventDetails:HydrateEventDetails):void {}
@@ -604,13 +604,13 @@ class HydrateComponent {
     onDestroy():void {}
 }
 
-interface HydrateModelChange<T> {
+export interface HydrateModelChange<T> {
     event:CustomEvent<HydrateEventDetails>;//the event that triggered the update
     model:T;//the model we're tracking (could not match event)
     state:T;//the state of what we're tracking (could not match event)
 }
 
-class HydrateModelSubscription {
+export class HydrateModelSubscription {
     #hydrate:HydrateApp;
     modelPath:string;
     callback:Function;
@@ -651,27 +651,27 @@ class HydrateModelSubscription {
     }
 }
 
-type HydrateSubscriptionCallback = (subscription:HydrateModelChange<any>) => void;
+export type HydrateSubscriptionCallback = (subscription:HydrateModelChange<any>) => void;
 
-interface HydrateSubscriptionOptions {
+export interface HydrateSubscriptionOptions {
     condition?:string;
     nested?:string[];
     filters?:string[];
 }
 
-interface HydrateAppDependencyConfiguration {
+export interface HydrateAppDependencyConfiguration {
     type:HydrateAppDependencyType;
     instances:Map<any, HydrateAppDependency>;//Any source object (typically HydrateComponent) as the key, "null" will be a singleton
 }
 
-interface HydrateAppDependency {
+export interface HydrateAppDependency {
     instance:any;
     dispose:() => void;
 }
 
-type HydrateAppDependencyType = "singleton" | "transient" | "scoped";
+export type HydrateAppDependencyType = "singleton" | "transient" | "scoped";
 
-class HydrateApp {
+export class HydrateApp {
 
     #dispatchId = 0;
 
@@ -1757,7 +1757,7 @@ class HydrateApp {
             {
                 //Look for a class definition script and load it if we find it
                 if(componentBody == null && script.matches(scriptSelector))
-                    type.classDefinition = await this.#loadStringModule(script.textContent.trim());
+                    type.classDefinition = await this.#loadStringModule(script.textContent);
                 //Remove any script elements from the component to prevent malicious scripts
                 script.remove();
             }
@@ -1788,7 +1788,21 @@ class HydrateApp {
                 this.#linkComponent(element);
     }
 
-    async #loadStringModule(script:string): Promise<HydrateComponentConstructor> {
+    async #loadStringModule(text:string): Promise<HydrateComponentConstructor> {
+        const lines = text.split(/\r?\n/);
+        for(let i = 0; i < lines.length; i++)
+        {
+            const match = lines[i].match(/\s*import.*([\"\'\`].*[\"\'\`])/);
+            if(!match)
+                continue;
+            const module = match[1];
+            //If we passed in a root path, find the absolute path
+            const abosluteModulePath = `"${module.substring(1, module.length - 1).replace(/^\//, window.location.origin + "/")}"`;
+            lines[i] = lines[i].replace(module, abosluteModulePath);
+        }
+        const script = lines.join("\n");
+        // const module =  (await import(`data:text/javascript,${script}`))
+        // return module.default ??  Object.values(module)[0] as HydrateComponentConstructor;
         const blob = new Blob([script], {type: 'text/javascript'});
         const url = URL.createObjectURL(blob);
         const module = await import(url);
@@ -1959,6 +1973,9 @@ class HydrateApp {
                     this.#loadTemplate(template, false);
                 return;
             }
+            //Wait until the template has finished loading
+            if(componentType.loaded === false)
+                return;
             let component = this.#components.get(element);
             if(component?.type == componentType)
                 return;
@@ -2027,7 +2044,8 @@ class HydrateApp {
             return;
 
         //Call component unitializer callback if available
-        component.data.onDestroy();
+        if(component.initialized)
+            component.data.onDestroy();
         for(let configuration of this.#dependencies.values())
         {
             const dependency = configuration.instances.get(element);

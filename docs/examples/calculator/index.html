@@ -3,8 +3,8 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"/>
         <title>Hydrate Calculator Demo</title>
-        <script src="../../hydrate.js"></script>
-        <script src="app.js"></script>
+        <!-- <script src="../../hydrate.js"></script> -->
+        <script type="module" src="app.js"></script>
         <style>
         </style>
     </head>
@@ -31,9 +31,9 @@
                 <app-display-entry h-model="^.lines"></app-display-entry>
             </div>
             <script h-script>
-                import Import from "http://localhost:5500/examples/calculator/components/app-root/index.js";
-
-                export default class extends Import {
+                import {HydrateComponent} from "/hydrate.js";
+                
+                export default class extends HydrateComponent {
                     
                 }
             </script>
@@ -105,8 +105,8 @@
         </template>
 
         <script>
-            var app = new CalculatorApp();
-            app.start();
+            // var app = new CalculatorApp();
+            // app.start();
         </script>
     </body>
 </html>

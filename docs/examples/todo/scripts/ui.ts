@@ -1,10 +1,12 @@
+import { HydrateApp, HydrateSubscriptionCallback } from "../../../hydrate.js";
+
 interface UiServiceModel {
     addTaskMenu:{
         visible:boolean;
     };
 }
 
-class UiService {
+export class UiService {
     
     #hydrate:HydrateApp;
     #model:UiServiceModel;
