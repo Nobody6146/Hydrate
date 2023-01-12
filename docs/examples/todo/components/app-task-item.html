@@ -40,7 +40,7 @@
         <p h-model="^" h-property="textContent: day"></p>
     </div>
     <script h-script>
-        class Component {
+        export default class extends HydrateComponent {
             #taskService;
 
             onInit() {

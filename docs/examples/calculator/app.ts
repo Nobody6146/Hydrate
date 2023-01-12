@@ -1,3 +1,5 @@
+//import { HydrateApp } from "../../hydrate.js";
+
 class CalculatorApp {
     #hydrate:HydrateApp;
     #state:CalculatorState;
@@ -13,7 +15,8 @@ class CalculatorApp {
                 value2: null,
                 operator: null,
                 memmory: null,
-                total: null
+                total: null,
+                calculated: false
             },
             display: {
                 lines: []
@@ -58,11 +61,14 @@ class CalculatorApp {
     }
 
     pressNumber(number:string) {
-        this.#model.entry.value1 = Number.parseFloat(this.#state.entry.value1) === 0 ? number : this.#state.entry.value1 + number;
+        const value = this.#state.entry.calculated ? "0" : this.#state.entry.value1;
+        this.#model.entry.calculated = false;
+        this.#model.entry.value1 = Number.parseFloat(value) === 0 ? number : value + number;
         this.updateDisplay();
     }
 
     pressDecimal() {
+        this.#model.entry.calculated = false;
         if(this.#state.entry.value1.indexOf(".") > -1)
             return;
         this.pressNumber(".");
@@ -109,6 +115,8 @@ class CalculatorApp {
             value: val1,
             operator: operator
         };
+
+        this.#model.entry.calculated = true;
         this.#model.entry.operator = null;
         this.#model.entry.value1 = total.toString();
         this.#model.entry.value2 = null;
@@ -140,6 +148,7 @@ interface CalculatorEntryState {
     operator:CalculatorOperator;
     memmory:CalculatorEntryMemmoryState;
     total:number;
+    calculated:boolean;
 }
 
 interface CalculatorEntryMemmoryState {

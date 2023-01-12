@@ -1,5 +1,5 @@
 export default class extends HydrateComponent {
-    onInit(eventDetails) {
+    onInit(eventDetails: HydrateEventDetails): void {
         console.log("initialized");
     }
 }

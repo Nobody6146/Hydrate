@@ -411,6 +411,39 @@ class HydrateRouteRequest {
         }
     }
 }
+class HydrateComponent {
+    #hydrate;
+    #element;
+    constructor(data) {
+        this.#hydrate = data.hydrate;
+        this.#element = data.element;
+    }
+    get hydrate() {
+        return this.#hydrate;
+    }
+    get root() {
+        return this.#element;
+    }
+    get modelPath() {
+        return this.#element.getAttribute(this.#hydrate.attribute(this.#hydrate.options.attribute.names.model));
+    }
+    get model() {
+        return this.#hydrate.model(this.modelPath);
+    }
+    set model(value) {
+        this.#hydrate.bind(this.modelPath, value);
+    }
+    get state() {
+        return this.#hydrate.state(this.modelPath);
+    }
+    dependency(definition) {
+        return this.#hydrate.dependency(definition, this.#element);
+    }
+    onInit(eventDetails) { }
+    onPreRender(eventDetails) { }
+    onPostRender(eventDetails) { }
+    onDestroy() { }
+}
 class HydrateModelSubscription {
     #hydrate;
     modelPath;
@@ -1281,82 +1314,117 @@ class HydrateApp {
         for (let template of this.root.querySelectorAll(templateSelector))
             this.#loadTemplate(template, true);
     }
-    #loadTemplate(element, lazyLoad) {
+    async #loadTemplate(element, lazyLoad) {
+        let typeName = null;
         try {
             const lazyAttribute = this.attribute(this.#options.attribute.names.lazy);
             if (!element.matches(this.#componentTemplateSelector))
                 return null;
             let lazy = lazyLoad && element.hasAttribute(lazyAttribute);
-            if (!lazy) {
-                const sourceAttribute = this.attribute(this.#options.attribute.names.source);
-                const url = element.getAttribute(sourceAttribute);
-                if (url != null) {
-                    this.#loadRemoteTemplate(element, url);
-                    return;
-                }
-            }
-            const typeName = element.getAttribute(this.attribute(this.#options.attribute.names.template))?.toLowerCase();
+            if (lazy)
+                return;
+            typeName = element.getAttribute(this.attribute(this.#options.attribute.names.template))?.toLowerCase();
             if (!typeName)
                 return;
             if (this.#componentTypes.has(typeName)) {
                 console.error(`A template with the name ${typeName} has already been declared`);
                 return;
             }
-            const templateAttribute = this.attribute(this.#options.attribute.names.template);
-            const componentAttribute = this.attribute(this.#options.attribute.names.component);
-            const scriptAttribute = this.attribute(this.#options.attribute.names.script);
-            const scriptSelector = `script[${scriptAttribute}]`;
-            const modelAttribute = this.attribute(this.#options.attribute.names.model);
-            const shadowAttribute = this.attribute(this.#options.attribute.names.shadow);
-            const componentSelector = `${typeName}:not([${lazyAttribute}]),[${componentAttribute}='${typeName}' i]:not([${lazyAttribute}])`;
-            const components = this.#root.querySelectorAll(componentSelector);
-            if (lazy && components.length === 0)
-                //If we are lazy loading and don't have any non-lazy components to load, then don't load this template
-                return;
+            //Tell the framework we are in the process of loading
             const type = {
-                attributes: new Map(),
-                template: [],
-                classDefinition: class {
-                },
+                loaded: false,
+                attributes: null,
+                template: null,
+                classDefinition: null,
                 style: null
             };
             this.#componentTypes.set(typeName, type);
-            //Load attributes
-            for (let attribute of element.attributes)
-                if (attribute.name !== templateAttribute && attribute.name !== lazyAttribute)
-                    type.attributes.set(attribute.name, attribute.value);
-            type.attributes.set(this.attribute(this.#options.attribute.names.component), typeName);
-            //Remove the lazy attribute to not copy over to component
-            type.attributes.delete(this.attribute(this.#options.attribute.names.lazy));
-            //Set to modeless component by default if no model was specified
-            if (!type.attributes.has(modelAttribute))
-                type.attributes.set(modelAttribute, "");
-            const template = element.cloneNode(true);
-            const scripts = template.content.querySelectorAll("script");
-            for (let script of scripts) {
-                //Look for a class definition script and load it if we find it
-                if (script.matches(scriptSelector))
-                    type.classDefinition = new Function(`'use strict'; return ${script.textContent.trim()}`)();
-                //Remove any script elements from the component to prevent malicious scripts
-                script.remove();
+            const sourceAttribute = this.attribute(this.#options.attribute.names.source);
+            const url = element.getAttribute(sourceAttribute);
+            if (url != null) {
+                const source = await this.#loadRemoteTemplate(element, url);
+                await this.#fillTemplate(typeName, element, lazy, source.template, source.componentBody);
+                return;
             }
-            const styleAttribute = this.attribute(this.#options.attribute.names.style);
-            const styleSelector = `style[${styleAttribute}]`;
-            const styles = template.content.querySelectorAll(styleSelector);
-            for (let style of styles) {
-                type.style = this.#buildCssStyle(style, typeName);
-                style.remove();
-            }
-            //Don't load the template if it's just white space so we know whether to clear the dom or not
-            if (!template.innerHTML.match(/^\s*$/))
-                type.template.push(...template.content.childNodes);
-            //Link all components of this type
-            for (let element of components)
-                this.#linkComponent(element);
+            await this.#fillTemplate(typeName, element, lazy, null, null);
         }
         catch (error) {
+            //If we failed trying to load, then delete the record so something else can try to load
+            this.#componentTypes.delete(typeName);
             console.error(error);
         }
+    }
+    async #fillTemplate(typeName, element, lazy, sourceTemplate, componentBody) {
+        const lazyAttribute = this.attribute(this.#options.attribute.names.lazy);
+        const templateAttribute = this.attribute(this.#options.attribute.names.template);
+        const componentAttribute = this.attribute(this.#options.attribute.names.component);
+        const scriptAttribute = this.attribute(this.#options.attribute.names.script);
+        const scriptSelector = `script[${scriptAttribute}]`;
+        const modelAttribute = this.attribute(this.#options.attribute.names.model);
+        const shadowAttribute = this.attribute(this.#options.attribute.names.shadow);
+        const componentSelector = `${typeName}:not([${lazyAttribute}]),[${componentAttribute}='${typeName}' i]:not([${lazyAttribute}])`;
+        const components = this.#root.querySelectorAll(componentSelector);
+        if (lazy && components.length === 0)
+            //If we are lazy loading and don't have any non-lazy components to load, then don't load this template
+            return;
+        const type = {
+            loaded: true,
+            attributes: new Map(),
+            template: [],
+            classDefinition: componentBody ?? HydrateComponent,
+            style: null
+        };
+        this.#componentTypes.set(typeName, type);
+        if (sourceTemplate !== null) {
+            //Load up the attributes
+            for (let attribute of sourceTemplate.attributes)
+                if (attribute.name !== templateAttribute && attribute.name !== lazyAttribute)
+                    type.attributes.set(attribute.name, attribute.value);
+        }
+        for (let attribute of element.attributes)
+            if (attribute.name !== templateAttribute && attribute.name !== lazyAttribute)
+                type.attributes.set(attribute.name, attribute.value);
+        type.attributes.set(this.attribute(this.#options.attribute.names.component), typeName);
+        //Remove the lazy attribute to not copy over to component
+        type.attributes.delete(this.attribute(this.#options.attribute.names.lazy));
+        //Set to modeless component by default if no model was specified
+        if (!type.attributes.has(modelAttribute))
+            type.attributes.set(modelAttribute, "");
+        const template = sourceTemplate ?? element.cloneNode(true);
+        const scripts = template.content.querySelectorAll("script");
+        for (let script of scripts) {
+            //Look for a class definition script and load it if we find it
+            if (componentBody == null && script.matches(scriptSelector))
+                type.classDefinition = await this.#loadStringModule(script.textContent.trim());
+            //Remove any script elements from the component to prevent malicious scripts
+            script.remove();
+        }
+        const styleAttribute = this.attribute(this.#options.attribute.names.style);
+        const styleSelector = `style[${styleAttribute}]`;
+        const styles = template.content.querySelectorAll(styleSelector);
+        for (let style of styles) {
+            type.style = this.#buildCssStyle(style, typeName);
+            style.remove();
+        }
+        //Don't load the template if it's just white space so we know whether to clear the dom or not
+        if (!template.innerHTML.match(/^\s*$/))
+            type.template.push(...template.content.childNodes);
+        //If we had a source template, apply the changes to our root template element
+        if (sourceTemplate) {
+            for (let [attrName, attrValue] of type.attributes)
+                element.setAttribute(attrName, attrValue);
+            element.content.append(...sourceTemplate.content.childNodes);
+        }
+        //Link all components of this type
+        for (let element of components)
+            this.#linkComponent(element);
+    }
+    async #loadStringModule(script) {
+        const blob = new Blob([script], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
+        const module = await import(url);
+        URL.revokeObjectURL(url);
+        return module.default ?? Object.values(module)[0];
     }
     #buildCssStyle(baseStyle, componentTypeName) {
         const modelAttribute = this.attribute(this.#options.attribute.names.component);
@@ -1379,7 +1447,7 @@ class HydrateApp {
         style.textContent = lines.join("\n").replace(/:root/g, componentSelector);
         return style;
     }
-    #loadRemoteTemplate(element, url) {
+    async #loadRemoteTemplate(element, url) {
         const promises = [];
         const period = url.lastIndexOf(".");
         const ext = period > -1 ? url.substring(period) : null;
@@ -1397,26 +1465,26 @@ class HydrateApp {
         else
             promises.push(Promise.resolve(null));
         //[fetch(`${url}.html`), fetch(`${url}.css`), fetch(`${url}.js`)]
-        Promise.allSettled(promises)
+        return await Promise.allSettled(promises)
             .then(([html, css, js]) => {
             if (html.status === "rejected")
-                throw new Error(`Unknown error fetching html for template ${url}`);
+                throw new Error(`Unknown error fetching html for template ${url}. ${html.reason}`);
             if (html.value?.ok === false && html.value?.status !== 404)
                 throw new Error(`${html.value?.status}: Error fetching html for template ${url}`);
             if (css.status === "rejected")
-                throw new Error(`Unknown error fetching css for template ${url}`);
+                throw new Error(`Unknown error fetching css for template ${url}. ${css.reason}`);
             //It's ok if we don't find this
             if (css.value?.ok === false && css.value?.status !== 404)
                 throw new Error(`${css.value?.status}: Error fetching css for template ${url}`);
             if (js.status === "rejected")
-                throw new Error(`Unknown error fetching js for template ${url}`);
+                throw new Error(`Unknown error fetching js for template ${url}. ${js.reason}`);
             //It's ok if we dont find this
             if (js.value?.ok === false && js.value?.status !== 404)
                 throw new Error(`${js.value?.status}: Error fetching js for template ${url}`);
             return Promise.all([
                 html.value?.ok === true ? html.value.text() : Promise.resolve(null),
                 css.value?.ok === true ? css.value.text() : Promise.resolve(null),
-                js.value?.ok === true ? js.value.text() : Promise.resolve(null)
+                js.value?.ok === true ? import(js.value.url) : Promise.resolve(null)
             ]);
         })
             .then(([html, css, js]) => {
@@ -1434,23 +1502,31 @@ class HydrateApp {
                 style.innerHTML = css;
                 template.content.append(style);
             }
-            if (js !== null && js.trim() !== "") {
-                const script = document.createElement("script");
-                script.toggleAttribute(this.attribute(this.#options.attribute.names.script), true);
-                script.innerHTML = js;
-                template.content.append(script);
-            }
+            //If we imported a js module, assume the first export is the component body
+            const componentBody = js !== null
+                ? js.default ?? Object.values(js)[0]
+                : null;
+            // if(js !== null && js.trim() !== "")s
+            // {
+            //     const script = document.createElement("script");
+            //     script.toggleAttribute(this.attribute(this.#options.attribute.names.script), true);
+            //     script.innerHTML = js;
+            //     template.content.append(script);
+            // }
             //Load up the HTML
-            element.content.append(...template.content.childNodes);
-            //Load up the attributes
-            for (let attribute of template.attributes)
-                if (!element.hasAttribute(attribute.name) && attribute.name !== lazyAttribute)
-                    element.setAttribute(attribute.name, attribute.value);
-            //This should guarentee a reload of the component
-            element.removeAttribute(lazyAttribute);
-            element.removeAttribute(this.attribute(this.#options.attribute.names.source));
+            // element.content.append(...template.content.childNodes);
+            // //Load up the attributes
+            // for(let attribute of template.attributes)
+            //     if(!element.hasAttribute(attribute.name) && attribute.name !== lazyAttribute)
+            //         element.setAttribute(attribute.name, attribute.value);
+            // //This should guarentee a reload of the component
+            // element.removeAttribute(lazyAttribute);
+            // element.removeAttribute(this.attribute(this.#options.attribute.names.source));
+            return {
+                template: template,
+                componentBody: componentBody
+            };
         });
-        return;
     }
     get lazy() {
         return this.#lazyElements;
@@ -1500,47 +1576,42 @@ class HydrateApp {
                 initialized: false,
                 element,
                 type: componentType,
-                data: new componentType.classDefinition(),
+                data: new componentType.classDefinition({ hydrate, element }),
                 mutationObserver: null,
                 prevSize: undefined
             };
             //Add some default behavior to the component class
-            Object.defineProperty(component.data, '$hydrate', {
-                get() {
-                    return hydrate;
-                }
-            });
-            component.data.$dependency = function (definition) {
-                return hydrate.dependency(definition, element).instance;
-            };
-            // Object.defineProperty(component.data, '$parentComponent', {
+            // Object.defineProperty(component.data, '$hydrate', {
             //     get() {
-            //         return hydrate.#findComponentForElement(component.element.parentElement)?.data;
+            //         return hydrate;
             //     }
             // });
-            Object.defineProperty(component.data, '$root', {
-                get() {
-                    return component.element;
-                }
-            });
-            Object.defineProperty(component.data, '$modelPath', {
-                get() {
-                    return component.element.getAttribute(this.$hydrate.attribute(this.$hydrate.options.attribute.names.model));
-                }
-            });
-            Object.defineProperty(component.data, '$model', {
-                get() {
-                    return this.$hydrate.model(this.$modelPath);
-                },
-                set(value) {
-                    this.$hydrate.bind(this.$modelPath, value);
-                }
-            });
-            Object.defineProperty(component.data, '$state', {
-                get() {
-                    return this.$hydrate.state(this.$modelPath);
-                }
-            });
+            // component.data.$dependency = function<T>(definition:new (...args) => T): T {
+            //     return hydrate.dependency(definition, element).instance;
+            // };
+            // Object.defineProperty(component.data, '$root', {
+            //     get() {
+            //         return component.element;
+            //     }
+            // });
+            // Object.defineProperty(component.data, '$modelPath', {
+            //     get() {
+            //         return component.element.getAttribute(this.$hydrate.attribute(this.$hydrate.options.attribute.names.model));
+            //     }
+            // });
+            // Object.defineProperty(component.data, '$model', {
+            //     get() {
+            //         return this.$hydrate.model(this.$modelPath);
+            //     },
+            //     set(value) {
+            //         this.$hydrate.bind(this.$modelPath, value);
+            //     }
+            // });
+            // Object.defineProperty(component.data, '$state', {
+            //     get() {
+            //         return this.$hydrate.state(this.$modelPath);
+            //     }
+            // });
             this.#components.set(element, component);
             //remove from lazy load queue
             this.#lazyElements.delete(element);
@@ -1558,8 +1629,7 @@ class HydrateApp {
         if (component == null)
             return;
         //Call component unitializer callback if available
-        if (component.data.onDestroy instanceof Function)
-            component.data.onDestroy();
+        component.data.onDestroy();
         for (let configuration of this.#dependencies.values()) {
             const dependency = configuration.instances.get(element);
             if (dependency != null)
@@ -1571,13 +1641,12 @@ class HydrateApp {
     }
     #buildComponent(component, eventDetails) {
         //Call component initializer callback if available
-        if (component.data.onInit instanceof Function && component.initialized === false) {
+        if (component.initialized === false) {
             component.data.onInit(eventDetails);
             component.initialized = true;
         }
         //Call component change callback if available
-        if (component.data.onPreRender instanceof Function)
-            component.data.onPreRender(eventDetails);
+        component.data.onPreRender(eventDetails);
         let element = eventDetails.element;
         const modelAttribute = this.attribute(this.#options.attribute.names.model);
         let modelSelector = `[${modelAttribute}^=\\^]`;
@@ -1659,8 +1728,7 @@ class HydrateApp {
                 content.appendChild(component.type.style.cloneNode(true));
         }
         //Call component change callback if available
-        if (component.data.onPostRender instanceof Function)
-            component.data.onPostRender(eventDetails);
+        component.data.onPostRender(eventDetails);
     }
     resolveArgumentValue(detail, arg, event) {
         const app = this;
@@ -1679,7 +1747,7 @@ class HydrateApp {
                 let scriptElement = app.root.querySelector(selector);
                 if (scriptElement == null)
                     return null;
-                let func = new Function(`'use strict'; return ${scriptElement.textContent.trim()}`)();
+                let func = new Function(`return ${scriptElement.textContent.trim()}`)();
                 if (!(func instanceof Function))
                     return null;
                 return func;
@@ -1701,7 +1769,7 @@ class HydrateApp {
         if (typeof detail.state === "object")
             for (let key of stateKeys)
                 values.push(detail.state[key]);
-        let func = new Function(...keys, `'use strict'; return ${arg.expression}`);
+        let func = new Function(...keys, `return ${arg.expression}`);
         if (component != null)
             func = func.bind(component);
         return func(...values);

@@ -30,6 +30,13 @@
             <div>
                 <app-display-entry h-model="^.lines"></app-display-entry>
             </div>
+            <script h-script>
+                import Import from "http://localhost:5500/examples/calculator/components/app-root/index.js";
+
+                export default class extends Import {
+                    
+                }
+            </script>
         </template>
 
         <template h-template="app-display-entry">

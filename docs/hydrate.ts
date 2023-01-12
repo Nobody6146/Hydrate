@@ -541,20 +541,67 @@ interface HydrateElementDelayDispatch {
     data:any;
 }
 
+type HydrateComponentConstructor = new (data:HydrateComponentData) => HydrateComponent; 
+
 interface HydrateComponentType {
+    loaded:boolean;
     attributes:Map<string, string>;
     template:Node[];
-    classDefinition:new (...args) => any;
+    classDefinition:HydrateComponentConstructor;
     style:HTMLStyleElement;
 }
 
-interface HydrateComponent {
+interface HydrateComponentElement {
     element:HTMLElement;
     type:HydrateComponentType;
-    data:any;
+    data:HydrateComponent;
     initialized:boolean;
     mutationObserver:MutationObserver;
     prevSize:number;
+}
+
+interface HydrateComponentData {
+    hydrate:HydrateApp;
+    element:HTMLElement;
+}
+
+class HydrateComponent {
+    
+    #hydrate:HydrateApp;
+    #element:HTMLElement;
+
+    constructor(data:HydrateComponentData) {
+        this.#hydrate = data.hydrate
+        this.#element = data.element;
+    }
+
+    get hydrate():HydrateApp {
+        return this.#hydrate;
+    }
+    get root():HTMLElement {
+        return this.#element;
+    }                
+    get modelPath() {
+        return this.#element.getAttribute(this.#hydrate.attribute(this.#hydrate.options.attribute.names.model));
+    }
+    get model() {
+        return this.#hydrate.model(this.modelPath);
+    }
+    set model(value) {
+        this.#hydrate.bind(this.modelPath, value);
+    }
+    get state() {
+        return this.#hydrate.state(this.modelPath);
+    }
+
+    dependency<T>(definition:new (...args) => T) : HydrateAppDependency {
+        return this.#hydrate.dependency(definition, this.#element);
+    }
+
+    onInit(eventDetails:HydrateEventDetails):void {}
+    onPreRender(eventDetails:HydrateEventDetails):void {}
+    onPostRender(eventDetails:HydrateEventDetails):void {}
+    onDestroy():void {}
 }
 
 interface HydrateModelChange<T> {
@@ -640,7 +687,7 @@ class HydrateApp {
     #intersectionObserver: IntersectionObserver;
 
     #componentTypes:Map<string, HydrateComponentType>;
-    #components:Map<HTMLElement, HydrateComponent>;
+    #components:Map<HTMLElement, HydrateComponentElement>;
 
     #routingState:HydrateRoutingState;
 
@@ -869,7 +916,7 @@ class HydrateApp {
     }
 
     /** Bind a new model to the framework */
-    bind<ModelType extends object>(modelPath?: string, state?:ModelType):ModelType {
+    bind<ModelType extends any>(modelPath?: string, state?:ModelType):ModelType {
         if(state == null)
             state = {} as ModelType;
 
@@ -1613,24 +1660,18 @@ class HydrateApp {
             this.#loadTemplate(template, true);
     }
 
-    #loadTemplate(element:HTMLTemplateElement, lazyLoad:boolean):void {
+    async #loadTemplate(element:HTMLTemplateElement, lazyLoad:boolean): Promise<void> {
+        let typeName:string = null;
         try {
             const lazyAttribute = this.attribute(this.#options.attribute.names.lazy);
             if(!element.matches(this.#componentTemplateSelector))
                 return null;
-            let lazy = lazyLoad && element.hasAttribute(lazyAttribute);
-            if(!lazy)
-            {
-                const sourceAttribute = this.attribute(this.#options.attribute.names.source);
-                const url = element.getAttribute(sourceAttribute);
-                if(url != null)
-                {
-                    this.#loadRemoteTemplate(element, url);
-                    return;
-                }
-            }
             
-            const typeName = element.getAttribute(this.attribute(this.#options.attribute.names.template))?.toLowerCase();
+            let lazy = lazyLoad && element.hasAttribute(lazyAttribute);
+            if(lazy)
+                return;
+
+            typeName = element.getAttribute(this.attribute(this.#options.attribute.names.template))?.toLowerCase();
             if(!typeName)
                 return;
             if(this.#componentTypes.has(typeName))
@@ -1639,6 +1680,37 @@ class HydrateApp {
                 return;
             }
 
+            //Tell the framework we are in the process of loading
+            const type:HydrateComponentType = {
+                loaded: false,
+                attributes: null,
+                template: null,
+                classDefinition: null,
+                style: null
+            }
+            this.#componentTypes.set(typeName, type);
+
+            const sourceAttribute = this.attribute(this.#options.attribute.names.source);
+            const url = element.getAttribute(sourceAttribute);
+            if(url != null)
+            {
+                const source = await this.#loadRemoteTemplate(element, url);
+                await this.#fillTemplate(typeName, element, lazy, source.template, source.componentBody);
+                return;
+            }
+            
+            await this.#fillTemplate(typeName, element, lazy, null, null);
+        }
+        catch(error)
+        {
+            //If we failed trying to load, then delete the record so something else can try to load
+            this.#componentTypes.delete(typeName);
+            console.error(error);
+        }
+    }
+
+    async #fillTemplate(typeName:string, element:HTMLElement, lazy:boolean, sourceTemplate:HTMLTemplateElement, componentBody:HydrateComponentConstructor) {
+            const lazyAttribute = this.attribute(this.#options.attribute.names.lazy);
             const templateAttribute = this.attribute(this.#options.attribute.names.template);
             const componentAttribute = this.attribute(this.#options.attribute.names.component);
             const scriptAttribute = this.attribute(this.#options.attribute.names.script);
@@ -1653,14 +1725,22 @@ class HydrateApp {
                 return;
             
             const type:HydrateComponentType = {
+                loaded: true,
                 attributes: new Map(),
                 template: [],
-                classDefinition: class {},
+                classDefinition: componentBody ?? HydrateComponent,
                 style: null
             }
             this.#componentTypes.set(typeName, type);
 
-            //Load attributes
+            if(sourceTemplate !== null)
+            {
+                //Load up the attributes
+                for(let attribute of sourceTemplate.attributes)
+                if(attribute.name !== templateAttribute && attribute.name !== lazyAttribute)
+                    type.attributes.set(attribute.name, attribute.value);
+            }
+            
             for(let attribute of element.attributes)
                 if(attribute.name !== templateAttribute && attribute.name !== lazyAttribute)
                     type.attributes.set(attribute.name, attribute.value);
@@ -1671,13 +1751,13 @@ class HydrateApp {
             if(!type.attributes.has(modelAttribute))
                 type.attributes.set(modelAttribute, "");
 
-            const template = element.cloneNode(true) as HTMLTemplateElement;
+            const template = sourceTemplate ?? element.cloneNode(true) as HTMLTemplateElement;
             const scripts = template.content.querySelectorAll<HTMLScriptElement>("script");
             for(let script of scripts)
             {
                 //Look for a class definition script and load it if we find it
-                if(script.matches(scriptSelector))
-                    type.classDefinition = new Function(`'use strict'; return ${script.textContent.trim()}`)() as (new (...args) => any);
+                if(componentBody == null && script.matches(scriptSelector))
+                    type.classDefinition = await this.#loadStringModule(script.textContent.trim());
                 //Remove any script elements from the component to prevent malicious scripts
                 script.remove();
             }
@@ -1695,14 +1775,25 @@ class HydrateApp {
             if(!template.innerHTML.match(/^\s*$/))
                 type.template.push(...template.content.childNodes);
 
+            //If we had a source template, apply the changes to our root template element
+            if(sourceTemplate)
+            {
+                for(let [attrName, attrValue] of type.attributes)
+                    element.setAttribute(attrName, attrValue);
+                (element as HTMLTemplateElement).content.append(...sourceTemplate.content.childNodes);
+            }
+
             //Link all components of this type
             for(let element of components)
                 this.#linkComponent(element);
-        }
-        catch(error)
-        {
-            console.error(error);
-        }
+    }
+
+    async #loadStringModule(script:string): Promise<HydrateComponentConstructor> {
+        const blob = new Blob([script], {type: 'text/javascript'});
+        const url = URL.createObjectURL(blob);
+        const module = await import(url);
+        URL.revokeObjectURL(url);
+        return module.default ??  Object.values(module)[0] as HydrateComponentConstructor;
     }
 
     #buildCssStyle(baseStyle:HTMLStyleElement, componentTypeName:string):HTMLStyleElement
@@ -1730,7 +1821,7 @@ class HydrateApp {
         return style;
     }
 
-    #loadRemoteTemplate(element:HTMLTemplateElement, url:string) {
+    async #loadRemoteTemplate(element:HTMLTemplateElement, url:string): Promise<{template: HTMLTemplateElement, componentBody: HydrateComponentConstructor}> {
         const promises:Promise<Response>[] = [];
         const period = url.lastIndexOf(".");
         const ext = period > -1 ? url.substring(period) : null;
@@ -1750,19 +1841,19 @@ class HydrateApp {
             promises.push(Promise.resolve(null));
 
         //[fetch(`${url}.html`), fetch(`${url}.css`), fetch(`${url}.js`)]
-        Promise.allSettled(promises)
+        return await Promise.allSettled(promises)
         .then( ([html, css, js]) => {
             if(html.status === "rejected")
-                throw new Error(`Unknown error fetching html for template ${url}`);
+                throw new Error(`Unknown error fetching html for template ${url}. ${html.reason}`);
             if(html.value?.ok === false && html.value?.status !== 404)
                 throw new Error(`${html.value?.status}: Error fetching html for template ${url}`);
             if(css.status === "rejected")
-                throw new Error(`Unknown error fetching css for template ${url}`);
+                throw new Error(`Unknown error fetching css for template ${url}. ${css.reason}`);
             //It's ok if we don't find this
             if(css.value?.ok === false && css.value?.status !== 404)
                 throw new Error(`${css.value?.status}: Error fetching css for template ${url}`);
             if(js.status === "rejected")
-                throw new Error(`Unknown error fetching js for template ${url}`);
+                throw new Error(`Unknown error fetching js for template ${url}. ${js.reason}`);
             //It's ok if we dont find this
             if(js.value?.ok === false && js.value?.status !== 404)
                 throw new Error(`${js.value?.status}: Error fetching js for template ${url}`);
@@ -1770,7 +1861,7 @@ class HydrateApp {
             return Promise.all([
                 html.value?.ok === true ? html.value.text() : Promise.resolve(null),
                 css.value?.ok === true ? css.value.text() : Promise.resolve(null),
-                js.value?.ok === true ? js.value.text() : Promise.resolve(null)
+                js.value?.ok === true ? import(js.value.url) : Promise.resolve(null)
             ]);
         })
         .then(([html, css, js]) => {
@@ -1790,24 +1881,34 @@ class HydrateApp {
                 style.innerHTML = css;
                 template.content.append(style);
             }
-            if(js !== null && js.trim() !== "")
-            {
-                const script = document.createElement("script");
-                script.toggleAttribute(this.attribute(this.#options.attribute.names.script), true);
-                script.innerHTML = js;
-                template.content.append(script);
-            }
+
+            //If we imported a js module, assume the first export is the component body
+            const componentBody:HydrateComponentConstructor = js !== null
+                ? js.default ??  Object.values(js)[0] as HydrateComponentConstructor
+                : null;
+            // if(js !== null && js.trim() !== "")s
+            // {
+            //     const script = document.createElement("script");
+            //     script.toggleAttribute(this.attribute(this.#options.attribute.names.script), true);
+            //     script.innerHTML = js;
+            //     template.content.append(script);
+            // }
             //Load up the HTML
-            element.content.append(...template.content.childNodes);
-            //Load up the attributes
-            for(let attribute of template.attributes)
-                if(!element.hasAttribute(attribute.name) && attribute.name !== lazyAttribute)
-                    element.setAttribute(attribute.name, attribute.value);
-            //This should guarentee a reload of the component
-            element.removeAttribute(lazyAttribute);
-            element.removeAttribute(this.attribute(this.#options.attribute.names.source));
+
+            // element.content.append(...template.content.childNodes);
+            // //Load up the attributes
+            // for(let attribute of template.attributes)
+            //     if(!element.hasAttribute(attribute.name) && attribute.name !== lazyAttribute)
+            //         element.setAttribute(attribute.name, attribute.value);
+            // //This should guarentee a reload of the component
+            // element.removeAttribute(lazyAttribute);
+            // element.removeAttribute(this.attribute(this.#options.attribute.names.source));
+            
+            return {
+                template: template,
+                componentBody: componentBody
+            };
         });
-        return;
     }
 
     get lazy() {
@@ -1867,48 +1968,43 @@ class HydrateApp {
                 initialized: false,
                 element,
                 type: componentType,
-                data: new componentType.classDefinition(),
+                data: new componentType.classDefinition({hydrate, element}),
                 mutationObserver: null,
                 prevSize: undefined
             };
 
             //Add some default behavior to the component class
-            Object.defineProperty(component.data, '$hydrate', {
-                get() {
-                    return hydrate;
-                }
-            });
-            component.data.$dependency = function<T>(definition:new (...args) => T): T {
-                return hydrate.dependency(definition, element).instance;
-            };
-            // Object.defineProperty(component.data, '$parentComponent', {
+            // Object.defineProperty(component.data, '$hydrate', {
             //     get() {
-            //         return hydrate.#findComponentForElement(component.element.parentElement)?.data;
+            //         return hydrate;
             //     }
             // });
-            Object.defineProperty(component.data, '$root', {
-                get() {
-                    return component.element;
-                }
-            });
-            Object.defineProperty(component.data, '$modelPath', {
-                get() {
-                    return component.element.getAttribute(this.$hydrate.attribute(this.$hydrate.options.attribute.names.model));
-                }
-            });
-            Object.defineProperty(component.data, '$model', {
-                get() {
-                    return this.$hydrate.model(this.$modelPath);
-                },
-                set(value) {
-                    this.$hydrate.bind(this.$modelPath, value);
-                }
-            });
-            Object.defineProperty(component.data, '$state', {
-                get() {
-                    return this.$hydrate.state(this.$modelPath);
-                }
-            });
+            // component.data.$dependency = function<T>(definition:new (...args) => T): T {
+            //     return hydrate.dependency(definition, element).instance;
+            // };
+            // Object.defineProperty(component.data, '$root', {
+            //     get() {
+            //         return component.element;
+            //     }
+            // });
+            // Object.defineProperty(component.data, '$modelPath', {
+            //     get() {
+            //         return component.element.getAttribute(this.$hydrate.attribute(this.$hydrate.options.attribute.names.model));
+            //     }
+            // });
+            // Object.defineProperty(component.data, '$model', {
+            //     get() {
+            //         return this.$hydrate.model(this.$modelPath);
+            //     },
+            //     set(value) {
+            //         this.$hydrate.bind(this.$modelPath, value);
+            //     }
+            // });
+            // Object.defineProperty(component.data, '$state', {
+            //     get() {
+            //         return this.$hydrate.state(this.$modelPath);
+            //     }
+            // });
 
             this.#components.set(element, component);
             //remove from lazy load queue
@@ -1931,8 +2027,7 @@ class HydrateApp {
             return;
 
         //Call component unitializer callback if available
-        if(component.data.onDestroy instanceof Function)
-            component.data.onDestroy();
+        component.data.onDestroy();
         for(let configuration of this.#dependencies.values())
         {
             const dependency = configuration.instances.get(element);
@@ -1944,17 +2039,16 @@ class HydrateApp {
             this.#mutationObserver.disconnect();
     }
 
-    #buildComponent(component:HydrateComponent, eventDetails:HydrateEventDetails){// template:NodeListOf<ChildNode>, modelAttribute:string, eventDetails:HydrateEventDetails) {
+    #buildComponent(component:HydrateComponentElement, eventDetails:HydrateEventDetails){// template:NodeListOf<ChildNode>, modelAttribute:string, eventDetails:HydrateEventDetails) {
         
         //Call component initializer callback if available
-        if(component.data.onInit instanceof Function && component.initialized === false)
+        if(component.initialized === false)
         {
             component.data.onInit(eventDetails);
             component.initialized = true;
         }
         //Call component change callback if available
-        if(component.data.onPreRender instanceof Function)
-            component.data.onPreRender(eventDetails);
+        component.data.onPreRender(eventDetails);
 
         let element = eventDetails.element;
         const modelAttribute = this.attribute(this.#options.attribute.names.model);
@@ -2052,8 +2146,7 @@ class HydrateApp {
         }
 
         //Call component change callback if available
-        if(component.data.onPostRender instanceof Function)
-            component.data.onPostRender(eventDetails);
+        component.data.onPostRender(eventDetails);
     }
 
     resolveArgumentValue(detail:HydrateEventDetails, arg:HydrateAttributeArgument, event:Event) {
@@ -2073,7 +2166,7 @@ class HydrateApp {
                 let scriptElement = app.root.querySelector(selector);
                 if(scriptElement == null)
                     return null;
-                let func = new Function(`'use strict'; return ${scriptElement.textContent.trim()}`)();
+                let func = new Function(`return ${scriptElement.textContent.trim()}`)();
                 if(!(func instanceof Function))
                     return null;
                 return func;
@@ -2096,13 +2189,13 @@ class HydrateApp {
         if(typeof detail.state === "object")
             for(let key of stateKeys)
                 values.push(detail.state[key]);
-        let func = new Function(...keys, `'use strict'; return ${arg.expression}`);
+        let func = new Function(...keys, `return ${arg.expression}`);
         if(component != null)
             func = func.bind(component);
         return func(...values);
     }
 
-    #findComponentForElement(element:Node):HydrateComponent {
+    #findComponentForElement(element:Node):HydrateComponentElement {
         while(element != null)
         {
             let component = this.#components.get(element as HTMLElement);
