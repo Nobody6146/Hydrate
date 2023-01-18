@@ -1,0 +1,13 @@
+<template>
+    <div class="playArea">
+        <div>
+            <span h-model="^" h-property="textContent: name">Name</span>
+        </div>
+        <div class="playerBoard">
+            <div class="deck">
+                <span h-model="^.deck" h-property="textContent: $state.size"></span>
+            </div>
+            <div class="hand" h-model="^.hand" h-component="app-card"></div>
+        </div>
+    </div>
+</template>

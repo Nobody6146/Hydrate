@@ -541,7 +541,7 @@ export interface HydrateElementDelayDispatch {
     data:any;
 }
 
-export type HydrateComponentConstructor = new (data:HydrateComponentData) => HydrateComponent; 
+export type HydrateComponentConstructor = new (data:HydrateComponentData) => HydrateComponent<any>; 
 
 export interface HydrateComponentType {
     loaded:boolean;
@@ -554,7 +554,7 @@ export interface HydrateComponentType {
 export interface HydrateComponentElement {
     element:HTMLElement;
     type:HydrateComponentType;
-    data:HydrateComponent;
+    data:HydrateComponent<any>;
     initialized:boolean;
     mutationObserver:MutationObserver;
     prevSize:number;
@@ -565,7 +565,7 @@ export interface HydrateComponentData {
     element:HTMLElement;
 }
 
-export class HydrateComponent {
+export class HydrateComponent<StateType> {
     
     #hydrate:HydrateApp;
     #element:HTMLElement;
@@ -584,17 +584,17 @@ export class HydrateComponent {
     get modelPath() {
         return this.#element.getAttribute(this.#hydrate.attribute(this.#hydrate.options.attribute.names.model));
     }
-    get model() {
+    get model():StateType {
         return this.#hydrate.model(this.modelPath);
     }
-    set model(value) {
+    set model(value:StateType) {
         this.#hydrate.bind(this.modelPath, value);
     }
-    get state() {
-        return this.#hydrate.state(this.modelPath);
+    get state():StateType {
+        return this.#hydrate.state(this.modelPath) as StateType;
     }
 
-    dependency<T>(definition:new (...args) => T) : HydrateAppDependency {
+    dependency<T>(definition:new (...args) => T) : T {
         return this.#hydrate.dependency(definition, this.#element).instance;
     }
 
@@ -659,13 +659,13 @@ export interface HydrateSubscriptionOptions {
     filters?:string[];
 }
 
-export interface HydrateAppDependencyConfiguration {
+export interface HydrateAppDependencyConfiguration<T> {
     type:HydrateAppDependencyType;
-    instances:Map<any, HydrateAppDependency>;//Any source object (typically HydrateComponent) as the key, "null" will be a singleton
+    instances:Map<any, HydrateAppDependency<T>>;//Any source object (typically HydrateComponent) as the key, "null" will be a singleton
 }
 
-export interface HydrateAppDependency {
-    instance:any;
+export interface HydrateAppDependency<T> {
+    instance:T;
     dispose:() => void;
 }
 
@@ -681,7 +681,7 @@ export class HydrateApp {
     #elementHandlerDelays:Map<HTMLElement, Map<HydrateEventType, HydrateElementDelayDispatch>>;
     #root:HTMLElement;
     #models:object;
-    #dependencies:Map<any, HydrateAppDependencyConfiguration>;//Any source object (typically HydrateComponent) as the key, "null" will be a singleton
+    #dependencies:Map<any, HydrateAppDependencyConfiguration<any>>;//Any source object (typically HydrateComponent) as the key, "null" will be a singleton
 
     #mutationObserver : MutationObserver;
     #intersectionObserver: IntersectionObserver;
@@ -744,7 +744,7 @@ export class HydrateApp {
         return this.#addDependency(definition, "transient", null);
     }
     #addDependency<T>(definition: new (...args) => T, type:HydrateAppDependencyType = "singleton", instance?:T) : T {
-        const dependency:HydrateAppDependencyConfiguration = {
+        const dependency:HydrateAppDependencyConfiguration<T> = {
             type: type,
             instances: new Map()
         };
@@ -754,7 +754,7 @@ export class HydrateApp {
         return null;
     }
 
-    #getDependency<T>(definition: new (...args) => T, source:any, instance?:any): HydrateAppDependency {
+    #getDependency<T>(definition: new (...args) => T, source:any, instance?:any): HydrateAppDependency<T> {
         //Gets or instiates dependency
         const configuration = this.#dependencies.get(definition);
         if(configuration == null)
@@ -781,7 +781,7 @@ export class HydrateApp {
         return dependency;
     }
 
-    dependency<T>(definition:new (...args) => T, source?:any) : HydrateAppDependency {
+    dependency<T>(definition:new (...args) => T, source?:any) : HydrateAppDependency<T> {
         return this.#getDependency(definition, source);
     }
 
@@ -871,7 +871,7 @@ export class HydrateApp {
         }
         return state;
     }
-    state<ModelType extends string | any>(model:ModelType) {
+    state<ModelType extends string | any>(model:ModelType): ModelType {
         if(typeof model === "string")
             model = this.model<ModelType>(model);
         if(model == undefined || !(model instanceof Object))
@@ -900,14 +900,14 @@ export class HydrateApp {
             return undefined;
         return model[this.options.model.parentProperty];
     }
-    name(model:string | any) {
+    name(model:string | any):string {
         if(typeof model === "string")
             model = this.model(model);
         if(model == undefined || !(model instanceof Object))
             return undefined;
         return model[this.options.model.nameProperty];
     }
-    path(model:string | any) {
+    path(model:string | any):string {
         if(typeof model === "string")
             model = this.model(model);
         if(model == undefined || !(model instanceof Object))
@@ -954,6 +954,21 @@ export class HydrateApp {
     }
     get #validIdentifier():string {
         return '[$a-zA-Z_][0-9a-zA-Z_$]*';
+    }
+
+    refresh(model:string | any):void {
+        let modelPath:string;
+        if(typeof model === "string")
+        {
+            modelPath = model;
+            model = this.model(model);
+        }
+        else {
+            modelPath = this.path(model);
+        }
+        if(model == undefined || !(model instanceof Object))
+            return undefined;
+        let promise = this.dispatch(this.#root, "bind", modelPath, undefined);
     }
     
     /** Unbinds the model from the framework related to the search. Search can be a string (name of model) or the state of the model */
@@ -1519,7 +1534,7 @@ export class HydrateApp {
             if(eventDetails.type === "set")
             {
                if(!(eventDetails.model instanceof Object) || matchedState)
-                    return; 
+                    return;
             }
 
             let hasRoutintAttribute = eventDetails.element.hasAttribute(this.attribute(this.#options.attribute.names.routing));
@@ -1812,7 +1827,7 @@ export class HydrateApp {
 
     #buildCssStyle(baseStyle:HTMLStyleElement, componentTypeName:string):HTMLStyleElement
     {
-        const modelAttribute = this.attribute(this.#options.attribute.names.component);
+        const modelAttribute = this.attribute(this.#options.attribute.names.model);
         const componentAttribute = this.attribute(this.#options.attribute.names.component);
         const componentSelector = `[${modelAttribute}][${componentAttribute}='${componentTypeName}' i]`;
         const style = document.createElement("style");
@@ -2206,6 +2221,7 @@ export class HydrateApp {
         var values = Object.values(functionArgs);
         if(typeof detail.state === "object")
             for(let key of stateKeys)
+                //@ts-ignore
                 values.push(detail.state[key]);
         let func = new Function(...keys, `return ${arg.expression}`);
         if(component != null)

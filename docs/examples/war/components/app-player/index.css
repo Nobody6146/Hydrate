@@ -1,0 +1,19 @@
+:root .playerboard {
+    display: flex;
+    flex-wrap: wrap;
+}
+:root .deck {
+    width: 75px;
+    height: 100px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 3px solid white;
+    background-color: red;
+    color: white;
+}
+:root .hand {
+    display: flex;
+    flex-wrap: wrap;
+}

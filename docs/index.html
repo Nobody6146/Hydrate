@@ -220,6 +220,35 @@
                     <button h-component="ButtonTemplate">
                         Click me!
                     </button>
+
+                    <template h-template="phone-template">
+                        <script h-script>
+                            import { HydrateComponent } from "/hydrate.js";
+
+                            export class PhoneTemplate extends HydrateComponent {
+                                #rawValue;
+
+
+                                onInit() {
+                                    // let mask = this.state.mask;
+                                    // const inputCharRegex = /(\[[^\[\]]+\]|\\d|\\D|\\w|\\W)(\{\d+\})?/g;
+                                    // //Search the mask for any character replacements we have to do
+                                    // const inputChars = mask.toString().matchAll(inputCharRegex);
+                                    // const maskCharacters = [];
+                                    // //[.../\+1\(\d{3}\)\-\d{3}\-\d{4}/.toString().split(/(\[[^\[\]]+\]{\d+\}?|\\d\{\d+\}?)/g)]
+
+                                    // mask = "+1(\d\{3})-\d{3}-\d{4}";
+                                    // const allowedCharacters = [
+                                    //     "\d",
+                                    //     "\D",
+                                    //     "\w",
+                                    //     "\W",
+                                    // ];
+                                    // for()
+                                }
+                            }
+                        </script>
+                    </template>
             </main>
     
             <footer>

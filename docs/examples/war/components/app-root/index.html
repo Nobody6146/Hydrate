@@ -1,0 +1,14 @@
+<template h-model="app" h-init>
+    <header>
+        <h1>War!</h1>
+    </header>
+    <main>
+        <div>
+            <app-player h-model="^.players">Player List</app-player>
+        </div>
+        <div>
+            <button h-model h-on="click: this.fight();">Fight</button>
+            <h3 h-model="^" h-property="textContent: display">Status Text</h3>
+        </div>
+    </main>
+</template>

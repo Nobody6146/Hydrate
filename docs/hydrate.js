@@ -724,6 +724,19 @@ export class HydrateApp {
     get #validIdentifier() {
         return '[$a-zA-Z_][0-9a-zA-Z_$]*';
     }
+    refresh(model) {
+        let modelPath;
+        if (typeof model === "string") {
+            modelPath = model;
+            model = this.model(model);
+        }
+        else {
+            modelPath = this.path(model);
+        }
+        if (model == undefined || !(model instanceof Object))
+            return undefined;
+        let promise = this.dispatch(this.#root, "bind", modelPath, undefined);
+    }
     /** Unbinds the model from the framework related to the search. Search can be a string (name of model) or the state of the model */
     unbind(search) {
         let model = typeof search === "string"
@@ -1440,7 +1453,7 @@ export class HydrateApp {
         return module.default ?? Object.values(module)[0];
     }
     #buildCssStyle(baseStyle, componentTypeName) {
-        const modelAttribute = this.attribute(this.#options.attribute.names.component);
+        const modelAttribute = this.attribute(this.#options.attribute.names.model);
         const componentAttribute = this.attribute(this.#options.attribute.names.component);
         const componentSelector = `[${modelAttribute}][${componentAttribute}='${componentTypeName}' i]`;
         const style = document.createElement("style");
@@ -1785,6 +1798,7 @@ export class HydrateApp {
         var values = Object.values(functionArgs);
         if (typeof detail.state === "object")
             for (let key of stateKeys)
+                //@ts-ignore
                 values.push(detail.state[key]);
         let func = new Function(...keys, `return ${arg.expression}`);
         if (component != null)
