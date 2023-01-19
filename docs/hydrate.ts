@@ -591,7 +591,7 @@ export class HydrateComponent<StateType> {
         this.#hydrate.bind(this.modelPath, value);
     }
     get state():StateType {
-        return this.#hydrate.state(this.modelPath) as StateType;
+        return this.#hydrate.state<StateType>(this.modelPath);
     }
 
     dependency<T>(definition:new (...args) => T) : T {
@@ -651,7 +651,7 @@ export class HydrateModelSubscription {
     }
 }
 
-export type HydrateSubscriptionCallback = (subscription:HydrateModelChange<any>) => void;
+export type HydrateSubscriptionCallback<T> = (subscription:HydrateModelChange<T>) => void;
 
 export interface HydrateSubscriptionOptions {
     condition?:string;
@@ -871,7 +871,7 @@ export class HydrateApp {
         }
         return state;
     }
-    state<ModelType extends string | any>(model:ModelType): ModelType {
+    state<ModelType extends any>(model:string | ModelType): ModelType {
         if(typeof model === "string")
             model = this.model<ModelType>(model);
         if(model == undefined || !(model instanceof Object))
@@ -987,7 +987,7 @@ export class HydrateApp {
         //return await promise;
     }
 
-    subscribe(modelPath: string | any, callback:HydrateSubscriptionCallback, options?:HydrateSubscriptionOptions):HydrateModelSubscription {
+    subscribe<T>(modelPath: string | any, callback:HydrateSubscriptionCallback<T>, options?:HydrateSubscriptionOptions):HydrateModelSubscription {
         if(typeof modelPath !== "string")
             modelPath = this.name(modelPath);
         const mockEvent = this.#createEvent(this.#root, "bind", this.#determineEventDetailProperties(modelPath, "property"), null, null);
@@ -996,7 +996,7 @@ export class HydrateApp {
         
         return subscription;
     };
-    #subscriptionCallback<T>(modelPath:string, callback:HydrateSubscriptionCallback, options?:HydrateSubscriptionOptions) {
+    #subscriptionCallback<T>(modelPath:string, callback:HydrateSubscriptionCallback<T>, options?:HydrateSubscriptionOptions) {
         if(callback == null)
             return;
         const conditionArgs:HydrateAttributeArgument[] = options?.condition != null
@@ -1027,8 +1027,8 @@ export class HydrateApp {
             if(!this.#checkIfModelChangeApplies(modelPath, changePath, detail, nestedArgs))
                 return;
             
-            const model = this.model(modelPath);
-            const state = this.state(modelPath);
+            const model = this.model<T>(modelPath);
+            const state = this.state<T>(modelPath);
             if(state === undefined && modelPath.startsWith(changePath)
                 && (detail.type === 'bind' || detail.type === "set"))
                 //If the parent model changed and didn't bind/set us, then no change occured

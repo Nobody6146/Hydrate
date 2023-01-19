@@ -46,4 +46,4 @@ class App {
 
 const app = new App();
 //globalThis.app = app;
-app.start(2);
+app.start(4);

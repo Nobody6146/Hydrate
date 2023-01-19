@@ -20,7 +20,7 @@ export class UiService {
         });
     }
 
-    subscribeToShowAddTaskMenu(callback:HydrateSubscriptionCallback) {
+    subscribeToShowAddTaskMenu(callback:HydrateSubscriptionCallback<boolean>) {
         return this.#hydrate.subscribe(`${this.#hydrate.path(this.#model.addTaskMenu)}.visible`, callback);
     }
 

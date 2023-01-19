@@ -1,7 +1,7 @@
 {
-  "name": "digimonapp",
+  "name": "@nobody6146/hydrateapp",
   "version": "1.0.0",
-  "description": "Digimo App",
+  "description": "A lightweight front-framework that can dynamically hydrate static webpages",
   "main": "app.js",
   "directories": {
     "doc": "docs"
