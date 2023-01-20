@@ -3,8 +3,8 @@
     <app-add-task h-model="^.addTaskForm"></app-add-task>
     <app-task-item h-model="^.list"></app-task-item>
     <script h-script>
-        import {HydrateComponent} from "/hydrate.js";
-        import { TaskService } from "/examples/todo/scripts/task.js";
+        import {HydrateComponent} from "../../hydrate.js";
+        import { TaskService } from "./scripts/task.js";
                 
         export default class extends HydrateComponent {
             #taskService;

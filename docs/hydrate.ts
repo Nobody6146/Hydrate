@@ -1810,10 +1810,9 @@ export class HydrateApp {
             const match = lines[i].match(/\s*import.*([\"\'\`].*[\"\'\`])/);
             if(!match)
                 continue;
-            const module = match[1];
-            //If we passed in a root path, find the absolute path
-            const abosluteModulePath = `"${module.substring(1, module.length - 1).replace(/^\//, window.location.origin + "/")}"`;
-            lines[i] = lines[i].replace(module, abosluteModulePath);
+            const module = match[1].substring(1, match[1].length - 1);
+            //If we have a relative file path, we need to manually fix it since the Obj URL won't know the current URL
+            lines[i] = lines[i].replace(module, `${decodeURI(new URL(module, location.href).href)}`);
         }
         const script = lines.join("\n");
         // const module =  (await import(`data:text/javascript,${script}`))
@@ -2194,16 +2193,16 @@ export class HydrateApp {
             $state: detail.state,
             $parent: detail.parent,
             $modelName: detail.modelName,
-            $script: function(name) {
-                let selector = `[${app.attribute(app.options.attribute.names.script)}=${name}]`;
-                let scriptElement = app.root.querySelector(selector);
-                if(scriptElement == null)
-                    return null;
-                let func = new Function(`return ${scriptElement.textContent.trim()}`)();
-                if(!(func instanceof Function))
-                    return null;
-                return func;
-            },
+            // $script: function(name) {
+            //     let selector = `[${app.attribute(app.options.attribute.names.script)}=${name}]`;
+            //     let scriptElement = app.root.querySelector(selector);
+            //     if(scriptElement == null)
+            //         return null;
+            //     let func = new Function(`return ${scriptElement.textContent.trim()}`)();
+            //     if(!(func instanceof Function))
+            //         return null;
+            //     return func;
+            // },
             $id: function(query?:HTMLElement|string) {
                 if(query == null)
                     query = detail.element;
