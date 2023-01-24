@@ -1,4 +1,4 @@
-import { HydrateAppService } from "../../../hydrate.js";
+import { HydrateAppService } from "../../../lib/hydrate/hydrate.js";
 export class ImageGallery extends HydrateAppService {
     #cardsImage;
     constructor(cardsImage) {

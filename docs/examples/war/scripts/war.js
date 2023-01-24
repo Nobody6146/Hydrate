@@ -1,4 +1,4 @@
-import { HydrateAppService } from "../../../hydrate.js";
+import { HydrateAppService } from "../../../lib/hydrate/hydrate.js";
 import { Deck } from "./card.js";
 export class War extends HydrateAppService {
     #players;

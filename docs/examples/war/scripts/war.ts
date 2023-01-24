@@ -1,4 +1,4 @@
-import { HydrateApp, HydrateAppService} from "../../../hydrate.js";
+import { HydrateApp, HydrateAppService} from "../../../lib/hydrate/hydrate.js";
 import { Deck, PlayingCard } from "./card.js";
 
 export interface Player {

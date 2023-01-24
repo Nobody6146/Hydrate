@@ -1,4 +1,4 @@
-import { HydrateComponent, HydrateEventDetails } from "../../../../hydrate.js";
+import { HydrateComponent, HydrateEventDetails } from "../../../../lib/hydrate/hydrate.js";
 import { PlayingCard } from "../../scripts/card.js";
 import { ImageGallery } from "../../scripts/gallery.js";
 

@@ -1,4 +1,4 @@
-import { HydrateComponent } from "../../../../hydrate.js";
+import { HydrateComponent } from "../../../../lib/hydrate/hydrate.js";
 import { ImageGallery } from "../../scripts/gallery.js";
 export class AppCard extends HydrateComponent {
     #imageGallery;

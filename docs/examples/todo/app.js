@@ -1,4 +1,4 @@
-import { HydrateApp } from "../../hydrate.js";
+import { HydrateApp } from "../../lib/hydrate/hydrate.js";
 import { UiService } from "./scripts/ui.js";
 import { TaskService } from "./scripts/task.js";
 import { Router } from "./scripts/router.js";

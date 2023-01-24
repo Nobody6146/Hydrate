@@ -1,4 +1,4 @@
-import { HydrateComponent } from "../../../../hydrate.js";
+import { HydrateComponent } from "../../../../lib/hydrate/hydrate.js";
 import { War } from "../../scripts/war.js";
 export class AppRoot extends HydrateComponent {
     #war;

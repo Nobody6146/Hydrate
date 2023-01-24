@@ -1,4 +1,4 @@
-import { HydrateComponent, HydrateEventDetails } from "../../../../hydrate.js";
+import { HydrateComponent, HydrateEventDetails } from "../../../../lib/hydrate/hydrate.js";
 import { War, Player } from "../../scripts/war.js";
 
 interface AppState {

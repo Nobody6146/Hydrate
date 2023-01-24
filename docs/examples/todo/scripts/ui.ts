@@ -1,4 +1,4 @@
-import { HydrateApp, HydrateAppService, HydrateSubscriptionCallback } from "../../../hydrate.js";
+import { HydrateApp, HydrateAppService, HydrateSubscriptionCallback } from "../../../lib/hydrate/hydrate.js";
 
 interface UiServiceModel {
     addTaskMenu:{

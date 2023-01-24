@@ -1,4 +1,4 @@
-import { HydrateApp, HydrateAppService, HydrateRoute, HydrateRouteEvent } from "../../../hydrate.js";
+import { HydrateApp, HydrateAppService, HydrateRoute, HydrateRouteEvent } from "../../../lib/hydrate/hydrate.js";
 
 export class Router extends HydrateAppService {
     #routes:HydrateRoute[];

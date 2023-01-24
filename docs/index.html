@@ -3,7 +3,6 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"/>
         <title>Hydrate Demo</title>
-        <!-- <script src="hydrate.js"></script> -->
         <style>
             .red {
                 color: red;
@@ -63,7 +62,7 @@
             <template h-template="RejectedPage-template" h-model h-routing="reject">
                 Error loading page
             </template>
-            <template h-template="aboutpage-template" h-model h-source="demopages/about.html"></template>
+            <template h-template="aboutpage-template" h-model h-source="about.html"></template>
 
 
             <template h-template="Star-template">
@@ -76,7 +75,7 @@
                     h-on="click: $detail.parent[$detail.modelName] = $id()">
                 Star</div>
                 <script h-script>
-                    import {HydrateComponent} from "/hydrate.js";
+                    import {HydrateComponent} from "./lib/hydrate/hydrate.js";
                     export class StarTemplate extends HydrateComponent {
                         #subscription;
                         onInit() {
@@ -102,7 +101,7 @@
                 <input id="calculator" h-model="^" h-property="value: value" h-input="value: $element.value" h-if="input: $element.value < 20">
                 <h1 h-model="^" h-property="textContent: $component.calculate(value)"></h1>
                 <script h-script>
-                    import {HydrateComponent} from "/hydrate.js";
+                    import {HydrateComponent} from "./lib/hydrate/hydrate.js";
                     export class CalculatorTemplate extends HydrateComponent {
                         calculate(value) {
                             return value * value;
@@ -223,7 +222,7 @@
 
                     <template h-template="phone-template">
                         <script h-script>
-                            import { HydrateComponent } from "/hydrate.js";
+                            import { HydrateComponent } from "./lib/hydrate/hydrate.js";
 
                             export class PhoneTemplate extends HydrateComponent {
                                 #rawValue;
@@ -257,7 +256,7 @@
                 </p>
             </footer>
             <script type="module">
-                import { HydrateApp } from "./hydrate.js";
+                import { HydrateApp } from "./lib/hydrate/hydrate.js";
                 // document.body.addEventListener("hydrate.track", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.untrack", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.bind", event => console.log(event.type, event.detail));

@@ -1,4 +1,4 @@
-import { HydrateAppService } from "../../../hydrate.js";
+import { HydrateAppService } from "../../../lib/hydrate/hydrate.js";
 import { Api } from "./api.js";
 export class Task {
     id = null;

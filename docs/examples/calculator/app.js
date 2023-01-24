@@ -1,4 +1,4 @@
-import { HydrateApp } from "../../hydrate.js";
+import { HydrateApp } from "../../lib/hydrate/hydrate.js";
 class CalculatorApp {
     #hydrate;
     #state;

@@ -1,4 +1,4 @@
-import { HydrateApp } from "../../hydrate.js";
+import { HydrateApp } from "../../lib/hydrate/hydrate.js";
 import { War } from "./scripts/war.js";
 import { ImageGallery } from "./scripts/gallery.js";
 

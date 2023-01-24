@@ -1,4 +1,4 @@
-import { HydrateApp, HydrateAppService, HydrateSubscriptionCallback, HydrateModelSubscription } from "../../../hydrate.js";
+import { HydrateApp, HydrateAppService, HydrateSubscriptionCallback, HydrateModelSubscription } from "../../../lib/hydrate/hydrate.js";
 import { Api } from "./api.js";
 
 export class Task {
