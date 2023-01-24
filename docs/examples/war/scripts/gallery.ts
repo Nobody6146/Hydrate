@@ -1,3 +1,5 @@
+import { HydrateApp, HydrateAppService } from "../../../hydrate.js";
+
 export interface CardImage {
     source:HTMLImageElement;
     x:number;
@@ -6,11 +8,12 @@ export interface CardImage {
     height:number;
 }
 
-export class ImageGallery {
+export class ImageGallery extends HydrateAppService {
     
     #cardsImage:HTMLImageElement;
 
     constructor(cardsImage:HTMLImageElement) {
+        super();
         this.#cardsImage = cardsImage;
     }
 

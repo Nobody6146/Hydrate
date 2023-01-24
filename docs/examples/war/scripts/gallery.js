@@ -1,6 +1,8 @@
-export class ImageGallery {
+import { HydrateAppService } from "../../../hydrate.js";
+export class ImageGallery extends HydrateAppService {
     #cardsImage;
     constructor(cardsImage) {
+        super();
         this.#cardsImage = cardsImage;
     }
     card(id) {

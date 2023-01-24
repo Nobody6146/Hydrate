@@ -1,4 +1,4 @@
-import { HydrateApp, HydrateSubscriptionCallback, HydrateModelSubscription } from "../../../hydrate.js";
+import { HydrateApp, HydrateAppService, HydrateSubscriptionCallback, HydrateModelSubscription } from "../../../hydrate.js";
 import { Api } from "./api.js";
 
 export class Task {
@@ -12,13 +12,14 @@ interface TaskList {
     tasks:Task[];
 }
 
-export class TaskService
+export class TaskService extends HydrateAppService
 {
     #hydrate:HydrateApp;
     #api:Api;
     #model:TaskList;
 
     constructor(hydrate:HydrateApp) {
+        super();
         this.#hydrate = hydrate;
         this.#api = new Api();
         this.#model = this.#hydrate.bind("tasksList", {

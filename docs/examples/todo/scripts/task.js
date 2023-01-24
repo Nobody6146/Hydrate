@@ -1,3 +1,4 @@
+import { HydrateAppService } from "../../../hydrate.js";
 import { Api } from "./api.js";
 export class Task {
     id = null;
@@ -5,11 +6,12 @@ export class Task {
     day = null;
     reminder = false;
 }
-export class TaskService {
+export class TaskService extends HydrateAppService {
     #hydrate;
     #api;
     #model;
     constructor(hydrate) {
+        super();
         this.#hydrate = hydrate;
         this.#api = new Api();
         this.#model = this.#hydrate.bind("tasksList", {

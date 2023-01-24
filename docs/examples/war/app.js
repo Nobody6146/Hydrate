@@ -20,8 +20,8 @@ class App {
         //Load our card images
         const cardsImage = await this.#loadImage("images/cards.png");
         //Configure our dependencies
-        this.#hydrate.singleton(ImageGallery, new ImageGallery(cardsImage));
-        this.#hydrate.singleton(War, new War(playerCount));
+        this.#hydrate.singleton(ImageGallery, (hydrate, source) => new ImageGallery(cardsImage));
+        this.#hydrate.singleton(War, (hydrate, source) => new War(playerCount));
     }
     async #loadImage(src) {
         const app = this;

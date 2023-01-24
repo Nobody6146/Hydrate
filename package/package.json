@@ -1,0 +1,22 @@
+{
+  "name": "@nobody6146/hydrateapp",
+  "version": "1.0.0",
+  "description": "A lightweight front-framework that can dynamically hydrate static webpages",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "nodemon": "^2.0.9"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Brandon Biera (Nobody6146)",
+  "license": "ISC",
+  "bin": {
+    "hydrate": "./cli.js"
+  }
+}

@@ -1,7 +1,9 @@
+import { HydrateAppService } from "../../../hydrate.js";
 import { Deck } from "./card.js";
-export class War {
+export class War extends HydrateAppService {
     #players;
     constructor(playerCount) {
+        super();
         //Setup the game state
         const startingDeck = this.#createDeck();
         this.#players = this.#initializePlayers(playerCount, startingDeck);
@@ -66,16 +68,18 @@ export class War {
     #battle() {
         const draws = [];
         let tie = false;
+        let highest = -1;
         for (let player of this.#players) {
             if (player.deck.size === 0)
                 continue;
             const card = player.deck.draw()[0];
-            if (draws.some(x => x.value === card.value))
-                tie = true;
+            if (card.value > highest)
+                highest = card.value;
             player.hand.push(card);
             draws.push(card);
         }
-        if (tie)
+        //Check for a tie, if so, keep going!
+        if (draws.filter(x => x.value === highest).length > 1)
             this.#battle();
     }
 }

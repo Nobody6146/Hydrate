@@ -1,7 +1,9 @@
-export class UiService {
+import { HydrateAppService } from "../../../hydrate.js";
+export class UiService extends HydrateAppService {
     #hydrate;
     #model;
     constructor(hydrate) {
+        super();
         this.#hydrate = hydrate;
         this.#model = hydrate.bind("ui", {
             addTaskMenu: {

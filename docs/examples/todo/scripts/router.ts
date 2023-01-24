@@ -1,9 +1,10 @@
-import { HydrateApp, HydrateRoute, HydrateRouteEvent } from "../../../hydrate.js";
+import { HydrateApp, HydrateAppService, HydrateRoute, HydrateRouteEvent } from "../../../hydrate.js";
 
-export class Router {
+export class Router extends HydrateAppService {
     #routes:HydrateRoute[];
 
-    constructor(hydrate:HydrateApp) {
+    constructor() {
+        super();
         //Define our application routes
         this.#routes = [
             {path: "#home", action: request => request.resolve()},

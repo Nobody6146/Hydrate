@@ -1,4 +1,4 @@
-import { HydrateApp, HydrateSubscriptionCallback } from "../../../hydrate.js";
+import { HydrateApp, HydrateAppService, HydrateSubscriptionCallback } from "../../../hydrate.js";
 
 interface UiServiceModel {
     addTaskMenu:{
@@ -6,12 +6,13 @@ interface UiServiceModel {
     };
 }
 
-export class UiService {
+export class UiService extends HydrateAppService {
     
     #hydrate:HydrateApp;
     #model:UiServiceModel;
 
     constructor(hydrate:HydrateApp) {
+        super();
         this.#hydrate = hydrate;
         this.#model = hydrate.bind("ui", {
             addTaskMenu: {
