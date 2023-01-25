@@ -959,6 +959,7 @@ export class HydrateApp {
         const componentTemplateSelector = this.#componentTemplateSelector;
         const templateAttribute = this.attribute(this.#options.attribute.names.template);
         const sourceAttribute = this.attribute(this.#options.attribute.names.source);
+        const trackElementQueue = new Set();
         mutations.forEach(mutation => {
             if (!mutation.target.isConnected)
                 return;
@@ -982,14 +983,16 @@ export class HydrateApp {
                                 && element.matches(componentTemplateSelector))
                                 this.#loadTemplate(element, true);
                             if (mutation.target.matches(trackableSelector)) {
-                                let newTrack = this.#trackElement(element);
-                                if (newTrack === false) {
-                                    //Wasn't a new track, but a core value changed, so rebind the element
-                                    let modelName = element.getAttribute(modelAttribute);
-                                    this.dispatch(element, "bind", modelName, undefined);
-                                }
+                                trackElementQueue.add(element);
+                                // let newTrack = this.#trackElement(element);
+                                // if(newTrack === false) {
+                                //     //Wasn't a new track, but a core value changed, so rebind the element
+                                //     let modelName = element.getAttribute(modelAttribute);
+                                //     this.dispatch(element, "bind", modelName, undefined);
+                                // }
                             }
                             else {
+                                trackElementQueue.delete(mutation.target);
                                 this.#untrackElement(mutation.target);
                                 this.#unlinkComponent(mutation.target);
                             }
@@ -1012,7 +1015,8 @@ export class HydrateApp {
                                 this.#trackLazyElement(node);
                                 this.#linkComponent(node);
                             }
-                            this.#trackElement(node);
+                            //this.#trackElement(node);
+                            trackElementQueue.add(node);
                             let elements = node.querySelectorAll(trackableSelector);
                             if (node.matches(componentTemplateSelector))
                                 this.#loadTemplate(node, true);
@@ -1025,7 +1029,8 @@ export class HydrateApp {
                                 this.#linkComponent(element);
                             }
                             for (let element of elements) {
-                                this.#trackElement(element);
+                                //this.#trackElement(element);
+                                trackElementQueue.add(element);
                                 if (element.matches(componentTemplateSelector))
                                     this.#loadTemplate(element, true);
                             }
@@ -1043,6 +1048,7 @@ export class HydrateApp {
                                 return;
                             removedElement = true;
                             this.#untrackLazyElement(node);
+                            trackElementQueue.delete(node);
                             this.#untrackElement(node);
                             this.#unlinkComponent(node);
                             let elements = node.querySelectorAll(trackableSelector);
@@ -1050,6 +1056,7 @@ export class HydrateApp {
                                 this.#untrackLazyElement(element);
                             for (let element of elements) {
                                 this.#untrackLazyElement(element);
+                                trackElementQueue.delete(element);
                                 this.#untrackElement(element);
                                 this.#unlinkComponent(element);
                             }
@@ -1072,6 +1079,14 @@ export class HydrateApp {
                     }
             }
         });
+        for (let element of trackElementQueue) {
+            let newTrack = this.#trackElement(element);
+            if (newTrack === false) {
+                //Wasn't a new track, but a core value changed, so rebind the element
+                let modelName = element.getAttribute(modelAttribute);
+                this.dispatch(element, "bind", modelName, undefined);
+            }
+        }
     }
     #intersectionCallback(entries) {
         for (let entry of entries) {
@@ -1116,16 +1131,30 @@ export class HydrateApp {
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.init), (arg, eventDetails) => {
             if (eventDetails.modelName !== "" && eventDetails.model != null)
                 return;
-            let model = eventDetails.base;
-            if (model == null)
-                model = this.bind(eventDetails.baseName, {});
+            //If already initialized, then don't do anything
+            if (eventDetails.state != null)
+                return;
+            let state = this.state(eventDetails.baseName);
+            let startPath = null;
+            if (state == null) {
+                state = {};
+                startPath = eventDetails.baseName;
+            }
+            //this.bind(eventDetails.baseName, {});
             const nameParts = eventDetails.modelPath.split(".");
+            let data = state;
             for (let i = 1; i < nameParts.length; i++) {
                 const name = nameParts[i];
-                if (model[name] == null)
-                    model[name] = {};
-                model = model[name];
+                if (data[name] == null) {
+                    data[name] = {};
+                    if (startPath == null) {
+                        startPath = nameParts.slice(0, i + 1).join(".");
+                        state = data[name];
+                    }
+                }
+                data = data[name];
             }
+            this.bind(startPath, state);
         });
         this.#options.attribute.handlers.set(this.attribute(this.#options.attribute.names.property), (arg, eventDetails) => {
             if (eventDetails.modelName !== "" && eventDetails.model === undefined)
@@ -2069,27 +2098,27 @@ export class HydrateApp {
         let attribute = this.attribute(this.#options.attribute.names.init);
         let eventTypes = [
             'track',
-            'untrack',
+            // 'untrack',
             'bind',
-            'unbind',
-            'set',
-            'input',
-            "on",
+            // 'unbind',
+            // 'set',
+            // 'input',
+            // "on",
             "routing.start",
             "routing.resolve",
             "routing.reject",
-            "mutation.target.added",
-            "mutation.target.removed",
+            // "mutation.target.added",
+            // "mutation.target.removed",
             "mutation.target.attribute",
-            "mutation.target.characterdata",
-            "mutation.parent.added",
-            "mutation.parent.removed",
+            // "mutation.target.characterdata",
+            // "mutation.parent.added",
+            // "mutation.parent.removed",
             "mutation.parent.attribute",
-            "mutation.parent.characterdata",
-            "mutation.child.added",
-            "mutation.child.removed",
+            // "mutation.parent.characterdata",
+            // "mutation.child.added",
+            // "mutation.child.removed",
             "mutation.child.attribute",
-            "mutation.child.characterdata"
+            // "mutation.child.characterdata"
         ];
         this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true, mockedAttributes);
     }
@@ -2242,18 +2271,18 @@ export class HydrateApp {
             "routing.start",
             "routing.resolve",
             "routing.reject",
-            "mutation.target.added",
-            "mutation.target.removed",
+            // "mutation.target.added",
+            // "mutation.target.removed",
             "mutation.target.attribute",
-            "mutation.target.characterdata",
-            "mutation.parent.added",
-            "mutation.parent.removed",
-            "mutation.parent.attribute",
-            "mutation.parent.characterdata",
-            "mutation.child.added",
-            "mutation.child.removed",
-            "mutation.child.attribute",
-            "mutation.child.characterdata"
+            // "mutation.target.characterdata",
+            // "mutation.parent.added",
+            // "mutation.parent.removed",
+            // "mutation.parent.attribute",
+            // "mutation.parent.characterdata",
+            // "mutation.child.added",
+            // "mutation.child.removed",
+            // "mutation.child.attribute",
+            // "mutation.child.characterdata"
         ];
         this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, false, mockedAttributes);
     }
