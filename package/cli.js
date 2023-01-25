@@ -96,11 +96,11 @@ function processCreateCommand([resourceType, resourceName, ...args]) {
         case "app":
             return processCreateAppCommand(resourceName, args);
         case "component":
-            return processCreateComponentCommand(resourceName);
+            return processCreateComponentCommand(resourceName, args);
         case "service":
-            return processCreateServiceCommand(resourceName);
+            return processCreateServiceCommand(resourceName, args);
         case "route":
-            return processCreateRouteCommand(resourceName);
+            return processCreateRouteCommand(resourceName, args);
         default:
             if(needsHelp)
             {
@@ -213,7 +213,7 @@ function processCreateAppCommand(resourceName, args) {
     copyRecursiveSync(source, destination, true);
 }
 
-function processCreateComponentCommand(resourceName) {
+function processCreateComponentCommand(resourceName, args) {
     if(needsHelp)
     {
         console.log("Help Menu:");
@@ -225,6 +225,8 @@ function processCreateComponentCommand(resourceName) {
         console.log("hydrate new component home --init|-i \tcreates a new Hydrate component that will automatically initialize it's model if it isn't already.");
         console.log("hydrate new component home --shadow|-s \tcreates a new Hydrate component that will render using the shadow DOM.");
         console.log("hydrate new component home --model|-m <name> \tcreates a new Hydrate component bound to the model with the specified name.");
+        console.log("hydrate new component home --route|-r <name> \tcreates a new Hydrate component bound to a route with the path provided.");
+        console.log("hydrate new component home --route|-r \tcreates a new Hydrate component bound to the rpute with the \"home\" (same name as the component).");
         console.log();
         return;
     }
@@ -265,6 +267,18 @@ function processCreateComponentCommand(resourceName) {
                     const modelName = args[++i] ?? "";
                     modifiers.push(`h-model="${modelName}"`);
                     break;
+                case "--route":
+                case "-r":
+                    let route = args[++i];
+                    if(route == null || route.startsWith("-")) {
+                        //If we don't find a value, assume it's the same as the component name
+                        i--;
+                        console.warn("Route not specified for component. Assuming route is the same as the component name.")
+                        route = resourceNameToPath(resourceName);
+                    }
+                    modifiers.push(`h-route="#${route}"`);
+                    modifiers.push(`h-routing="start, resolve, reject"`);
+                    break;
             }
         }
     }
@@ -285,7 +299,7 @@ function processCreateComponentCommand(resourceName) {
     addComponentToTemplatesFile(templateFile, replacements.TEMPLATE_NAME, relativeUrl(workingDir, `${destination}`));
 }
 
-function processCreateServiceCommand(resourceName) {
+function processCreateServiceCommand(resourceName, args) {
     if(resourceName == null)
     {
         console.error("Resource name was not provide for create Hydrate service");
@@ -351,7 +365,7 @@ function processCreateServiceCommand(resourceName) {
     addServiceToServicesFile(servicesTsFile, replacements.SERVICE_NAME, relativeUrl(workingDir, `${destination}\\service.js`), dependencyType);
 }
 
-function processCreateRouteCommand(resourceName) {
+function processCreateRouteCommand(resourceName, args) {
     if(needsHelp)
     {
         console.log("Help Menu:");
@@ -366,6 +380,24 @@ function processCreateRouteCommand(resourceName) {
         console.error("Resource name was not provide for create Hydrate route");
         return;
     }
+
+    let component = null;
+    if(args?.length)
+    {
+        for(let i = 0; i < args.length; i++)
+        {
+            switch(args[i])
+            {
+                case "--component":
+                case "-c":
+                    component = args[++i];
+                    //We didn't specify or we have a new argument, then default
+                    if(component == null || component.startsWith('-'))
+                        component = resourceName;
+            }
+        }
+    }
+
     const source = `${templateFolder}\\route`;
     const folder = resourceName.indexOf("\\") > -1 ? resourceName : `routes\\${resourceName}`;
     const destination = `${workingDir}\\${folder}`;
@@ -377,11 +409,17 @@ function processCreateRouteCommand(resourceName) {
         "ROUTE_PATH": resourceNameToPath(resourceName),
         "../lib/hydrate/hydrate.js": relativeUrl(destination, hydrateFile)
     }
+
     cloneAndFillTemplate(source, destination, replacements);
     const routeJsFile = `${workingDir}\\routes.js`;
     const routeTsFile = `${workingDir}\\routes.ts`;
     addRouteToRoutesFile(routeJsFile, replacements.ROUTE_NAME, relativeUrl(workingDir, `${destination}\\route.js`));
     addRouteToRoutesFile(routeTsFile, replacements.ROUTE_NAME, relativeUrl(workingDir, `${destination}\\route.js`));
+
+    if(component)
+    {
+        processCreateComponentCommand(component, ["-r", replacements.ROUTE_PATH]);
+    }
 }
 
 function addComponentToTemplatesFile(templatesFile, templateName, componentSource) {
@@ -424,7 +462,7 @@ function addRouteToRoutesFile(routesFile, routeName, routeSource) {
                     //Add the route to exports
                     if(i > arrayStart + 1)
                         result[i] = `${result[i]},`
-                    result.push(`\t${routeName}Route,`);
+                    result.push(`\t${routeName}Route`);
                     result.push(lines[i]);
 
                     //Copy the remainder of the file

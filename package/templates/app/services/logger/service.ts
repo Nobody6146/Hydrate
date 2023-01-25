@@ -32,32 +32,37 @@ export class LoggerService extends HydrateAppService
 
     log(...data:any[]):void {
         //Always log so we can override logging level if needed
-        console.log(...data);
+        console.log(this.#timeStamp, ...data);
     }
 
     info(...data:any[]):void {
         if(this.levelEnabled("info"))
-            console.info(...data);
+            console.info(this.#timeStamp, ...data);
     }
 
     debug(...data:any[]):void {
         if(this.levelEnabled("debug"))
-            console.debug(...data);
+            console.debug(this.#timeStamp, ...data);
     }
 
     trace(...data:any[]):void {
         if(this.levelEnabled("trace"))
-            console.trace(...data);
+            console.trace(this.#timeStamp, ...data);
     }
 
     warn(...data:any[]):void {
         if(this.levelEnabled("warn"))
-            console.warn(...data);
+            console.warn(this.#timeStamp, ...data);
     }
 
     error(...data:any[]):void {
         if(this.levelEnabled("error"))
-            console.error(...data);
+            console.error(this.#timeStamp, ...data);
+    }
+
+    get #timeStamp() {
+        const date = new Date();
+        return `<${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}:${date.getUTCHours()}:${date.getUTCMinutes()}:${date.getUTCSeconds()}:${date.getUTCMilliseconds()}>`;
     }
 }
 

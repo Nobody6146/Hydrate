@@ -1300,7 +1300,7 @@ export class HydrateApp {
         let routeUrl = null;
         if (this.#isRoutingEvent(eventType))
             routeUrl = routeRequest.url;
-        {
+        else {
             eventType = this.#routingState.eventType;
             routeUrl = this.#routingState.url;
             if (routeUrl == null) {
@@ -1309,7 +1309,7 @@ export class HydrateApp {
             routeRequest = new HydrateRouteRequest(this, new URL(routeUrl), {}, () => true, this.#routingState);
         }
         let routingType = eventType.substring(eventType.lastIndexOf(".") + 1);
-        let selector = `[${routingAttribute}~=${routingType}]`;
+        let selector = `[${routingAttribute}*=${routingType}]`;
         if (routeRequest.match(routeUrl, { path: route }) == null)
             return "unhandled";
         if (routerElement === element && routing == null)

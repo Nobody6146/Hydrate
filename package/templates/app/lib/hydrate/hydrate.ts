@@ -1647,6 +1647,7 @@ export class HydrateApp {
         let routeUrl:string = null;
         if(this.#isRoutingEvent(eventType))
             routeUrl = routeRequest.url;
+        else
         {
             eventType = this.#routingState.eventType;
             routeUrl = this.#routingState.url;
@@ -1658,7 +1659,7 @@ export class HydrateApp {
         }
 
         let routingType = eventType.substring(eventType.lastIndexOf(".") + 1);
-        let selector = `[${routingAttribute}~=${routingType}]`;
+        let selector = `[${routingAttribute}*=${routingType}]`;
         if(routeRequest.match(routeUrl, {path: route}) == null)
             return "unhandled" ;
 
