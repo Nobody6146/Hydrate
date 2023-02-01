@@ -3,17 +3,23 @@
   "version": "1.0.0",
   "description": "A lightweight front-framework that can dynamically hydrate static webpages",
   "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
-  "dependencies": {},
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nobody6146/Hydrate.git"
+  },
+  "keywords": [
+    "hydrate"
+  ],
   "author": "Brandon Biera (Nobody6146)",
   "license": "ISC",
   "bin": {
     "hydrate": "./cli.js"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/Nobody6146/Hydrate/issues"
+  },
+  "homepage": "https://github.com/Nobody6146/Hydrate#readme"
 }
