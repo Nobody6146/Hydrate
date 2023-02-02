@@ -45,7 +45,11 @@
                             <li><a href="#model-attribute">h-model</a></li>
                             <li><a href="#nested-attribute">h-nested</a></li>
                             <li><a href="#mutation-attribute">h-mutation</a></li>
-                            <li><a href="#lazy-attribute">h-lazy</a></li>
+                            <li><a href="#resume-attribute">h-resume</a></li>
+                            <li><a href="#mock-attribute">h-mock</a></li>
+                            <li><a href="#init-attribute">h-init</a></li>
+                            <li><a href="#bind-attribute">h-bind</a></li>
+                            <li><a href="#silent-attribute">h-silent</a></li>
                         </ul>
                         <b>Element manipulation</b>
                         <ul>
@@ -75,6 +79,7 @@
                             <li><a href="#component-attribute">h-component</a></li>
                             <li><a href="#duplicate-attribute">h-duplicate</a></li>
                             <li><a href="#id-attribute">h-id</a></li>
+                            <li><a href="#lazy-attribute">h-lazy</a></li>
                         </ul>
                         <b>Routing</b>
                         <ul>
@@ -573,6 +578,9 @@
         </section>
         <hr/>
 
+
+        
+
         <section id="framework-element-attributes">
             <h2>Framework Element Attributes</h2>
             <div style="margin-left: 4rem;">
@@ -796,19 +804,18 @@
                     </p>
                 </fieldset>
 
-                <fieldset id="lazy-attribute">
-                    <legend><h3>h-lazy</h3></legend>
+                <fieldset id="resume-attribute">
+                    <legend><h3>h-resume</h3></legend>
                     <p>
-                        <b>Usage:</b> Denotes to Hydrate that this element is behaving in a lazy manner and should not be used immediately
+                        <b>Usage:</b> Makes the element have a resumability behavior by delaying model propagation to the element unless it is interacted with or subsequent model changes occur.
+                        
                     </p>
                     <p>
-                        <b>Syntax:</b> <code>h-lazy</code>
+                        <b>Syntax:</b> <code>h-resume</code>
                         <ul>
-                            <li>
-                                <u>Examples:</u>
+                            <li><u>Examples:</u>
                                 <ul>
-                                    <li><code>&lt;template h-template="app-root" h-laz&gt;y&lt;/template&gt;</code></li>
-                                    <li><code>&lt;app-root h-lazy&gt;&lt;app-root&gt;</code></li>
+                                    <li><code>&lt;div h-model="app.page" h-resume h-property="textContent: greeting"&gt;Hello my default greeting&lt;/div&gt;</code></li>
                                 </ul>
                             </li>
                         </ul>
@@ -816,9 +823,215 @@
                     <p>
                         <b>Notes:</b>
                         <ul>
-                            <li>Once a lazy loaded element has been loaded, the lazy attribute will be removed from the element</li>
-                            <li>When used on a template, the template will not be loaded until a component using that template name needs to be generated</li>
-                            <li>When used on a component, the component will not be generated and rendered until it is in view</li>
+                            <li>
+                                In short, this model won't respond to <a href=#track-event">track events</a> but will respond to all other events
+                            </li>
+                            <li>
+                                Resumability is useful if you want to pre-render content on the server but not want to cause the UI to re-render unless further state changes occur
+                            </li>
+                            <li>
+                                To fully utilize the "resumability" feature of Hydrate, see the <a href="#bind-attribute">bind attribute</a> on how to bind models from external sources (such as from a server).
+                            </li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="mock-attribute">
+                    <legend><h3>h-mock</h3></legend>
+                    <p>
+                        <b>Usage:</b> Tells a Hydrate attribute to respond to a model that's different than the model bound to the element.
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-mock="HYDRATE_ATTRIBUTE: MODEL_PATH"</code>
+                        <ul>
+                            <li>
+                                <i>HYDRATE_ATTRIBUTE -</i> The name of the Hydrate attribute we want to override the model it's listening to
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>&lt;div h-model="app" h-property="textContent: greeting" h-mock="h-property: 'page'"&gt;&lt;/div&gt;</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>HYDRATE_ATTRIBUTE -</i> The name of the model we want the attribute to listen to
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>&lt;div h-model="app" h-property="textContent: greeting" h-mock="h-property: 'page'"&gt;&lt;/div&gt;</code></li>
+                                            <li><code>&lt;div h-model="app" h-property="textContent: greeting" h-mock="h-property: 'page'; h-class: 'page'" h-class="hidden: active"&gt;&lt;/div&gt;</code></li>
+                                            <li><code>&lt;div h-model="app" h-property="textContent: greeting" h-mock="h-property: 'page'; h-class: $state.activePage" h-class="hidden: active"&gt;&lt;/div&gt;</code></li>
+                                            <li><code>&lt;div h-model="app" h-property="textContent: greeting" h-mock="*: 'page'"&gt;&lt;/div&gt;</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>
+                                This attribute is likely never needed, but there may be some scenarios where you need an element to listen to multiple models (typically a sign of bad design and need to reorganize your models)
+                            </li>
+                            <li>
+                                Another useful scenario is if you need the model the an element points to, to be dynamic such as a runtime expression, come from a model, component, etc.
+                            </li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="init-attribute">
+                    <legend><h3>h-init</h3></legend>
+                    <p>
+                        <b>Usage:</b> Binds and empty object to the model path if the model doesn't already exist
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-init</code>
+                        <ul>
+                            <li><u>Examples:</u>
+                                <ul>
+                                    //Binds the a model <code>{}</code> to the model name "app" if the model doesn't exist
+                                    <li><code>&lt;div h-model="app" h-init&gt;&lt;/div&gt;</code></li>
+                                </ul>
+                                <ul>
+                                    //Init can even created nested values
+                                    //Binds the a model <code>{"page": {}}</code> to the model name "app" if the model doesn't exist
+                                    <li><code>&lt;div h-model="app.page" h-init&gt;&lt;/div&gt;</code></li>
+                                </ul>
+                                <ul>
+                                    <li><code>&lt;input h-model="input" h-init h-input="value: $element.value" h-property="value: value"&gt;&lt;/input&gt;</code></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>
+                                This attribute lets you provide an element with state to work with that doesn't have to be bound elsewhere.
+                            </li>
+                            <li>
+                                This attribute is useful in scenarios were the data is originated (bound) from the component itself and not from another JS source.
+                                <ul>
+                                    <li>Ex:</li>
+                                    <li><code>&lt;app-root h-model="app" h-init&gt;&lt;/app-root&gt;</code></li>
+                                </ul>
+                            </li>
+                            <li>
+                                This attribute is also useful in scenarios where state is needed internally for the element, but other elements or JS code don't need to interact with it.
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Event types:</b> This attribute will allow components to respond to
+                        <ul>
+                            <li>track</li>
+                            <li>bind</li>
+                            <li>routing.start</li>
+                            <li>routing.resolve</li>
+                            <li>routing.reject</li>
+                            <li>mutation.target.attribute</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="bind-attribute">
+                    <legend><h3>h-bind</h3></legend>
+                    <p>
+                        <b>Usage:</b> Used to bind a JSON object to a model path from the HTML DOM
+                    </p>
+                    <p>
+                        <b>Syntax:</b> Remote - <code>&lt;script type="application/json" h-bind="MODEL_PATH: JSON_URL"&gt;&lt;/script&gt;</code>
+                            or Embeded - <code>&lt;script type="application/json" h-bind="MODEL_PATH"&gt;JSON_OBJECT&lt;/script&gt;</code>
+                        <ul>
+                            <li>
+                                <i>MODEL_PATH -</i> The name of the model the payload should be bound to
+                                <ul>
+                                    <li>The attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b></li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>JSON_URL -</i> The web url of the JSON file you want to load the payload from
+                                <ul>
+                                    <li>The attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b></li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>JSON_OBJECT -</i> The JSON object of the state you want to load
+                                <ul>
+                                    <li>All standard JSON formatting rules apply here</li>
+                                </ul>
+                            </li>
+                            <li><u>Examples:</u>
+                                <ul>
+                                    <li><b>Embeded Model Syntax:</b> <code>&lt;script type="application/json" h-bind="app.page"&gt;{"data": {"x": 0, "y": 0}}&lt;/script&gt;</code></li>
+                                    <li><b>Remote Model Syntax:</b> <code>&lt;script type="application/json" h-bind="app.page: '/customers.json'"&gt;&lt;/script&gt;</code></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>
+                                The bind attribute will not respond to Hydrate events directly (as it is not tracked because it doesn't have a <a href="#model-attribute">model attribute</a>), but whenever the attributes on the element change or the element is added to the DOM, the binding will trigger
+                            </li>
+                            <li>
+                                The bind attribute only works on a script element with the type set to "application/json".
+                            </li>
+                            <li>
+                                Scripts marked with the bind attribute are not filtered out from component templates, which means you can use them to embed data sources.
+                            </li>
+                            <li>
+                                In the case of server side rendering, the bind attribute is a good way to pass data to Hydrate that was used to create the sever rendered page, so the client-side can then take over.
+                                <ul>
+                                    <li>This technique is good for accomplishing partial "hdyration" for client-side rendering</li>
+                                    <li>
+                                        To accomplish a full "resumability" approach (server renders content and the client will only rerender on further state changes), the following approaches are available
+                                        <ul>
+                                            <li>If you want the bind attribute to load the model for later use, but don't want to force a framework update (refreshing DOM, triggering JS callbacks, etc), use the <a href="#silent-attribute">silent attribute</a></li>
+                                            <li>If you want the bind attribute to load the model and also framework updates, but prevent certain elements from trigger updates, see the <a href="#resume-attribute">resume attribute</a> to make a specific element resumable</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Event types:</b> This attribute will allow components to respond to
+                        <ul>
+                            <li>track</li>
+                            <li>mutation.target.attribute</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="silent-attribute">
+                    <legend><h3>h-silent</h3></legend>
+                    <p>
+                        <b>Usage:</b> Signals that the <a href="#bind-attribute">bind attribute</a> binds the model data silently (won't trigger framework updates such as DOM updates and callbacks).
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-silent</code>
+                        <ul>
+                            <li><u>Examples:</u>
+                                <ul>
+                                    <li><b>Embeded Model Syntax:</b> <code>&lt;script type="application/json" h-bind="app.page" h-silent&gt;{"data": {"x": 0, "y": 0}}&lt;/script&gt;</code></li>
+                                    <li><b>Remote Model Syntax:</b> <code>&lt;script type="application/json" h-bind="app.page: '/customers.json'" h-silent&gt;&lt;/script&gt;</code></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>
+                                This attribute can be used to help create a "resumable" app (an app that doesn't rerender the content from the sever unless further state changes)
+                            </li>
                         </ul>
                     </p>
                 </fieldset>
@@ -1900,6 +2113,34 @@
                         </ul>
                     </p>
                 </fieldset>
+
+                <fieldset id="lazy-attribute">
+                    <legend><h3>h-lazy</h3></legend>
+                    <p>
+                        <b>Usage:</b> Denotes to Hydrate that this element is behaving in a lazy manner and should not be used immediately
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-lazy</code>
+                        <ul>
+                            <li>
+                                <u>Examples:</u>
+                                <ul>
+                                    <li><code>&lt;template h-template="app-root" h-laz&gt;y&lt;/template&gt;</code></li>
+                                    <li><code>&lt;app-root h-lazy&gt;&lt;app-root&gt;</code></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>Once a lazy loaded element has been loaded, the lazy attribute will be removed from the element</li>
+                            <li>When used on a template, the template will not be loaded until a component using that template name needs to be generated</li>
+                            <li>When used on a component, the component will not be generated and rendered until it is in view</li>
+                        </ul>
+                    </p>
+                </fieldset>
+
                 <h3>Routing Attributes</h3>
                 <fieldset id="route-attribute">
                     <legend><h3>h-route</h3></legend>

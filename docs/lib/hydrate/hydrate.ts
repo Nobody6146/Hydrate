@@ -2654,11 +2654,11 @@ export class HydrateApp {
             // "mutation.target.characterdata",
             // "mutation.parent.added",
             // "mutation.parent.removed",
-            "mutation.parent.attribute",
+            // "mutation.parent.attribute",
             // "mutation.parent.characterdata",
             // "mutation.child.added",
             // "mutation.child.removed",
-            "mutation.child.attribute",
+            // "mutation.child.attribute",
             // "mutation.child.characterdata"
         ];
         this.#addExecuters(element, attribute, modelPath, eventTypes, possibleEventTypes, true, mockedAttributes);
