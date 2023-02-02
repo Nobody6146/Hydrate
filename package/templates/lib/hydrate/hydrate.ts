@@ -1,4 +1,4 @@
-export let HydrateAppVersion = "1.0.0";
+export let HydrateAppVersion = "1.1.0";
 
 export type HydrateModelEventHandler = (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails|HydrateElementMutationEventDetails|HydrateElementTrackingEventDetails|HydrateElementEventListenerEventDetails) => void;
 export type HydrateModelEventExecuter = {arg:HydrateAttributeArgument, handler:HydrateModelEventHandler};
@@ -69,12 +69,19 @@ export class HydrateAttributeOptions
     }
 }
 
+export interface HydrateModelBindOptions {
+    silent?:boolean;
+}
+
 export class HydrateAttributeNamesOptions
 {
     //Linking
     model?:string
     nested?:string;//Will also respond to nested property changes
     init?:string;//Will initialize the model if it isn't
+    resume?:string;//Will signify that the DOM element is to resume functionality on changes, but not apon tracking
+    bind?:string;//Will load the JSON from the script and bind it to the model
+    silent?:string;//Signifies that the script tag will load the model silently (avoid framework state changes)
 
     //Basic element manipulation
     property?:string;
@@ -124,6 +131,9 @@ export class HydrateAttributeNamesOptions
         this.model = "model";
         this.nested = "nested";//Will also respond to nested property changes
         this.init = "init";
+        this.resume = "resume";//Will signify that the DOM element is to resume functionality on changes, but not apon tracking
+        this.bind = "bind";//Will load the JSON from the script and bind it to the model
+        this.silent = "silent";//Signifies that the script tag will load the model silently (avoid framework state changes)
 
         //Basic element manipulation
         this.property = "property";
@@ -724,14 +734,15 @@ export class HydrateApp {
         };
     }
 
-    start() {
+    async start():Promise<void> {
         this.#mutationObserver = this.#observeDom(this.#root);
         this.root.addEventListener("input", this.#inputListener.bind(this));
         window.addEventListener("popstate", this.#popStateListener.bind(this));
 
         this.#intersectionObserver = new IntersectionObserver(this.#intersectionCallback.bind(this));
         
-        this.#loadTemplates();
+        await this.#bindScriptModels();
+        await this.#loadTemplates();
         this.#trackLazyElements();
         this.#trackElements();
         //this.#linkComponents();
@@ -925,7 +936,10 @@ export class HydrateApp {
     }
 
     /** Bind a new model to the framework */
-    bind<ModelType extends any>(modelPath?: string, state?:ModelType):ModelType {
+    bind<ModelType extends any>(modelPath?: string, state?:ModelType, opts?:HydrateModelBindOptions):ModelType {
+        //If silent, create and set the model but avoid operations that notify the framework of changes
+        opts = {...opts, silent: false};
+
         if(state == null)
             state = {} as ModelType;
 
@@ -936,7 +950,8 @@ export class HydrateApp {
             const parent = this.model(modelPath.substring(0, lastPropertyIndex));
             if(parent == null)
                 throw Error("invalid model path. Parent doesn't exist");
-            parent[modelPath.substring(lastPropertyIndex + 1)] = state;
+            const source = opts.silent ? this.state(parent) : parent;
+            source[modelPath.substring(lastPropertyIndex + 1)] = state;
             return;
         }
 
@@ -946,23 +961,23 @@ export class HydrateApp {
             throw Error("invalid model name");
 
         //TODO: check to make sure the name is a proper identifier
-        let app = this;
-        //return new Promise(async (resolve, reject) => {
-            //If this model already exist, unbind it first
         const existed = this.#models[modelPath] != undefined;
-            if(existed)
-                this.unbind(modelPath);
+        if(existed && !opts.silent)
+            this.unbind(modelPath);
 
-            let proxy = this.#makeProxy(state, modelPath, undefined);
-            this.#models[modelPath] = proxy;
-            let promise = this.dispatch(this.#root, existed ? "set" : "bind", modelPath, undefined);
-            //await promise;
-            return proxy;
-        //     resolve(proxy);
-        // });
+        let proxy = this.#makeProxy(state, modelPath, undefined);
+        this.#models[modelPath] = proxy;
+        if(!opts.silent)
+            this.dispatch(this.#root, existed ? "set" : "bind", modelPath, undefined);
+        return proxy;
     }
+
     get #validIdentifier():string {
         return '[$a-zA-Z_][0-9a-zA-Z_$]*';
+    }
+    //Outputs the tag of the element
+    elementTag(element:HTMLElement) {
+        return element.innerHTML ? element.outerHTML.substring(0,element.outerHTML.indexOf(element.innerHTML)) : element.outerHTML;
     }
 
     refresh(model:string | any):void {
@@ -1713,11 +1728,13 @@ export class HydrateApp {
         return "unchanged";
     }
 
-    #loadTemplates() {
+    async #loadTemplates() {
         const templateAttribute = this.attribute(this.#options.attribute.names.template);
         const templateSelector = this.#componentTemplateSelector;
+        const promises:Promise<void>[] = [];
         for(let template of this.root.querySelectorAll<HTMLTemplateElement>(templateSelector))
-            this.#loadTemplate(template, true);
+            promises.push(this.#loadTemplate(template, true));
+        await Promise.allSettled(promises);
     }
 
     async #loadTemplate(element:HTMLTemplateElement, lazyLoad:boolean): Promise<void> {
@@ -2405,6 +2422,46 @@ export class HydrateApp {
         }
         return newTrack;
     }
+
+    async #bindScriptModels() {
+        const promises:Promise<void>[] = [];
+        for(let script of this.#root.querySelectorAll<HTMLScriptElement>(this.#bindScriptModelSelector))
+            promises.push(this.#bindScriptModel(script));
+        await Promise.allSettled(promises);
+    }
+
+    async #bindScriptModel(script:HTMLScriptElement):Promise<void> {
+        const bindAttribute = this.attribute(this.options.attribute.names.bind);
+        const silentAttribute = this.attribute(this.options.attribute.names.silent);
+        const arg = this.parseAttributeArguments(script, bindAttribute)[0];
+        if(arg == null)
+            return;
+        const remoteJson = arg.field !== "";
+        const modelName = remoteJson ? arg.field : arg.expression;
+        let state = null;
+        if(remoteJson)
+        {
+            try {
+                const file = await fetch(arg.expression);
+                state = await file.json();
+            }
+            catch(error) {
+                console.error(error);
+                return;
+            }
+        }
+        else {
+            state = JSON.parse(script.textContent);
+        }
+        const silent = script.matches(silentAttribute);
+        this.bind(modelName, state, {silent: silent});
+    }
+
+    get #bindScriptModelSelector():string {
+        const bindAttribute = this.attribute(this.options.attribute.names.bind);
+        return `script[type="application/json"][${bindAttribute}]`;
+    }
+
 
     #updateDelayedAttributes(element:HTMLElement) {
         let throttleAttribute = this.attribute(this.#options.attribute.names.throttle);
@@ -3115,6 +3172,9 @@ export class HydrateApp {
     #shouldUpdateComponent(event:CustomEvent):boolean {
         const detail = event.detail as HydrateEventDetails;
         const modelName = detail.element.getAttribute(this.attribute(this.#options.attribute.names.model));
+        const resumeAttribute = this.attribute(this.#options.attribute.names.resume);
+        if(detail.type === "track" && detail.element.hasAttribute(resumeAttribute))
+            return false;
         if(!this.#passedIfCheck(detail, this.parseAttributeArguments(detail.element, this.attribute(this.#options.attribute.names.if))))
             return false;
         if(!this.#passedFilterCheck(detail, modelName, this.parseAttributeArguments(detail.element, this.attribute(this.#options.attribute.names.filter))))

@@ -1,4 +1,4 @@
-export let HydrateAppVersion = "1.0.0";
+export let HydrateAppVersion = "1.1.0";
 export class HydrateAppOptions {
     dom;
     model;
@@ -58,6 +58,9 @@ export class HydrateAttributeNamesOptions {
     model;
     nested; //Will also respond to nested property changes
     init; //Will initialize the model if it isn't
+    resume; //Will signify that the DOM element is to resume functionality on changes, but not apon tracking
+    bind; //Will load the JSON from the script and bind it to the model
+    silent; //Signifies that the script tag will load the model silently (avoid framework state changes)
     //Basic element manipulation
     property;
     attribute;
@@ -98,6 +101,9 @@ export class HydrateAttributeNamesOptions {
         this.model = "model";
         this.nested = "nested"; //Will also respond to nested property changes
         this.init = "init";
+        this.resume = "resume"; //Will signify that the DOM element is to resume functionality on changes, but not apon tracking
+        this.bind = "bind"; //Will load the JSON from the script and bind it to the model
+        this.silent = "silent"; //Signifies that the script tag will load the model silently (avoid framework state changes)
         //Basic element manipulation
         this.property = "property";
         this.attribute = "attribute";
@@ -517,12 +523,13 @@ export class HydrateApp {
             eventType: null
         };
     }
-    start() {
+    async start() {
         this.#mutationObserver = this.#observeDom(this.#root);
         this.root.addEventListener("input", this.#inputListener.bind(this));
         window.addEventListener("popstate", this.#popStateListener.bind(this));
         this.#intersectionObserver = new IntersectionObserver(this.#intersectionCallback.bind(this));
-        this.#loadTemplates();
+        await this.#bindScriptModels();
+        await this.#loadTemplates();
         this.#trackLazyElements();
         this.#trackElements();
         //this.#linkComponents();
@@ -692,7 +699,9 @@ export class HydrateApp {
         return model[this.options.model.pathProperty];
     }
     /** Bind a new model to the framework */
-    bind(modelPath, state) {
+    bind(modelPath, state, opts) {
+        //If silent, create and set the model but avoid operations that notify the framework of changes
+        opts = { ...opts, silent: false };
         if (state == null)
             state = {};
         const lastPropertyIndex = modelPath?.lastIndexOf(".");
@@ -701,7 +710,8 @@ export class HydrateApp {
             const parent = this.model(modelPath.substring(0, lastPropertyIndex));
             if (parent == null)
                 throw Error("invalid model path. Parent doesn't exist");
-            parent[modelPath.substring(lastPropertyIndex + 1)] = state;
+            const source = opts.silent ? this.state(parent) : parent;
+            source[modelPath.substring(lastPropertyIndex + 1)] = state;
             return;
         }
         if (modelPath == null || modelPath === "")
@@ -709,22 +719,21 @@ export class HydrateApp {
         if (!modelPath.match(`^${this.#validIdentifier}$`))
             throw Error("invalid model name");
         //TODO: check to make sure the name is a proper identifier
-        let app = this;
-        //return new Promise(async (resolve, reject) => {
-        //If this model already exist, unbind it first
         const existed = this.#models[modelPath] != undefined;
-        if (existed)
+        if (existed && !opts.silent)
             this.unbind(modelPath);
         let proxy = this.#makeProxy(state, modelPath, undefined);
         this.#models[modelPath] = proxy;
-        let promise = this.dispatch(this.#root, existed ? "set" : "bind", modelPath, undefined);
-        //await promise;
+        if (!opts.silent)
+            this.dispatch(this.#root, existed ? "set" : "bind", modelPath, undefined);
         return proxy;
-        //     resolve(proxy);
-        // });
     }
     get #validIdentifier() {
         return '[$a-zA-Z_][0-9a-zA-Z_$]*';
+    }
+    //Outputs the tag of the element
+    elementTag(element) {
+        return element.innerHTML ? element.outerHTML.substring(0, element.outerHTML.indexOf(element.innerHTML)) : element.outerHTML;
     }
     refresh(model) {
         let modelPath;
@@ -1352,11 +1361,13 @@ export class HydrateApp {
         }
         return "unchanged";
     }
-    #loadTemplates() {
+    async #loadTemplates() {
         const templateAttribute = this.attribute(this.#options.attribute.names.template);
         const templateSelector = this.#componentTemplateSelector;
+        const promises = [];
         for (let template of this.root.querySelectorAll(templateSelector))
-            this.#loadTemplate(template, true);
+            promises.push(this.#loadTemplate(template, true));
+        await Promise.allSettled(promises);
     }
     async #loadTemplate(element, lazyLoad) {
         let typeName = null;
@@ -1947,6 +1958,41 @@ export class HydrateApp {
             this.dispatch(element, "track", modelName, undefined);
         }
         return newTrack;
+    }
+    async #bindScriptModels() {
+        const promises = [];
+        for (let script of this.#root.querySelectorAll(this.#bindScriptModelSelector))
+            promises.push(this.#bindScriptModel(script));
+        await Promise.allSettled(promises);
+    }
+    async #bindScriptModel(script) {
+        const bindAttribute = this.attribute(this.options.attribute.names.bind);
+        const silentAttribute = this.attribute(this.options.attribute.names.silent);
+        const arg = this.parseAttributeArguments(script, bindAttribute)[0];
+        if (arg == null)
+            return;
+        const remoteJson = arg.field !== "";
+        const modelName = remoteJson ? arg.field : arg.expression;
+        let state = null;
+        if (remoteJson) {
+            try {
+                const file = await fetch(arg.expression);
+                state = await file.json();
+            }
+            catch (error) {
+                console.error(error);
+                return;
+            }
+        }
+        else {
+            state = JSON.parse(script.textContent);
+        }
+        const silent = script.matches(silentAttribute);
+        this.bind(modelName, state, { silent: silent });
+    }
+    get #bindScriptModelSelector() {
+        const bindAttribute = this.attribute(this.options.attribute.names.bind);
+        return `script[type="application/json"][${bindAttribute}]`;
     }
     #updateDelayedAttributes(element) {
         let throttleAttribute = this.attribute(this.#options.attribute.names.throttle);
@@ -2572,6 +2618,9 @@ export class HydrateApp {
     #shouldUpdateComponent(event) {
         const detail = event.detail;
         const modelName = detail.element.getAttribute(this.attribute(this.#options.attribute.names.model));
+        const resumeAttribute = this.attribute(this.#options.attribute.names.resume);
+        if (detail.type === "track" && detail.element.hasAttribute(resumeAttribute))
+            return false;
         if (!this.#passedIfCheck(detail, this.parseAttributeArguments(detail.element, this.attribute(this.#options.attribute.names.if))))
             return false;
         if (!this.#passedFilterCheck(detail, modelName, this.parseAttributeArguments(detail.element, this.attribute(this.#options.attribute.names.filter))))

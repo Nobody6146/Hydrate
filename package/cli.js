@@ -25,7 +25,7 @@ switch(command) {
     case "version":
         processVersionCommand();
         break;
-    case "manual":
+    case "documentation":
         processViewManualCommand();
         break;
     case "import":

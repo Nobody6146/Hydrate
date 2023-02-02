@@ -255,13 +255,37 @@
                     Hydrate Demo 2022.
                 </p>
             </footer>
+
+            <div>
+                Testing resumability. DOM will only update when a change happens
+                <div>
+                    <span h-model="resume1" h-property="textContent: JSON.stringify($state)" h-resume>{"text":"hello","count":0}</span>
+                    <button h-model="resume1" h-on="click: $model.count++">+</button>
+                </div>
+                
+                Testing remote model source
+                <div>
+                    <span h-model="resume2" h-property="textContent: JSON.stringify($state)"></span>
+                </div>
+            </div>
+
+            <script type="application/json" h-bind="resume1" h-silent>
+                {
+                    "text": "hello",
+                    "count": 4
+                }
+            </script>
+            <script type="application/json" h-bind="resume2: test.json" h-silent></script>
+            <br>
+
             <script type="module">
                 import { HydrateApp } from "./lib/hydrate/hydrate.js";
                 // document.body.addEventListener("hydrate.track", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.untrack", event => console.log(event.type, event.detail));
+
                 // document.body.addEventListener("hydrate.bind", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.set", event => console.log(event.type, event.detail));
-                //document.body.addEventListener("hydrate.unbind", event => console.log(event.type, event.detail));
+                // document.body.addEventListener("hydrate.unbind", event => console.log(event.type, event.detail));
 
                 // document.body.addEventListener("hydrate.mutation.parent.attribute", event => console.log(event.type, event.detail));
                 // document.body.addEventListener("hydrate.mutation.parent.added", event => console.log(event.type, event.detail));
@@ -297,6 +321,7 @@
                 let div = document.querySelector("div");
                 //let model = app.bind("default", {text: "hello", list: [{first: "Brandon", last: "Biera"}, {first:"Megan",last:"Wong"}]});
                 let model = app.bind("default", {text: "hello", list: [1,2,3,4], person: {name: {first: "Brandon", last: "Biera"}}});
+                window.model = model;
                 model.selector = {
                     options: [
                         {name: "Car", value: 1},
