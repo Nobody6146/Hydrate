@@ -964,11 +964,13 @@ export class HydrateApp {
         const trackableSelector = this.#trackableElementSelector;
         const lazyElementSelector = this.#lazyLoadElementSelector;
         const componentsSelector = this.#availabeComponentSelector;
+        const bindScriptModelSelector = this.#bindScriptModelSelector;
         let modelAttribute = this.attribute(this.#options.attribute.names.model);
         const componentTemplateSelector = this.#componentTemplateSelector;
         const templateAttribute = this.attribute(this.#options.attribute.names.template);
         const sourceAttribute = this.attribute(this.#options.attribute.names.source);
         const trackElementQueue = new Set();
+        const bindScriptModelQueue = new Set();
         mutations.forEach(mutation => {
             if (!mutation.target.isConnected)
                 return;
@@ -1005,6 +1007,8 @@ export class HydrateApp {
                                 this.#untrackElement(mutation.target);
                                 this.#unlinkComponent(mutation.target);
                             }
+                            if (mutation.target.matches(bindScriptModelSelector))
+                                bindScriptModelQueue.add(element);
                         }
                         this.dispatch(mutation.target, "mutation.parent.attribute", undefined, mutation);
                         this.dispatch(mutation.target, "mutation.target.attribute", undefined, mutation);
@@ -1043,6 +1047,10 @@ export class HydrateApp {
                                 if (element.matches(componentTemplateSelector))
                                     this.#loadTemplate(element, true);
                             }
+                            if (node.matches(bindScriptModelSelector))
+                                bindScriptModelQueue.add(node);
+                            for (let element of node.querySelectorAll(bindScriptModelSelector))
+                                bindScriptModelQueue.add(element);
                         });
                         if (addedElement && mutation.target instanceof HTMLElement) {
                             this.dispatch(mutation.target, "mutation.parent.added", undefined, mutation);
@@ -1095,6 +1103,9 @@ export class HydrateApp {
                 let modelName = element.getAttribute(modelAttribute);
                 this.dispatch(element, "bind", modelName, undefined);
             }
+        }
+        for (let element of bindScriptModelQueue) {
+            this.#bindScriptModel(element);
         }
     }
     #intersectionCallback(entries) {
@@ -1417,6 +1428,7 @@ export class HydrateApp {
         const scriptSelector = `script[${scriptAttribute}]`;
         const modelAttribute = this.attribute(this.#options.attribute.names.model);
         const shadowAttribute = this.attribute(this.#options.attribute.names.shadow);
+        const bindScriptModelSelector = this.#bindScriptModelSelector;
         const componentSelector = `${typeName}:not([${lazyAttribute}]),[${componentAttribute}='${typeName}' i]:not([${lazyAttribute}])`;
         const components = this.#root.querySelectorAll(componentSelector);
         if (lazy && components.length === 0)
@@ -1451,8 +1463,9 @@ export class HydrateApp {
             //Look for a class definition script and load it if we find it
             if (componentBody == null && script.matches(scriptSelector))
                 type.classDefinition = await this.#loadStringModule(script.textContent);
-            //Remove any script elements from the component to prevent malicious scripts
-            script.remove();
+            if (!script.matches(bindScriptModelSelector))
+                //Remove any script elements from the component to prevent malicious scripts unless it's an attempt to load a model
+                script.remove();
         }
         const styleAttribute = this.attribute(this.#options.attribute.names.style);
         const styleSelector = `style[${styleAttribute}]`;
@@ -1941,6 +1954,9 @@ export class HydrateApp {
             this.#trackElement(element);
     }
     #trackElement(element) {
+        if (this.#isInTemplate(element))
+            //Even though we're not tracking, send back that this is a new handle
+            return true;
         //Don't load if we're lazy && not trying to load
         if (element.matches(this.#lazyLoadElementSelector))
             return;
@@ -1966,6 +1982,8 @@ export class HydrateApp {
         await Promise.allSettled(promises);
     }
     async #bindScriptModel(script) {
+        if (this.#isInTemplate(script))
+            return;
         const bindAttribute = this.attribute(this.options.attribute.names.bind);
         const silentAttribute = this.attribute(this.options.attribute.names.silent);
         const arg = this.parseAttributeArguments(script, bindAttribute)[0];
@@ -1989,6 +2007,14 @@ export class HydrateApp {
         }
         const silent = script.matches(silentAttribute);
         this.bind(modelName, state, { silent: silent });
+    }
+    #isInTemplate(element) {
+        while (element !== null) {
+            if (element instanceof HTMLTemplateElement)
+                return true;
+            element = element.parentElement;
+        }
+        return false;
     }
     get #bindScriptModelSelector() {
         const bindAttribute = this.attribute(this.options.attribute.names.bind);

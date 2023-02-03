@@ -45,11 +45,16 @@
                             <li><a href="#model-attribute">h-model</a></li>
                             <li><a href="#nested-attribute">h-nested</a></li>
                             <li><a href="#mutation-attribute">h-mutation</a></li>
-                            <li><a href="#resume-attribute">h-resume</a></li>
                             <li><a href="#mock-attribute">h-mock</a></li>
                             <li><a href="#init-attribute">h-init</a></li>
                             <li><a href="#bind-attribute">h-bind</a></li>
                             <li><a href="#silent-attribute">h-silent</a></li>
+                        </ul>
+                        <b>Model binding conditionals</b>
+                        <ul>
+                            <li><a href="#if-attribute">h-if</a></li>
+                            <li><a href="#filter-attribute">h-filter</a></li>
+                            <li><a href="#resume-attribute">h-resume</a></li>
                         </ul>
                         <b>Element manipulation</b>
                         <ul>
@@ -804,38 +809,6 @@
                     </p>
                 </fieldset>
 
-                <fieldset id="resume-attribute">
-                    <legend><h3>h-resume</h3></legend>
-                    <p>
-                        <b>Usage:</b> Makes the element have a resumability behavior by delaying model propagation to the element unless it is interacted with or subsequent model changes occur.
-                        
-                    </p>
-                    <p>
-                        <b>Syntax:</b> <code>h-resume</code>
-                        <ul>
-                            <li><u>Examples:</u>
-                                <ul>
-                                    <li><code>&lt;div h-model="app.page" h-resume h-property="textContent: greeting"&gt;Hello my default greeting&lt;/div&gt;</code></li>
-                                </ul>
-                            </li>
-                        </ul>
-                    </p>
-                    <p>
-                        <b>Notes:</b>
-                        <ul>
-                            <li>
-                                In short, this model won't respond to <a href=#track-event">track events</a> but will respond to all other events
-                            </li>
-                            <li>
-                                Resumability is useful if you want to pre-render content on the server but not want to cause the UI to re-render unless further state changes occur
-                            </li>
-                            <li>
-                                To fully utilize the "resumability" feature of Hydrate, see the <a href="#bind-attribute">bind attribute</a> on how to bind models from external sources (such as from a server).
-                            </li>
-                        </ul>
-                    </p>
-                </fieldset>
-
                 <fieldset id="mock-attribute">
                     <legend><h3>h-mock</h3></legend>
                     <p>
@@ -856,7 +829,7 @@
                                 </ul>
                             </li>
                             <li>
-                                <i>HYDRATE_ATTRIBUTE -</i> The name of the model we want the attribute to listen to
+                                <i>MODEL_PATH -</i> The name of the model we want the attribute to listen to
                                 <ul>
                                     <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
                                     <li><u>Examples:</u>
@@ -1031,6 +1004,132 @@
                         <ul>
                             <li>
                                 This attribute can be used to help create a "resumable" app (an app that doesn't rerender the content from the sever unless further state changes)
+                            </li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <h3>Model Binding Conditionals</h3>
+                <fieldset id="if-attribute">
+                    <legend><h3>h-if</h3></legend>
+                    <p>
+                        <b>Usage:</b> Adds a condition to when the element should respond to an event
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-filter="HYDRATE_EVENT_TYPE: CONDITION"</code>
+                        <ul>
+                            <li>
+                                <i>HYDRATE_EVENT_TYPE -</i> The name of the Hydrate event we want to restrict when the element responds to it
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>&lt;div h-model="app" h-event="*: console.log('change detected!')" h-if="event: page"&gt;&lt;/div&gt;</code></li>
+                                            <li><code>&lt;div h-model="app" h-event="*: console.log('change detected!')" h-filter="*: page"&gt;&lt;/div&gt;</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>PROPERTY_NAME_LIST -</i> The list of the model properties we want to allow the element to respond to
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li>The property names do not need to be encapsulated in quotes and can be delimited by whitespace and/or ','.</li>
+                                    <li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>&lt;div h-model="app" h-event="*: console.log('change detected!')" h-if="*: name === 'Home'"&gt;&lt;/div&gt;</code></li>
+                                            <li><code>&lt;div h-model="app" h-event="*: console.log('change detected!')" h-if="event: name === 'Home'"&gt;&lt;/div&gt;</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>
+                                This attribute is useful for restricted the number of events an element has to respond to if only a couple properties are relavent to the element (by default an element responds to all properties of the model)
+                            </li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="filter-attribute">
+                    <legend><h3>h-filter</h3></legend>
+                    <p>
+                        <b>Usage:</b> Filters which model properties the element will respond to
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-filter="HYDRATE_EVENT_TYPE: PROPERTY_NAME_LIST"</code>
+                        <ul>
+                            <li>
+                                <i>HYDRATE_EVENT_TYPE -</i> The name of the Hydrate event we to only respond to the specified properties
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>&lt;div h-model="app" h-event="*: console.log('change detected!')" h-filter="event: page"&gt;&lt;/div&gt;</code></li>
+                                            <li><code>&lt;div h-model="app" h-event="*: console.log('change detected!')" h-filter="*: page"&gt;&lt;/div&gt;</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <i>PROPERTY_NAME_LIST -</i> The list of the model properties we want to allow the element to respond to
+                                <ul>
+                                    <li>The property attribute uses the <a href="#field-expression-syntax"><b>Field-Expression Syntax</u></a></b> to seperate list</li>
+                                    <li>The property names do not need to be encapsulated in quotes and can be delimited by whitespace and/or ','.</li>
+                                    <li>
+                                    <li><u>Examples:</u>
+                                        <ul>
+                                            <li><code>&lt;div h-model="app" h-event="*: console.log('change detected!')" h-filter="*: page"&gt;&lt;/div&gt;</code></li>
+                                            <li><code>&lt;div h-model="app" h-event="*: console.log('change detected!')" h-filter="*: page, home"&gt;&lt;/div&gt;</code></li>
+                                            <li><code>&lt;div h-model="app" h-event="*: console.log('change detected!')" h-filter="*: page home; event: about"&gt;&lt;/div&gt;</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>
+                                This attribute is useful for restricted the number of events an element has to respond to if only a couple properties are relavent to the element (by default an element responds to all properties of the model)
+                            </li>
+                        </ul>
+                    </p>
+                </fieldset>
+
+                <fieldset id="resume-attribute">
+                    <legend><h3>h-resume</h3></legend>
+                    <p>
+                        <b>Usage:</b> Makes the element have a resumability behavior by delaying model propagation to the element unless it is interacted with or subsequent model changes occur.
+                        
+                    </p>
+                    <p>
+                        <b>Syntax:</b> <code>h-resume</code>
+                        <ul>
+                            <li><u>Examples:</u>
+                                <ul>
+                                    <li><code>&lt;div h-model="app.page" h-resume h-property="textContent: greeting"&gt;Hello my default greeting&lt;/div&gt;</code></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </p>
+                    <p>
+                        <b>Notes:</b>
+                        <ul>
+                            <li>
+                                In short, this model won't respond to <a href=#track-event">track events</a> but will respond to all other events
+                            </li>
+                            <li>
+                                Resumability is useful if you want to pre-render content on the server but not want to cause the UI to re-render unless further state changes occur
+                            </li>
+                            <li>
+                                To fully utilize the "resumability" feature of Hydrate, see the <a href="#bind-attribute">bind attribute</a> on how to bind models from external sources (such as from a server).
                             </li>
                         </ul>
                     </p>

@@ -1,2 +1,2 @@
 # Hydrate
-A lightweight custom front-end framework
+Hydrate is a JS library for generating client-side web applications without the need for a build step using resumibilit.

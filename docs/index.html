@@ -259,13 +259,19 @@
             <div>
                 Testing resumability. DOM will only update when a change happens
                 <div>
-                    <span h-model="resume1" h-property="textContent: JSON.stringify($state)" h-resume>{"text":"hello","count":0}</span>
+                    Actual: <span h-model="resume1" h-property="textContent: JSON.stringify($state)">{"text":"hello world","count":0}</span>
+                    <br>
+                    Resumable: <span h-model="resume1" h-property="textContent: JSON.stringify($state)" h-resume>{"text":"hello world","count":0}</span>
                     <button h-model="resume1" h-on="click: $model.count++">+</button>
                 </div>
                 
                 Testing remote model source
                 <div>
                     <span h-model="resume2" h-property="textContent: JSON.stringify($state)"></span>
+                    <template h-template="resume2-template">
+                        <script type="application/json" h-bind="resume2: test.json" h-silent></script>
+                    </template>
+                    <resume2-template></resume2-template>
                 </div>
             </div>
 
@@ -275,8 +281,6 @@
                     "count": 4
                 }
             </script>
-            <script type="application/json" h-bind="resume2: test.json" h-silent></script>
-            <br>
 
             <script type="module">
                 import { HydrateApp } from "./lib/hydrate/hydrate.js";
