@@ -18,14 +18,9 @@ export class PageComponent extends HydrateComponent {
         const page = this.state[detail.modelName];
         element.setAttribute(componentAttribute, page.component);
     }
-    title(id) {
-        return this.state[id].title;
-    }
-    component(id) {
-        console.warn(this.route);
-        return this.state[id].component;
-    }
-    route(id) {
-        return this.state[id].route;
+    syncDocumentTitle(state) {
+        //If we traveled to this link, set the document name
+        if (window.location.hash === state.route)
+            document.title = state.title;
     }
 }

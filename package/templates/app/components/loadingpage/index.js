@@ -8,9 +8,4 @@ export class LoadingpageComponent extends HydrateComponent {
     }
     onDestroy() {
     }
-    syncDocumentTitle() {
-        //If we traveled to this link, set the document name
-        if (window.location.hash === this.state.route)
-            document.title = this.state.title;
-    }
 }

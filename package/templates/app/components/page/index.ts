@@ -39,16 +39,9 @@ export class PageComponent extends HydrateComponent<PageComponentState> {
         element.setAttribute(componentAttribute, page.component);
     }
 
-    title(id:number):string {
-        return this.state[id].title;
-    }
-
-    component(id:number):string {
-        console.warn(this.route);
-        return this.state[id].component;
-    }
-
-    route(id:number):string {
-        return this.state[id].route;
+    syncDocumentTitle(state:PageState) {
+        //If we traveled to this link, set the document name
+        if(window.location.hash === state.route)
+            document.title = state.title;
     }
 }
