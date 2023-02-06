@@ -114,6 +114,7 @@ export class HydrateAttributeNamesOptions
     source?:string; //tells component the source url for a resource
     duplicate?:string; //Duplicates the component x times 
     id?:string; //Places an id
+    scaffold?:string; //Lets you execute code for the element when it's section has been generated for the component (before it is added to the dom)
 
     //Routing
     route?:string; //Mark a route associated with this element
@@ -165,6 +166,7 @@ export class HydrateAttributeNamesOptions
         this.source = "source";
         this.duplicate = "duplicate"; //Duplicates the component x times 
         this.id = "id"; //Places an id
+        this.scaffold = "scaffold";
 
         //Routing
         this.route = "route"; //Mark a route associated with this element
@@ -188,7 +190,7 @@ export type HydrateEventType = 'track' | 'untrack' | 'bind' | "unbind" | 'set' |
     | "mutation.target.added" | "mutation.target.removed" | "mutation.target.attribute" | "mutation.target.characterdata"
     | "mutation.parent.added" | "mutation.parent.removed" | "mutation.parent.attribute" | "mutation.parent.characterdata"
     | "mutation.child.added" | "mutation.child.removed" | "mutation.child.attribute" | "mutation.child.characterdata"
-    | 'routing.start' | "routing.resolve" | "routing.reject";
+    | 'routing.start' | "routing.resolve" | "routing.reject" | "scaffold";
 export type HydrateComponentTemplateType = "template" | "url";
 
 export interface HydrateEventDetailProperties {
@@ -380,6 +382,15 @@ export class HydrateRouteEventDetails extends HydrateEventDetails {
     }
 }
 
+export class HydrateScaffoldEventDetails extends HydrateEventDetails {
+    buildDetail:HydrateEventDetails;
+
+    constructor(hydrate:HydrateApp, element:HTMLElement, eventType:HydrateEventType, properties:HydrateEventDetailProperties, buildDetail:HydrateEventDetails) {
+        super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
+        this.buildDetail = buildDetail;
+    }
+}
+
 export class HydrateRouteRequest {
     hydrate:HydrateApp;
     path: string;
@@ -532,6 +543,7 @@ export interface HydrateRoutingState {
 }
 
 export interface HydrateRoute {
+    name?:string;
     path:string;
     action?:(...args) => Promise<any>;
 }
@@ -2152,12 +2164,14 @@ export class HydrateApp {
         let element = eventDetails.element;
         const modelAttribute = this.attribute(this.#options.attribute.names.model);
         let modelSelector = `[${modelAttribute}^=\\^]`;
+        const scaffoldAttribute = this.attribute(this.#options.attribute.names.scaffold);
+        const scaffoldSelector = `[${scaffoldAttribute}]`;
         
         const insertModelPath = function(element:HTMLElement, path:string) {
             element.setAttribute(modelAttribute, element.getAttribute(modelAttribute).replace("^", path));
         }
 
-        let id = 1;
+        let id = 0;
         const idAttribute = this.attribute(this.#options.attribute.names.id);
         const idSelector = `[${idAttribute}]`;
         const insertId = function(element:HTMLElement) {
@@ -2204,6 +2218,20 @@ export class HydrateApp {
                     insertId(node);
                 for(let element of node.querySelectorAll<HTMLElement>(idSelector))
                     insertId(element);
+                
+                //If we have anything that needs scaffolding, go ahead and execute it
+                let scaffoldedElements:HTMLElement[] = (node.matches(scaffoldSelector) ? [node] : [])
+                    .concat(...node.querySelectorAll<HTMLElement>(scaffoldSelector));
+                for(let element of scaffoldedElements)
+                {
+                    const props = this.#determineEventDetailProperties(modelPath, "model");
+                    const detail = new HydrateScaffoldEventDetails(this, element, "scaffold", props, eventDetails);
+                    const arg:HydrateAttributeArgument = {
+                        field: "",
+                        expression: element.getAttribute(scaffoldAttribute)
+                    };
+                    this.resolveArgumentValue(detail, arg, null, {component: component});
+                }
             }
         }
         
@@ -2248,9 +2276,9 @@ export class HydrateApp {
         component.data.onPostRender(eventDetails);
     }
 
-    resolveArgumentValue(detail:HydrateEventDetails, arg:HydrateAttributeArgument, event:Event) {
+    resolveArgumentValue(detail:HydrateEventDetails, arg:HydrateAttributeArgument, event:Event, overrides: {component?:HydrateComponentElement} = {}) {
         const app = this;
-        const component = app.#findComponentForElement(detail.element)?.data;
+        const component = overrides?.component?.data ?? app.#findComponentForElement(detail.element)?.data;
         const functionArgs = {
             $hydrate: this,
             $element: detail.element,
@@ -2700,6 +2728,9 @@ export class HydrateApp {
             'track',
             'bind',
             'set',
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -2722,6 +2753,9 @@ export class HydrateApp {
             'track',
             'bind',
             'set',
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -2744,6 +2778,9 @@ export class HydrateApp {
             'track',
             'bind',
             'set',
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -2776,6 +2813,9 @@ export class HydrateApp {
             'bind',
             'unbind',
             'set',
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -3203,7 +3243,10 @@ export class HydrateApp {
         const detail = event.detail as HydrateEventDetails;
         const modelName = detail.element.getAttribute(this.attribute(this.#options.attribute.names.model));
         const resumeAttribute = this.attribute(this.#options.attribute.names.resume);
+        const routingAttribute = this.attribute(this.#options.attribute.names.routing);
         if(detail.type === "track" && detail.element.hasAttribute(resumeAttribute))
+            return false;
+        if(this.#isRoutingEvent(detail.type) && !detail.element.hasAttribute(routingAttribute))
             return false;
         if(!this.#passedIfCheck(detail, this.parseAttributeArguments(detail.element, this.attribute(this.#options.attribute.names.if))))
             return false;

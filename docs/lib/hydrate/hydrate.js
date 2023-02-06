@@ -88,6 +88,7 @@ export class HydrateAttributeNamesOptions {
     source; //tells component the source url for a resource
     duplicate; //Duplicates the component x times 
     id; //Places an id
+    scaffold; //Lets you execute code for the element when it's section has been generated for the component (before it is added to the dom)
     //Routing
     route; //Mark a route associated with this element
     routing; //Mark the element to say which router events it's responding to
@@ -130,6 +131,7 @@ export class HydrateAttributeNamesOptions {
         this.source = "source";
         this.duplicate = "duplicate"; //Duplicates the component x times 
         this.id = "id"; //Places an id
+        this.scaffold = "scaffold";
         //Routing
         this.route = "route"; //Mark a route associated with this element
         this.routing = "routing"; //Mark the element to say which router events it's responding to
@@ -279,6 +281,13 @@ export class HydrateRouteEventDetails extends HydrateEventDetails {
     constructor(hydrate, element, eventType, properties, request) {
         super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
         this.request = request;
+    }
+}
+export class HydrateScaffoldEventDetails extends HydrateEventDetails {
+    buildDetail;
+    constructor(hydrate, element, eventType, properties, buildDetail) {
+        super(hydrate, element, eventType, properties.baseName, properties.parentName, properties.parentPath, properties.modelName, properties.modelPath, properties.propName, properties.propPath);
+        this.buildDetail = buildDetail;
     }
 }
 export class HydrateRouteRequest {
@@ -1725,10 +1734,12 @@ export class HydrateApp {
         let element = eventDetails.element;
         const modelAttribute = this.attribute(this.#options.attribute.names.model);
         let modelSelector = `[${modelAttribute}^=\\^]`;
+        const scaffoldAttribute = this.attribute(this.#options.attribute.names.scaffold);
+        const scaffoldSelector = `[${scaffoldAttribute}]`;
         const insertModelPath = function (element, path) {
             element.setAttribute(modelAttribute, element.getAttribute(modelAttribute).replace("^", path));
         };
-        let id = 1;
+        let id = 0;
         const idAttribute = this.attribute(this.#options.attribute.names.id);
         const idSelector = `[${idAttribute}]`;
         const insertId = function (element) {
@@ -1766,6 +1777,18 @@ export class HydrateApp {
                     insertId(node);
                 for (let element of node.querySelectorAll(idSelector))
                     insertId(element);
+                //If we have anything that needs scaffolding, go ahead and execute it
+                let scaffoldedElements = (node.matches(scaffoldSelector) ? [node] : [])
+                    .concat(...node.querySelectorAll(scaffoldSelector));
+                for (let element of scaffoldedElements) {
+                    const props = this.#determineEventDetailProperties(modelPath, "model");
+                    const detail = new HydrateScaffoldEventDetails(this, element, "scaffold", props, eventDetails);
+                    const arg = {
+                        field: "",
+                        expression: element.getAttribute(scaffoldAttribute)
+                    };
+                    this.resolveArgumentValue(detail, arg, null, { component: component });
+                }
             }
         }
         const shadowAttribute = this.attribute(this.#options.attribute.names.shadow);
@@ -1805,9 +1828,9 @@ export class HydrateApp {
         //Call component change callback if available
         component.data.onPostRender(eventDetails);
     }
-    resolveArgumentValue(detail, arg, event) {
+    resolveArgumentValue(detail, arg, event, overrides = {}) {
         const app = this;
-        const component = app.#findComponentForElement(detail.element)?.data;
+        const component = overrides?.component?.data ?? app.#findComponentForElement(detail.element)?.data;
         const functionArgs = {
             $hydrate: this,
             $element: detail.element,
@@ -2200,6 +2223,9 @@ export class HydrateApp {
             'track',
             'bind',
             'set',
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -2221,6 +2247,9 @@ export class HydrateApp {
             'track',
             'bind',
             'set',
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -2242,6 +2271,9 @@ export class HydrateApp {
             'track',
             'bind',
             'set',
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -2272,6 +2304,9 @@ export class HydrateApp {
             'bind',
             'unbind',
             'set',
+            "routing.start",
+            "routing.resolve",
+            "routing.reject",
             "mutation.target.added",
             "mutation.target.removed",
             "mutation.target.attribute",
@@ -2645,7 +2680,10 @@ export class HydrateApp {
         const detail = event.detail;
         const modelName = detail.element.getAttribute(this.attribute(this.#options.attribute.names.model));
         const resumeAttribute = this.attribute(this.#options.attribute.names.resume);
+        const routingAttribute = this.attribute(this.#options.attribute.names.routing);
         if (detail.type === "track" && detail.element.hasAttribute(resumeAttribute))
+            return false;
+        if (this.#isRoutingEvent(detail.type) && !detail.element.hasAttribute(routingAttribute))
             return false;
         if (!this.#passedIfCheck(detail, this.parseAttributeArguments(detail.element, this.attribute(this.#options.attribute.names.if))))
             return false;

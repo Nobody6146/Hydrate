@@ -71,8 +71,8 @@
                         color: red;
                     }
                 </style>
-                <div h-model="^" h-property="innerText: $id() <= $state ? '&#9733' : '&#9734'" h-id
-                    h-on="click: $detail.parent[$detail.modelName] = $id()">
+                <div h-model="^" h-property="innerText: $id() + 1 <= $state ? '&#9733' : '&#9734'" h-id
+                    h-on="click: $detail.parent[$detail.modelName] = $id() + 1">
                 Star</div>
                 <script h-script>
                     import {HydrateComponent} from "./lib/hydrate/hydrate.js";
@@ -281,6 +281,11 @@
                     "count": 4
                 }
             </script>
+
+            <template h-template="scaffold-test" h-model="default">
+                <div h-scaffold="$element.setAttribute('h-model', 'default')" h-property="textContent: 'Scaffolding successful!'"></div>
+            </template>
+            <scaffold-test></scaffold-test>
 
             <script type="module">
                 import { HydrateApp } from "./lib/hydrate/hydrate.js";

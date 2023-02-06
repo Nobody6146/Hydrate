@@ -9,6 +9,9 @@ export class App {
         this.#hydrate = new HydrateApp(opts);
         this.#routes = [];
     }
+    get hydrate() {
+        return this.#hydrate;
+    }
     async start() {
         //Performs setup of the client side router to process requests
         //Comment this line out if you don't wish to utilize the router

@@ -1,0 +1,7 @@
+<template>
+    <div h-scaffold="this.scaffoldRoute($element, $detail)">
+        <app-loadingpage h-model="^" h-routing="start"></app-loadingpage>
+        <div h-scaffold="this.scaffoldPage($element, $detail)"></div>
+        <app-errorpage></app-errorpage>
+    </div>
+</template>

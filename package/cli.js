@@ -277,7 +277,7 @@ function processCreateComponentCommand(resourceName, args) {
                         route = resourceNameToPath(resourceName);
                     }
                     modifiers.push(`h-route="#${route}"`);
-                    modifiers.push(`h-routing="start, resolve, reject"`);
+                    modifiers.push(`h-routing="resolve"`);
                     break;
             }
         }
@@ -457,7 +457,7 @@ function addRouteToRoutesFile(routesFile, routeName, routeSource) {
 
             //Find the end of the exported routes list
             for(i += 1; i < lines.length; i++) {
-                if(lines[i].match(/^\s*\];/))
+                if(lines[i].match(/^\s*\]/))
                 {
                     //Add the route to exports
                     if(i > arrayStart + 1)

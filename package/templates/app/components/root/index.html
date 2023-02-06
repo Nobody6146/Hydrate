@@ -1,32 +1,9 @@
 <template h-model="app" h-init>
     <header>
-        <h1>
-            <span h-model="^" h-property="textContent: name">APP_NAME</span>
-        </h1>
+        <nav h-model="^.navbar.items" h-component="app-navbar"></nav>
     </header>
     <main>
-        <p h-model="^" h-property="textContent: description">Description</p>
-        <p>
-            Here are a list of features Hydrate has to offer
-            <ul>
-                <li>Event and mutation callbacks</li>
-                <li>One-way model binding</li>
-                <li>Two-way model binding</li>
-                <li>DOM manipulation</li>
-                <li>HTML templating</li>
-                <li>Custom reusable components</li>
-                <li>Client-side routing</li>
-                <li>Middleware</li>
-                <li>Dependency injection</li>
-                <li>Subscriptions</li>
-                <li>Lazy loading</li>
-                <li>State management</li>
-            </ul>
-        </p>
+        <app-page h-model="^.pages"></app-page>
     </main>
-    <footer>
-        <p>
-            <i>Hydrate 2023</i>
-        </p>
-    </footer>
+    <app-footer></app-footer>
 </template>

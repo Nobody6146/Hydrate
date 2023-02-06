@@ -13,6 +13,10 @@ export class App {
         this.#routes = [];
     }
 
+    get hydrate() {
+        return this.#hydrate;
+    }
+
     async start(): Promise<void> {
         //Performs setup of the client side router to process requests
         //Comment this line out if you don't wish to utilize the router

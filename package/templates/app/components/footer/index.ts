@@ -1,10 +1,10 @@
-import { HydrateComponent, HydrateEventDetails } from "../lib/hydrate/hydrate.js";
+import { HydrateComponent, HydrateEventDetails } from "../../lib/hydrate/hydrate.js";
 
-export interface COMPONENT_NAMEComponentState {
+interface FooterComponentState {
     
 }
 
-export class COMPONENT_NAMEComponent extends HydrateComponent<COMPONENT_NAMEComponentState> {
+export class FooterComponent extends HydrateComponent<FooterComponentState> {
 
     onInit(eventDetails:HydrateEventDetails):void {
         
