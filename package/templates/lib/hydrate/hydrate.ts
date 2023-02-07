@@ -1,4 +1,4 @@
-export let HydrateAppVersion = "1.1.0";
+export let HydrateAppVersion = "1.2.0";
 
 export type HydrateModelEventHandler = (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails|HydrateElementMutationEventDetails|HydrateElementTrackingEventDetails|HydrateElementEventListenerEventDetails) => void;
 export type HydrateModelEventExecuter = {arg:HydrateAttributeArgument, handler:HydrateModelEventHandler};
@@ -989,7 +989,7 @@ export class HydrateApp {
     }
     //Outputs the tag of the element
     elementTag(element:HTMLElement) {
-        return element.innerHTML ? element.outerHTML.substring(0,element.outerHTML.indexOf(element.innerHTML)) : element.outerHTML;
+        return element.innerHTML ? element.outerHTML.substring(0,element.outerHTML.lastIndexOf(element.innerHTML)) : element.outerHTML;
     }
 
     refresh(model:string | any):void {
@@ -2317,10 +2317,18 @@ export class HydrateApp {
             for(let key of stateKeys)
                 //@ts-ignore
                 values.push(detail.state[key]);
-        let func = new Function(...keys, `return ${arg.expression}`);
-        if(component != null)
-            func = func.bind(component);
-        return func(...values);
+        let func:Function;
+        try {
+            func = new Function(...keys, `return ${arg.expression}`);
+            if(component != null)
+                func = func.bind(component);
+            return func(...values);
+        }
+        catch(error) {
+            let message = func == null ? "Could not process field expression syntax"
+                : `Failed to evaluate expression | ${arg.expression} |`;
+            throw new Error(`Error on element ${this.elementTag(functionArgs.$element)}. \n${message} \n ${error.toString()}`);
+        }
     }
 
     #findComponentForElement(element:Node):HydrateComponentElement {
@@ -2998,6 +3006,8 @@ export class HydrateApp {
             return this.#handleDispatch(target, eventType, propPath, data);
         }
         catch(error) {
+            if(error instanceof Error)
+                throw error;
             console.error(error);
             return false;
         }
@@ -3233,6 +3243,8 @@ export class HydrateApp {
                     executer.handler(executer.arg, event.detail);
                 }
                 catch(error) {
+                    if(error instanceof Error)
+                        throw error;
                     console.error(error);
                 }
             }

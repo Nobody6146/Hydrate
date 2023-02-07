@@ -1,4 +1,4 @@
-export let HydrateAppVersion = "1.1.0";
+export let HydrateAppVersion = "1.2.0";
 export class HydrateAppOptions {
     dom;
     model;
@@ -742,7 +742,7 @@ export class HydrateApp {
     }
     //Outputs the tag of the element
     elementTag(element) {
-        return element.innerHTML ? element.outerHTML.substring(0, element.outerHTML.indexOf(element.innerHTML)) : element.outerHTML;
+        return element.innerHTML ? element.outerHTML.substring(0, element.outerHTML.lastIndexOf(element.innerHTML)) : element.outerHTML;
     }
     refresh(model) {
         let modelPath;
@@ -1868,10 +1868,18 @@ export class HydrateApp {
             for (let key of stateKeys)
                 //@ts-ignore
                 values.push(detail.state[key]);
-        let func = new Function(...keys, `return ${arg.expression}`);
-        if (component != null)
-            func = func.bind(component);
-        return func(...values);
+        let func;
+        try {
+            func = new Function(...keys, `return ${arg.expression}`);
+            if (component != null)
+                func = func.bind(component);
+            return func(...values);
+        }
+        catch (error) {
+            let message = func == null ? "Could not process field expression syntax"
+                : `Failed to evaluate expression | ${arg.expression} |`;
+            throw new Error(`Error on element ${this.elementTag(functionArgs.$element)}. \n${message} \n ${error.toString()}`);
+        }
     }
     #findComponentForElement(element) {
         while (element != null) {
@@ -2471,6 +2479,8 @@ export class HydrateApp {
             return this.#handleDispatch(target, eventType, propPath, data);
         }
         catch (error) {
+            if (error instanceof Error)
+                throw error;
             console.error(error);
             return false;
         }
@@ -2671,6 +2681,8 @@ export class HydrateApp {
                     executer.handler(executer.arg, event.detail);
                 }
                 catch (error) {
+                    if (error instanceof Error)
+                        throw error;
                     console.error(error);
                 }
             }
