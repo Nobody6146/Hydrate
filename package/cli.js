@@ -101,6 +101,8 @@ function processCreateCommand([resourceType, resourceName, ...args]) {
             return processCreateServiceCommand(resourceName, args);
         case "route":
             return processCreateRouteCommand(resourceName, args);
+        case "tsconfig":
+            return processCreateTsConfigCommand();
         default:
             if(needsHelp)
             {
@@ -111,6 +113,7 @@ function processCreateCommand([resourceType, resourceName, ...args]) {
                 console.log("hydrate new component <name> \tcreates a new Hydrate component");
                 console.log("hydrate new service <name> \tcreates a new Hydrate service");
                 console.log("hydrate new route <name> \tcreates a new Hydrate route or middleware\n");
+                console.log("hydrate new tsconfig \tcreates a new TypeScript config file that is compatible with the Hydrate framework\n");
                 return;
             }
             console.error(`Type "${resourceType}" is an unrecongnized resource`);
@@ -420,6 +423,26 @@ function processCreateRouteCommand(resourceName, args) {
     {
         processCreateComponentCommand(component, ["-r", replacements.ROUTE_PATH]);
     }
+}
+
+function processCreateTsConfigCommand() {
+    if(needsHelp)
+    {
+        console.log("Help Menu:");
+        console.log("Used to create a new TypeScript config file in your active directory in watch mode and set to ESNext.");
+        return;
+    }
+
+    const destination = `${workingDir}\\tsconfig.json`;
+    const config = {
+        compilerOptions: {
+            target: "ESNext",
+            watch: true,
+            module: "ESNext"
+        }
+    }
+    fs.writeFileSync(destination, JSON.stringify(config));
+    return config;
 }
 
 function addComponentToTemplatesFile(templatesFile, templateName, componentSource) {
