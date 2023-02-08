@@ -456,8 +456,8 @@ function processCreateMiddlewareCommand(resourceName, args) {
     }
 
     cloneAndFillTemplate(source, destination, replacements);
-    const routeJsFile = `${workingDir}\\middleware.js`;
-    const routeTsFile = `${workingDir}\\middleware.ts`;
+    const routeJsFile = `${workingDir}\\routes.js`;
+    const routeTsFile = `${workingDir}\\routes.ts`;
     addRouteToRoutesFile(routeJsFile, replacements.ROUTE_NAME, relativeUrl(workingDir, `${destination}\\middleware.js`));
     addRouteToRoutesFile(routeTsFile, replacements.ROUTE_NAME, relativeUrl(workingDir, `${destination}\\middleware.js`));
 }

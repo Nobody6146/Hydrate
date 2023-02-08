@@ -3,7 +3,7 @@ import { AppRoutes } from "../../routes.js";
 const APP_NAME = "Demo";
 export class RootComponent extends HydrateComponent {
     onInit(eventDetails) {
-        const routes = AppRoutes.filter(x => x.path !== "").map(x => {
+        const routes = AppRoutes.filter(x => x.path.match(/\w+/)).map(x => {
             return {
                 title: x.name ?? `${x.path.substring(1, 2).toUpperCase()}${x.path.substring(2)}`,
                 route: x.path,

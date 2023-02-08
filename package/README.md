@@ -1,8 +1,6 @@
 # Hydrate
 ## Hydrate is a lightweight JS library for generating client-side web applications without the need for a build step using various levels of hydration, partial hydration, and resumability.
 
-This repo contains two folders: the <i>package</i> folder which contains the CLI that will be installed via the <a href="https://www.npmjs.com/package/@nobody6146/hydrateapp">NPM package</a>, and the <i>docs</i> folder which contains a couple of examples of different ways to use the framework to create dynamic websites.
-
 Here are some of the features Hydrate supports out of the box:
 * Create dynamic websites at runtime from static files without the need for a build step (excluding the TypeScript compiler)
 * Client-side rendering, partial hydration, and resumability
@@ -15,15 +13,6 @@ Here are some of the features Hydrate supports out of the box:
 * Client-side routing and routing middleware
 * Depdency injection
 * JS Modules and TypeScript support
-
-## Exploring the demos
-If you want to just check out some demos of Hydrate in action, you can navigate to the <a href="https://nobody6146.github.io/Hydrate">url</a> where all of the examples found in the repo folder <i>docs/examples</i>
-
-An overview of each demo
-1. <a href="https://nobody6146.github.io/Hydrate/index.html">Main test app</a>: This is the main test file where majority of every Hydrate feature is tested against to ensure a lack of breaking changes. This app has no structure and also demonstrates how Hydrate can be easily just added to any webpage for interactivity
-2. <a href="https://nobody6146.github.io/Hydrate/calculator/index.html">Calculator app</a>: Represents a basic calculator app. Slowly introduces adding functionaly components using Hydrate to perform a usable application, but still done in an unideal way to emphasize the different levels of strictness you can use in the framework.
-3. <a href="https://nobody6146.github.io/Hydrate/todo/index.html">Todo app</a>: A basic todo app that you can double click task to toggle the reminder. This is a more full app with a bit more structure. There are seperate files for each component with a main import HTML file for them, saving/loading state with local storage, and services using dependency injection.
-4. <a href="https://nobody6146.github.io/Hydrate/war/index.html">War card game app</a>: A basic card game of War. This is a fully featured app that uses a full seperate file structure for defining components, depenency injection, and overall more good structure. This is more of the ideal project structure to follow.
 
 ## What to know
 Hydrate is a modular library. You can opt in to use any features you would like while ignoring others. The design is to give you a toolbox of HTML attributes that you can combine on elements to customize the type of behavior you are trying to accomplish. Once you've installed the CLI in the instuctions in the next section, you can allows use the command `hydrate documentation` to open up the manual for further instruction.
