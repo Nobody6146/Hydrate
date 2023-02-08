@@ -101,6 +101,8 @@ function processCreateCommand([resourceType, resourceName, ...args]) {
             return processCreateServiceCommand(resourceName, args);
         case "route":
             return processCreateRouteCommand(resourceName, args);
+        case "middleware":
+            return processCreateMiddlewareCommand(resourceName, args);
         case "tsconfig":
             return processCreateTsConfigCommand();
         default:
@@ -112,7 +114,8 @@ function processCreateCommand([resourceType, resourceName, ...args]) {
                 console.log("hydrate new app <name> \tcreates a project template for an app powered by Hydrate");
                 console.log("hydrate new component <name> \tcreates a new Hydrate component");
                 console.log("hydrate new service <name> \tcreates a new Hydrate service");
-                console.log("hydrate new route <name> \tcreates a new Hydrate route or middleware\n");
+                console.log("hydrate new route <name> \tcreates a new Hydrate route\n");
+                console.log("hydrate new middleware <name> \tcreates a new Hydrate middleware\n");
                 console.log("hydrate new tsconfig \tcreates a new TypeScript config file that is compatible with the Hydrate framework\n");
                 return;
             }
@@ -372,10 +375,10 @@ function processCreateRouteCommand(resourceName, args) {
     if(needsHelp)
     {
         console.log("Help Menu:");
-        console.log("hydrate new service <name> \tcreates a new Hydrate service with the given name.");
-        console.log("hydrate new service task \tcreates a new Hydrate service with the given name \"Task\" in the default services folder.");
-        console.log("hydrate new service utils/task \tcreates a new Hydrate service with the given name \"Task\" in the folder \"utils\".");
-        console.log("hydrate new service <name> \tcreates a new Hydrate service with the given name \"Task\" in the default services folder.")
+        console.log("hydrate new route <name> \tcreates a new Hydrate route with the given name.");
+        console.log("hydrate new route home \tcreates a new Hydrate route with the given name \"Home\" in the default routes folder.");
+        console.log("hydrate new route pages/login \tcreates a new Hydrate route with the given name \"Login\" in the folder \"pages\".");
+        console.log("hydrate new route <name> --component|-c \tcreates a new Hydrate route with the given name and creates a component with the same name and path linked to this route.")
         console.log();
     }
     if(resourceName == null)
@@ -423,6 +426,40 @@ function processCreateRouteCommand(resourceName, args) {
     {
         processCreateComponentCommand(component, ["-r", replacements.ROUTE_PATH]);
     }
+}
+
+function processCreateMiddlewareCommand(resourceName, args) {
+    if(needsHelp)
+    {
+        console.log("Help Menu:");
+        console.log("hydrate new middleware <name> \tcreates a new Hydrate middleware with the given name.");
+        console.log("hydrate new middleware authenticator \tcreates a new Hydrate middleware with the given name \"Authenticator\" in the default middleware folder.");
+        console.log("hydrate new middleware guards/login \tcreates a new Hydrate middleware with the given name \"Login\" in the folder \"guards\".");
+        console.log();
+    }
+    if(resourceName == null)
+    {
+        console.error("Resource name was not provide for create Hydrate middleware");
+        return;
+    }
+
+    const source = `${templateFolder}\\middleware`;
+    const folder = resourceName.indexOf("\\") > -1 ? resourceName : `middleware\\${resourceName}`;
+    const destination = `${workingDir}\\${folder}`;
+    const config = loadConfig();
+    const hydrateFile = `${workingDir}\\${config.lib}\\${hydratePath}`;
+    const className = resourceNameToClass(resourceName);
+    const replacements = {
+        "ROUTE_NAME": className,
+        "ROUTE_PATH": "",
+        "../lib/hydrate/hydrate.js": relativeUrl(destination, hydrateFile)
+    }
+
+    cloneAndFillTemplate(source, destination, replacements);
+    const routeJsFile = `${workingDir}\\middleware.js`;
+    const routeTsFile = `${workingDir}\\middleware.ts`;
+    addRouteToRoutesFile(routeJsFile, replacements.ROUTE_NAME, relativeUrl(workingDir, `${destination}\\middleware.js`));
+    addRouteToRoutesFile(routeTsFile, replacements.ROUTE_NAME, relativeUrl(workingDir, `${destination}\\middleware.js`));
 }
 
 function processCreateTsConfigCommand() {

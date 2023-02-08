@@ -40,7 +40,7 @@ Although you don't need a whole project template to use Hydrate, the built in sc
 2. Type `hydrate new app 'Demo App'` to scaffold out a new project in a folder called "Demo App", and then navigate to that folder (This command will create a `hydrateconfig.json` file that the CLI will use to determine how future commands will need to function)
 3. Once inside, using your prefereed method to host static files (such as VS Code's Live Server extension or a NodeJS server), serve this folder as the root directory so the application will be able to access all the files
 4. `index.html` will be the application entry point
-5. Use the commands `hydrate new component`, `hydrate new route`, and `hydrate new service` to create additional components, routes, and services for your application. These commands will automatically scaffold out the resources needed and automatically include them in necessary files to get the new piece connected and ready to use immedately.
+5. Use the commands `hydrate new component`, `hydrate new route`, `hydrate new middleware`, and `hydrate new service` to create additional components, routes, middleware, and services for your application. These commands will automatically scaffold out the resources needed and automatically include them in necessary files to get the new piece connected and ready to use immedately.
 6. If you have questions about how some Hydrate features work, again, type `hydrate documentation` to open up the manual to read up on the different HTML attributes in Hydrate as well as how additional features of the framework function.
 
 ## Import Hydrate into an existing application
