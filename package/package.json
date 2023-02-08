@@ -1,6 +1,6 @@
 {
   "name": "@nobody6146/hydrateapp",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "A lightweight front-framework that can dynamically hydrate static webpages",
   "main": "index.js",
   "scripts": {

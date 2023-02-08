@@ -419,8 +419,8 @@ function processCreateRouteCommand(resourceName, args) {
     cloneAndFillTemplate(source, destination, replacements);
     const routeJsFile = `${workingDir}\\routes.js`;
     const routeTsFile = `${workingDir}\\routes.ts`;
-    addRouteToRoutesFile(routeJsFile, replacements.ROUTE_NAME, relativeUrl(workingDir, `${destination}\\route.js`));
-    addRouteToRoutesFile(routeTsFile, replacements.ROUTE_NAME, relativeUrl(workingDir, `${destination}\\route.js`));
+    addRouteToRoutesFile(routeJsFile, replacements.ROUTE_NAME + "Route", relativeUrl(workingDir, `${destination}\\route.js`));
+    addRouteToRoutesFile(routeTsFile, replacements.ROUTE_NAME + "Route", relativeUrl(workingDir, `${destination}\\route.js`));
 
     if(component)
     {
@@ -458,8 +458,8 @@ function processCreateMiddlewareCommand(resourceName, args) {
     cloneAndFillTemplate(source, destination, replacements);
     const routeJsFile = `${workingDir}\\routes.js`;
     const routeTsFile = `${workingDir}\\routes.ts`;
-    addRouteToRoutesFile(routeJsFile, replacements.ROUTE_NAME, relativeUrl(workingDir, `${destination}\\middleware.js`));
-    addRouteToRoutesFile(routeTsFile, replacements.ROUTE_NAME, relativeUrl(workingDir, `${destination}\\middleware.js`));
+    addRouteToRoutesFile(routeJsFile, replacements.ROUTE_NAME + "Middleware", relativeUrl(workingDir, `${destination}\\middleware.js`));
+    addRouteToRoutesFile(routeTsFile, replacements.ROUTE_NAME + "Middleware", relativeUrl(workingDir, `${destination}\\middleware.js`));
 }
 
 function processCreateTsConfigCommand() {
@@ -512,7 +512,7 @@ function addRouteToRoutesFile(routesFile, routeName, routeSource) {
         {
             const arrayStart = i;
             //Insert the import statement
-            result.push(`import { ${routeName}Route } from "${routeSource}";`);
+            result.push(`import { ${routeName} } from "${routeSource}";`);
             result.push(lines[i]);
 
             //Find the end of the exported routes list
@@ -522,7 +522,7 @@ function addRouteToRoutesFile(routesFile, routeName, routeSource) {
                     //Add the route to exports
                     if(i > arrayStart + 1)
                         result[i] = `${result[i]},`
-                    result.push(`\t${routeName}Route`);
+                    result.push(`\t${routeName}`);
                     result.push(lines[i]);
 
                     //Copy the remainder of the file
