@@ -634,7 +634,7 @@ export interface HydrateModelChange<T> {
     state:T;//the state of what we're tracking (could not match event)
 }
 
-export class HydrateModelSubscription {
+export class HydrateModelSubscription<T> {
     #hydrate:HydrateApp;
     modelPath:string;
     callback:Function;
@@ -667,11 +667,11 @@ export class HydrateModelSubscription {
         this.callback(this.#mockEvnet);
     }
 
-    get model() {
-        return this.#hydrate.model(this.modelPath);
+    get model():T {
+        return this.#hydrate.model<T>(this.modelPath);
     }
-    get state() {
-        return this.#hydrate.state(this.modelPath);
+    get state():T {
+        return this.#hydrate.state<T>(this.modelPath);
     }
 }
 
@@ -1023,13 +1023,12 @@ export class HydrateApp {
         //return await promise;
     }
 
-    subscribe<T>(modelPath: string | any, callback:HydrateSubscriptionCallback<T>, options?:HydrateSubscriptionOptions):HydrateModelSubscription {
+    subscribe<T>(modelPath: string | any, callback:HydrateSubscriptionCallback<T>, options?:HydrateSubscriptionOptions):HydrateModelSubscription<T> {
         if(typeof modelPath !== "string")
             modelPath = this.name(modelPath);
         const mockEvent = this.#createEvent(this.#root, "bind", this.#determineEventDetailProperties(modelPath, "property"), null, null);
-        const subscription = new HydrateModelSubscription(this, modelPath, this.#subscriptionCallback(modelPath, callback, options), mockEvent);
+        const subscription = new HydrateModelSubscription<T>(this, modelPath, this.#subscriptionCallback(modelPath, callback, options), mockEvent);
         subscription.subscribe();
-        
         return subscription;
     };
     #subscriptionCallback<T>(modelPath:string, callback:HydrateSubscriptionCallback<T>, options?:HydrateSubscriptionOptions) {
@@ -1840,16 +1839,16 @@ export class HydrateApp {
             {
                 //Load up the attributes
                 for(let attribute of sourceTemplate.attributes)
-                if(attribute.name !== templateAttribute && attribute.name !== lazyAttribute)
+                if(attribute.name !== templateAttribute)
                     type.attributes.set(attribute.name, attribute.value);
             }
             
             for(let attribute of element.attributes)
-                if(attribute.name !== templateAttribute && attribute.name !== lazyAttribute)
+                if(attribute.name !== templateAttribute)
                     type.attributes.set(attribute.name, attribute.value);
             type.attributes.set(this.attribute(this.#options.attribute.names.component), typeName);
             //Remove the lazy attribute to not copy over to component
-            type.attributes.delete(this.attribute(this.#options.attribute.names.lazy));
+            //type.attributes.delete(this.attribute(this.#options.attribute.names.lazy));
             //Set to modeless component by default if no model was specified
             if(!type.attributes.has(modelAttribute))
                 type.attributes.set(modelAttribute, "");
