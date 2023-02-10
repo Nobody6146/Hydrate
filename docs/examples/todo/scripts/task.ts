@@ -27,7 +27,7 @@ export class TaskService extends HydrateAppService
         });
     }
 
-    subscribeToTasks(callback:HydrateSubscriptionCallback<TaskList>):HydrateModelSubscription
+    subscribeToTasks(callback:HydrateSubscriptionCallback<Task[]>):HydrateModelSubscription<Task[]>
     {
         return this.#hydrate.subscribe(this.#hydrate.path(this.#model.tasks), callback);
     }

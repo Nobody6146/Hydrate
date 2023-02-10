@@ -1,6 +1,6 @@
 export const ROUTE_NAMEMiddleware = {
     name: "ROUTE_NAME",
     path: "ROUTE_PATH",
-    action: async function (request) {
+    action: async function (request, match) {
     }
 };

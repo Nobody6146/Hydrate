@@ -245,6 +245,7 @@ function processCreateComponentCommand(resourceName, args) {
     const config = loadConfig();
     let prefix = config.componentPrefix;
 
+    let lazy = false;
     let modifiers = [];
     if(args?.length)
     {
@@ -259,6 +260,7 @@ function processCreateComponentCommand(resourceName, args) {
                 case "--lazy":
                 case "-l":
                     modifiers.push("h-lazy");
+                    lazy = true;
                     break;
                 case "--init":
                 case "-i":
@@ -302,7 +304,7 @@ function processCreateComponentCommand(resourceName, args) {
     }
     cloneAndFillTemplate(source, destination, replacements);
     const templateFile = `${workingDir}\\templates.html`;
-    addComponentToTemplatesFile(templateFile, replacements.TEMPLATE_NAME, relativeUrl(workingDir, `${destination}`));
+    addComponentToTemplatesFile(templateFile, replacements.TEMPLATE_NAME, relativeUrl(workingDir, `${destination}`), lazy);
 }
 
 function processCreateServiceCommand(resourceName, args) {
@@ -482,9 +484,10 @@ function processCreateTsConfigCommand() {
     return config;
 }
 
-function addComponentToTemplatesFile(templatesFile, templateName, componentSource) {
+function addComponentToTemplatesFile(templatesFile, templateName, componentSource, lazy) {
     if(!fs.existsSync(templatesFile))
         return;
+    const lazyAttribute = lazy ? " h-lazy" : "";
     const lines = fs.readFileSync(templatesFile).toString().split(/\r?\n/);
     for(let i = lines.length - 1; i > -1; i--)
     {
@@ -492,7 +495,7 @@ function addComponentToTemplatesFile(templatesFile, templateName, componentSourc
         if(lines[i].match(/^\s*\<\/template\>/))
         {
             lines.push(lines[i]);
-            lines[i] = `\t<template h-template="${templateName}" h-source="${componentSource}"></template>`;
+            lines[i] = `\t<template h-template="${templateName}" h-source="${componentSource}"${lazyAttribute}></template>`;
             fs.writeFileSync(templatesFile, lines.join("\n"));
             return;
         }

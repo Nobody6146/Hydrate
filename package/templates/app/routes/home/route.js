@@ -1,5 +1,5 @@
 export const HomeRoute = {
     name: "Home",
     path: "#home",
-    action: async (request) => request.resolve()
+    action: async (request, match) => request.resolve()
 };

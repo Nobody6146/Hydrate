@@ -1454,15 +1454,15 @@ export class HydrateApp {
         if (sourceTemplate !== null) {
             //Load up the attributes
             for (let attribute of sourceTemplate.attributes)
-                if (attribute.name !== templateAttribute && attribute.name !== lazyAttribute)
+                if (attribute.name !== templateAttribute)
                     type.attributes.set(attribute.name, attribute.value);
         }
         for (let attribute of element.attributes)
-            if (attribute.name !== templateAttribute && attribute.name !== lazyAttribute)
+            if (attribute.name !== templateAttribute)
                 type.attributes.set(attribute.name, attribute.value);
         type.attributes.set(this.attribute(this.#options.attribute.names.component), typeName);
         //Remove the lazy attribute to not copy over to component
-        type.attributes.delete(this.attribute(this.#options.attribute.names.lazy));
+        //type.attributes.delete(this.attribute(this.#options.attribute.names.lazy));
         //Set to modeless component by default if no model was specified
         if (!type.attributes.has(modelAttribute))
             type.attributes.set(modelAttribute, "");
