@@ -2524,7 +2524,20 @@
                             </li>
                             <li>Not all attributes work with the routing attribute, so check under the respective attribute to see if it is supported</li>
                             <li>For attributes that support routiing events, they will all respond in some way to a route request even if the route doesn't match. Check the respective attribute details for more information on how it handles routing request</li>
-                            <li></li>
+                            <li>Components with the routing attribute will always be initialized (call "onInit") on the routing events they respond to instead of other events (such as bind, set, etc.) like regular components.
+                                <ul>
+                                    <li>
+                                        To easily pass routing data to the component, you can use <code>HydrateRouteRequest.state</code> to get/set the current browser tab history state
+                                        <ul>
+                                            <li>you can access this route reqeust from the component's "onInit" method as the eventDetails passed will be of type HydrateRouteEventDetails</li>
+                                        </ul>
+                                    </li>
+                                    <li>This is intentional so that if you need to pass routing state to the component (such as from your JS client-side routing event listener)</li>
+                                    <li>Additionally, the component will also be automatically disposed (call "onDispose") and reinitialized (calling "onInit" again), even though the component was already intialized once.
+                                        This is intentional so that way the component's "onInit" method will be a reliable place for initialinzing the component on every route request.
+                                    </li>
+                                </ul>
+                            </li>
                         </ul>
                     </p>
                 </fieldset>
