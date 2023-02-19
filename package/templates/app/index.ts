@@ -2,6 +2,7 @@ import { HydrateApp, HydrateAppOptions, HydrateRoute, HydrateRouteEvent } from "
 
 import { AppRoutes } from "./routes.js";
 import { AppServices } from "./services.js";
+import { LoggerService } from "./services/logger/service.js";
 
 export class App {
     #hydrate:HydrateApp;
@@ -64,6 +65,7 @@ export class App {
     }
 
     async #clientSideRouting(event:HydrateRouteEvent) {
+        let errorMessage:string = null;
         //Load the routing attempt
         const request = event.detail.request;
         try {
@@ -79,9 +81,16 @@ export class App {
             }
         }
         catch(error) {
-            console.error(error);
+            errorMessage = (error instanceof Error) ? error.message : error.toString();
         }
-        //If we fail to fully process handle a route, then reject it and generate an error event
+
+        const logger = this.#hydrate.dependency(LoggerService, this).instance;
+        if(errorMessage === null)
+            errorMessage = "Route could not be resolved";
+        logger.error(errorMessage);
+        request.state = {
+            errorMessage: errorMessage
+        };
         request.reject();
     }
 }

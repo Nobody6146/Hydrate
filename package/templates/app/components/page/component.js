@@ -1,4 +1,24 @@
 import { HydrateComponent } from "../../lib/hydrate/hydrate.js";
+function argName(exp) {
+    return name(exp);
+}
+function propName(exp) {
+    return name(exp);
+}
+function name(exp) {
+    return exp.toString().match(/\=\>\s+[^\.]+\.(.+)/)?.[1];
+}
+export let PageComponentTemplate = `<template>
+    <style h-style>
+    </style>
+    <div h-model="^" h-scaffold="${argName(x => x.this.scaffoldRoute)}(${argName(x => x.$element)}, ${argName(x => x.$detail)})"
+     h-routing="start" h-attribute="h-route: ${name((x) => x.route)}" 
+     h-event="*: ${argName(x => x.this.syncDocumentTitle)}(${argName(x => x.$state)})">
+        <app-loadingpage h-model="^" h-routing="start"></app-loadingpage>
+        <div h-lazy h-routing="resolve" h-scaffold="${argName(x => x.this.scaffoldPage)}(${argName(x => x.$element)}, ${argName(x => x.$detail)})"></div>
+        <app-errorpage h-routing="reject"></app-errorpage>
+    </div>
+</template>`;
 export class PageComponent extends HydrateComponent {
     onInit(eventDetails) {
     }

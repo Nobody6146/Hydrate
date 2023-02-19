@@ -1,4 +1,4 @@
-export let HydrateAppVersion = "1.2.0";
+export let HydrateAppVersion = "1.3.0";
 
 export type HydrateModelEventHandler = (arg:HydrateAttributeArgument, eventDetails:HydrateModelEventDetails|HydrateElementMutationEventDetails|HydrateElementTrackingEventDetails|HydrateElementEventListenerEventDetails) => void;
 export type HydrateModelEventExecuter = {arg:HydrateAttributeArgument, handler:HydrateModelEventHandler};
@@ -1991,10 +1991,10 @@ export class HydrateApp {
             for(let script of scripts)
             {
                 //Look for a class definition script and load it if we find it
-                if(componentBody == null && script.matches(scriptSelector))
+                if(script.matches(scriptSelector))
                 {
                     const {component, template} = await this.#loadStringModule(script.textContent);
-                    type.classDefinition = component;
+                    type.classDefinition = component ?? type.classDefinition;
                     sourceTemplate = template ?? sourceTemplate;
                 }
                 if(!script.matches(bindScriptModelSelector))
@@ -2044,13 +2044,13 @@ export class HydrateApp {
         // return module.default ??  Object.values(module)[0] as HydrateComponentConstructor;
         const blob = new Blob([script], {type: 'text/javascript'});
         const url = URL.createObjectURL(blob);
-        const result = await import(url);
+        const result = await this.#importComponentModule(url);
+        URL.revokeObjectURL(url);
         return result;
     }
 
     async #importComponentModule(url:string): Promise<{component:HydrateComponentConstructor, template:HTMLTemplateElement}> {
         const module = await import(url);
-        URL.revokeObjectURL(url);
         return this.#parseJsComponenModule(module);
     }
 
@@ -2112,7 +2112,7 @@ export class HydrateApp {
         else if(jsTemplate)
             promises.push(Promise.resolve(null), Promise.resolve(null), fetch(url));
         else
-            promises.push(fetch(`${url}/index.html`), fetch(`${url}/index.css`), fetch(`${url}/index.js`));
+            promises.push(fetch(`${url}.html`), fetch(`${url}.css`), fetch(`${url}.js`));
 
         //[fetch(`${url}.html`), fetch(`${url}.css`), fetch(`${url}.js`)]
         return await Promise.allSettled(promises)

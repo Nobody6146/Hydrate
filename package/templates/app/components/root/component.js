@@ -1,5 +1,32 @@
 import { HydrateComponent } from "../../lib/hydrate/hydrate.js";
 import { AppRoutes } from "../../routes.js";
+function argName(exp) {
+    return name(exp);
+}
+function propName(exp) {
+    return name(exp);
+}
+function name(exp) {
+    return exp.toString().match(/\=\>\s+[^\.]+\.(.+)/)?.[1];
+}
+export let RootComponentTemplate = `<template h-model="app" h-init>
+    <style h-style>
+        :root footer i {
+            color: gray;
+        }
+    </style>
+    <header>
+        <nav h-model="^.${propName(x => x.navbar.items)}" h-component="app-navbar"></nav>
+    </header>
+    <main>
+        <app-page h-model="^.${propName(x => x.pages)}"></app-page>
+    </main>
+    <footer>
+        <p>
+            <i>Hydrate 2023</i>
+        </p>
+    </footer>
+</template>`;
 const APP_NAME = "Demo";
 export class RootComponent extends HydrateComponent {
     onInit(eventDetails) {
@@ -16,7 +43,8 @@ export class RootComponent extends HydrateComponent {
                 return {
                     title: `${APP_NAME} - ${x.title}`,
                     route: x.route,
-                    component: x.component
+                    component: x.component,
+                    name: x.title
                 };
             }),
             navbar: {

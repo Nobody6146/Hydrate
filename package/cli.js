@@ -190,7 +190,6 @@ function loadConfig() {
     if(!fs.existsSync(configFile))
         return createConfigFile(configFile);
     const data = fs.readFileSync(configFile).toString();
-    console.log(data);
     return JSON.parse(data);
 }
 
@@ -231,6 +230,8 @@ function processCreateComponentCommand(resourceName, args) {
         console.log("hydrate new component home --init|-i \tcreates a new Hydrate component that will automatically initialize it's model if it isn't already.");
         console.log("hydrate new component home --shadow|-s \tcreates a new Hydrate component that will render using the shadow DOM.");
         console.log("hydrate new component home --model|-m <name> \tcreates a new Hydrate component bound to the model with the specified name.");
+        console.log("hydrate new component home --html|-hmtl \tcreates a new Hydrate component using an HTML file only.");
+        console.log("hydrate new component home --js|-js <name> \tcreates a new Hydrate component using only a JS file");
         console.log("hydrate new component home --route|-r <name> \tcreates a new Hydrate component bound to a route with the path provided.");
         console.log("hydrate new component home --route|-r \tcreates a new Hydrate component bound to the rpute with the \"home\" (same name as the component).");
         console.log();
@@ -244,6 +245,9 @@ function processCreateComponentCommand(resourceName, args) {
 
     const config = loadConfig();
     let prefix = config.componentPrefix;
+
+    let htmlTemplate = false;
+    let jsTemplate = false;
 
     let lazy = false;
     let modifiers = [];
@@ -287,11 +291,22 @@ function processCreateComponentCommand(resourceName, args) {
                     modifiers.push(`h-route="#${route}"`);
                     modifiers.push(`h-routing="resolve"`);
                     break;
+                case "--html":
+                case "-h":
+                    htmlTemplate = true;
+                    jsTemplate = false;
+                    break;
+                case "--js":
+                case "-js":
+                    htmlTemplate = false;
+                    jsTemplate = true;
+                    break;
             }
         }
     }
 
-    const source = `${templateFolder}\\component`;
+    const source  = htmlTemplate ? `${templateFolder}\\component-html` :
+        jsTemplate ? `${templateFolder}\\component-js` : `${templateFolder}\\component`;
     const folder = resourceName.indexOf("\\") > -1 ? resourceName : `components\\${resourceName}`;
     const destination = `${workingDir}\\${folder}`;
     
@@ -304,7 +319,10 @@ function processCreateComponentCommand(resourceName, args) {
     }
     cloneAndFillTemplate(source, destination, replacements);
     const templateFile = `${workingDir}\\templates.html`;
-    addComponentToTemplatesFile(templateFile, replacements.TEMPLATE_NAME, relativeUrl(workingDir, `${destination}`), lazy);
+    const sourceFile = htmlTemplate ? relativeUrl(workingDir, `${destination}\\component.html`) :
+        jsTemplate ?relativeUrl(workingDir, `${destination}\\component.js`)
+        : relativeUrl(workingDir, `${destination}\\component`);
+    addComponentToTemplatesFile(templateFile, replacements.TEMPLATE_NAME, sourceFile, lazy);
 }
 
 function processCreateServiceCommand(resourceName, args) {
@@ -380,7 +398,7 @@ function processCreateRouteCommand(resourceName, args) {
         console.log("hydrate new route <name> \tcreates a new Hydrate route with the given name.");
         console.log("hydrate new route home \tcreates a new Hydrate route with the given name \"Home\" in the default routes folder.");
         console.log("hydrate new route pages/login \tcreates a new Hydrate route with the given name \"Login\" in the folder \"pages\".");
-        console.log("hydrate new route <name> --component|-c \tcreates a new Hydrate route with the given name and creates a component with the same name and path linked to this route.")
+        console.log("hydrate new route <name> --component|-c \tcreates a new Hydrate route with the given name and creates a component with the same name and path linked to this route, as well as passing along any arguments provided.")
         console.log();
     }
     if(resourceName == null)
@@ -426,7 +444,7 @@ function processCreateRouteCommand(resourceName, args) {
 
     if(component)
     {
-        processCreateComponentCommand(component, ["-r", replacements.ROUTE_PATH]);
+        processCreateComponentCommand(component, args);
     }
 }
 

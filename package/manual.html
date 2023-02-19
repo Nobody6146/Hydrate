@@ -269,24 +269,6 @@
                                     </ul>
                                 </li>
                                 <li>
-                                    <b>$script -</b> A function that will return the function denoted with the <a href="#script-attribute">script attribute</a> who's value matches the inputed string
-                                    <ul>
-                                        <li>
-                                            Syntax: <code>function $script(NAME:string)</code>
-                                            <ul>
-                                                <li>
-                                                    <i>NAME -</i> The name of the corresponds the value of the <a href="#script-attribute">Script Attribute</a> you want to access
-                                                </li>
-                                            </ul>
-                                        </li>  
-                                        <li>Example:
-                                            <ul><li>
-                                                <code>&lt;div h-model="default" h-script="calculateSquare" h-property="value: $script('calculateSquare')(value)"&gt;</code>
-                                            </li></ul>
-                                        </li>
-                                    </ul>
-                                </li>
-                                <li>
                                     <b>$id -</b> A function that gets the <a href="#id-attribute">id attribute</a> value of the passed in element
                                     <ul>
                                         <li>
@@ -2038,6 +2020,12 @@
                             <li>If there are multiple script tags with a "h-script" tag, then the last script will win as the component body</li>
                         </ul>
                     </p>
+                    <p>
+                        <b>Warning:</b>
+                        <ul>
+                            <li>Sometimes using this attribute can cause timing issues when loading a component in some Chromium based browsers, resulting in components not properly linking to elements</li>
+                        </ul>
+                    </p>
                 </fieldset>
 
                 <fieldset id="style-attribute">
@@ -2260,9 +2248,10 @@
                     <p>
                         <b>Syntax:</b> HTML Template - <code>&lt;template h-template="app-root" h-source="FILE_URL"&gt;&lt;/script&gt;</code>
                             or Directory Template - <code>&lt;template h-template="app-root" h-source="DIRECTORY_URL"&gt;&lt;/script&gt;</code>
+                            or JS Template - <code>&lt;template h-template="app-root" h-source="FILE_URL"&gt;&lt;/script&gt;</code>
                         <ul>
                             <li>
-                                <i>FILE_URL -</i> The URL path to the HTML file containing the template body for the component
+                                <i>FILE_URL -</i> The URL path to the HTML or JS file containing the template body for the component
                                 <ul>
                                     <li>The contents of the file are identical to if the template was embeded in the DOM</li>
                                     <li>The file name will include the file extension</li>
@@ -2290,6 +2279,7 @@
                                 <ul>
                                     <li><b>HTML Template Syntax:</b> <code>&lt;template h-template="app-root" h-source="/components/about.html"&gt;&lt;/script&gt;</code></li>
                                     <li><b>Directory Template Syntax:</b> <code>&lt;template h-template="app-root" h-source="/components/about"&gt;&lt;/script&gt;</code></li>
+                                    <li><b>JS Template Syntax:</b> <code>&lt;template h-template="app-root" h-source="/components/about.js"&gt;&lt;/script&gt;</code></li>
                                 </ul>
                             </li>
                         </ul>
